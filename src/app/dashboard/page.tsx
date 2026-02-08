@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowRight, Download, Filter, TrendingUp, Clock, Building2, LogOut } from 'lucide-react';
+import { ArrowRight, Download, TrendingUp, Clock, Building2, LogOut } from 'lucide-react';
 import Link from 'next/link';
 
 interface RFP {
@@ -18,74 +18,7 @@ interface RFP {
   publishedAt: string;
 }
 
-// Mock data pour dev - sera remplacé par API
-const MOCK_RFPS: RFP[] = [
-  {
-    id: '1',
-    title: "Développement d'une plateforme numérique de gestion des démarches citoyennes",
-    issuer: 'Mairie de Lyon',
-    deadline: '2026-03-15',
-    score: 85,
-    scoreLabel: 'GO',
-    budget: '150 000 €',
-    region: 'Auvergne-Rhône-Alpes',
-    source: 'BOAMP',
-    url: 'https://www.boamp.fr/avis/detail/26-12345',
-    publishedAt: '2026-02-08',
-  },
-  {
-    id: '2',
-    title: "Refonte du système d'information RH",
-    issuer: 'Conseil Départemental du Rhône',
-    deadline: '2026-03-20',
-    score: 72,
-    scoreLabel: 'GO',
-    budget: '280 000 €',
-    region: 'Auvergne-Rhône-Alpes',
-    source: 'BOAMP',
-    url: 'https://www.boamp.fr/avis/detail/26-12346',
-    publishedAt: '2026-02-07',
-  },
-  {
-    id: '3',
-    title: "Maintenance applicative des outils métiers",
-    issuer: 'CHU de Bordeaux',
-    deadline: '2026-02-28',
-    score: 58,
-    scoreLabel: 'MAYBE',
-    budget: '90 000 €',
-    region: 'Nouvelle-Aquitaine',
-    source: 'BOAMP',
-    url: 'https://www.boamp.fr/avis/detail/26-12347',
-    publishedAt: '2026-02-06',
-  },
-  {
-    id: '4',
-    title: "Étude pour la mise en place d'un datacenter",
-    issuer: 'Région Bretagne',
-    deadline: '2026-04-01',
-    score: 45,
-    scoreLabel: 'MAYBE',
-    budget: '500 000 €',
-    region: 'Bretagne',
-    source: 'TED',
-    url: 'https://ted.europa.eu/notice/123456',
-    publishedAt: '2026-02-05',
-  },
-  {
-    id: '5',
-    title: "Fourniture de licences Microsoft",
-    issuer: 'Académie de Paris',
-    deadline: '2026-02-20',
-    score: 28,
-    scoreLabel: 'PASS',
-    budget: '1 200 000 €',
-    region: 'Île-de-France',
-    source: 'BOAMP',
-    url: 'https://www.boamp.fr/avis/detail/26-12348',
-    publishedAt: '2026-02-04',
-  },
-];
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meragel.vercel.app';
 
 function ScoreBadge({ score, label }: { score: number; label: 'GO' | 'MAYBE' | 'PASS' }) {
   const colors = {
@@ -93,10 +26,10 @@ function ScoreBadge({ score, label }: { score: number; label: 'GO' | 'MAYBE' | '
     MAYBE: 'bg-yellow-500 text-black',
     PASS: 'bg-neutral-700 text-white',
   };
-  
+
   return (
     <div className={`px-3 py-1 font-bold text-sm ${colors[label]}`}>
-      {score}/100 • {label}
+      {score}/100 - {label}
     </div>
   );
 }
@@ -115,45 +48,60 @@ function daysUntil(dateStr: string | null): number | null {
   return diff;
 }
 
+/** Sanitize CSV cell to prevent formula injection */
+function sanitizeCsvCell(value: string): string {
+  const escaped = value.replace(/"/g, '""');
+  if (/^[=+\-@\t\r]/.test(escaped)) {
+    return `'${escaped}`;
+  }
+  return escaped;
+}
+
+function handleLogout() {
+  localStorage.removeItem('lefilonao_token');
+  window.location.href = '/';
+}
+
 export default function DashboardPage() {
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [filter, setFilter] = useState<'all' | 'go' | 'maybe'>('all');
   const [loading, setLoading] = useState(true);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch from API
     const fetchData = async () => {
       try {
-        // Get email from localStorage (set during subscribe)
-        const email = localStorage.getItem('lefilonao_email');
-        if (!email) {
-          // Redirect to subscribe if not logged in
+        const token = localStorage.getItem('lefilonao_token');
+        if (!token) {
           window.location.href = '/subscribe';
           return;
         }
-        
-        setUserEmail(email);
-        
-        const res = await fetch(
-          `https://meragel.vercel.app/api/excalibur/dashboard?email=${encodeURIComponent(email)}`
-        );
-        
+
+        const res = await fetch(`${API_URL}/api/excalibur/dashboard`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (res.status === 401) {
+          localStorage.removeItem('lefilonao_token');
+          window.location.href = '/subscribe';
+          return;
+        }
+
         if (!res.ok) {
           throw new Error('API error');
         }
-        
+
         const data = await res.json();
         setRfps(data.rfps || []);
-      } catch (error) {
-        console.error('Failed to fetch RFPs:', error);
-        // Fallback to mock data for demo
-        setRfps(MOCK_RFPS);
+      } catch {
+        setError('Impossible de charger les données. Réessayez plus tard.');
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
 
@@ -166,21 +114,21 @@ export default function DashboardPage() {
   const stats = {
     total: rfps.length,
     go: rfps.filter(r => r.scoreLabel === 'GO').length,
-    avgScore: Math.round(rfps.reduce((acc, r) => acc + r.score, 0) / rfps.length) || 0,
+    avgScore: rfps.length > 0 ? Math.round(rfps.reduce((acc, r) => acc + r.score, 0) / rfps.length) : 0,
   };
 
   const exportCSV = () => {
-    const headers = ['Titre', 'Émetteur', 'Score', 'Budget', 'Deadline', 'Région', 'URL'];
+    const headers = ['Titre', 'Emetteur', 'Score', 'Budget', 'Deadline', 'Region', 'URL'];
     const rows = filteredRfps.map(r => [
-      r.title,
-      r.issuer,
+      sanitizeCsvCell(r.title),
+      sanitizeCsvCell(r.issuer),
       `${r.score}/100`,
-      r.budget || '',
+      sanitizeCsvCell(r.budget || ''),
       r.deadline || '',
-      r.region || '',
-      r.url,
+      sanitizeCsvCell(r.region || ''),
+      sanitizeCsvCell(r.url),
     ]);
-    
+
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -188,6 +136,7 @@ export default function DashboardPage() {
     link.href = url;
     link.download = `lefilonao-export-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -198,23 +147,36 @@ export default function DashboardPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+        <div className="text-center">
+          <p className="text-xl text-red-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-colors"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <header className="border-b border-neutral-800 p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="text-xl font-black">
-              <span className="text-yellow-500">Le Filon</span> AO
-            </Link>
-            <nav className="flex gap-4 text-sm">
-              <Link href="/dashboard" className="text-yellow-500 font-medium">Mes AO</Link>
-              <Link href="/dashboard/market" className="text-neutral-400 hover:text-white">Market Intel 🎯</Link>
-            </nav>
-          </div>
+          <Link href="/" className="text-xl font-black">
+            <span className="text-yellow-500">Le Filon</span> AO
+          </Link>
           <div className="flex items-center gap-4">
-            <span className="text-neutral-400 text-sm">{userEmail}</span>
-            <button className="p-2 hover:bg-neutral-800 transition-colors">
+            <button
+              onClick={handleLogout}
+              className="p-2 hover:bg-neutral-800 transition-colors"
+              title="Se déconnecter"
+            >
               <LogOut className="w-5 h-5" />
             </button>
           </div>
@@ -225,14 +187,14 @@ export default function DashboardPage() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="border border-neutral-800 p-6">
-            <div className="text-neutral-400 text-sm mb-1">Appels d'offres</div>
+            <div className="text-neutral-400 text-sm mb-1">Appels d&apos;offres</div>
             <div className="text-3xl font-black">{stats.total}</div>
             <div className="text-neutral-500 text-sm">cette semaine</div>
           </div>
           <div className="border border-neutral-800 p-6">
             <div className="text-neutral-400 text-sm mb-1">Opportunités GO</div>
             <div className="text-3xl font-black text-green-500">{stats.go}</div>
-            <div className="text-neutral-500 text-sm">score ≥70</div>
+            <div className="text-neutral-500 text-sm">score &ge;70</div>
           </div>
           <div className="border border-neutral-800 p-6">
             <div className="text-neutral-400 text-sm mb-1">Score moyen</div>
@@ -269,7 +231,7 @@ export default function DashboardPage() {
               GO + À étudier
             </button>
           </div>
-          
+
           <button
             onClick={exportCSV}
             className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 transition-colors"
@@ -284,7 +246,7 @@ export default function DashboardPage() {
           {filteredRfps.map(rfp => {
             const daysLeft = daysUntil(rfp.deadline);
             const isUrgent = daysLeft !== null && daysLeft <= 7;
-            
+
             return (
               <div
                 key={rfp.id}
@@ -299,15 +261,15 @@ export default function DashboardPage() {
                       <span className="text-xs text-neutral-500 bg-neutral-900 px-2 py-1">
                         {rfp.source}
                       </span>
-                      {isUrgent && (
+                      {isUrgent && daysLeft !== null && (
                         <span className="text-xs text-red-500 bg-red-950 px-2 py-1 font-medium">
-                          ⚠️ {daysLeft}j restants
+                          {daysLeft}j restants
                         </span>
                       )}
                     </div>
-                    
+
                     <h3 className="text-lg font-bold mb-2">{rfp.title}</h3>
-                    
+
                     <div className="flex flex-wrap gap-4 text-sm text-neutral-400">
                       <div className="flex items-center gap-1">
                         <Building2 className="w-4 h-4" />
@@ -325,19 +287,19 @@ export default function DashboardPage() {
                       </div>
                       {rfp.region && (
                         <div className="text-neutral-500">
-                          📍 {rfp.region}
+                          {rfp.region}
                         </div>
                       )}
                     </div>
                   </div>
-                  
+
                   <a
                     href={rfp.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-colors whitespace-nowrap"
                   >
-                    Voir l'AO
+                    Voir l&apos;AO
                     <ArrowRight className="w-4 h-4" />
                   </a>
                 </div>
@@ -348,7 +310,7 @@ export default function DashboardPage() {
 
         {filteredRfps.length === 0 && (
           <div className="text-center py-16 text-neutral-500">
-            Aucun appel d'offres ne correspond à vos critères.
+            Aucun appel d&apos;offres ne correspond à vos critères.
           </div>
         )}
       </div>

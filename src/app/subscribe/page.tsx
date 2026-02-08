@@ -96,7 +96,6 @@ function SubscribeForm() {
     setError(null);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      console.log('[Subscribe] API URL:', apiUrl, 'Plan:', plan);
       
       // First, create the subscriber
       const res = await fetch(`${apiUrl}/api/excalibur/subscribe`, {
@@ -109,7 +108,6 @@ function SubscribeForm() {
       });
       
       const data = await res.json();
-      console.log('[Subscribe] Response:', res.status, data);
       
       if (!res.ok) {
         // If already subscribed, still allow checkout
@@ -119,21 +117,24 @@ function SubscribeForm() {
         }
       }
       
+      // Save auth token for dashboard access
+      const authToken = data.token;
+      if (authToken) {
+        localStorage.setItem('lefilonao_token', authToken);
+      }
+
       // If a paid plan is selected, redirect to Stripe checkout
       if (plan && (plan === 'starter' || plan === 'pro')) {
-        console.log('[Subscribe] Redirecting to Stripe checkout...');
-        const checkoutRes = await fetch(`${apiUrl}/api/excalibur/checkout`, {
+          const checkoutRes = await fetch(`${apiUrl}/api/excalibur/checkout`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: formData.email,
-            plan: plan,
-          }),
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+          },
         });
         
         const checkoutData = await checkoutRes.json();
-        console.log('[Subscribe] Checkout response:', checkoutData);
-        
+          
         if (checkoutRes.ok && checkoutData.url) {
           window.location.href = checkoutData.url;
           return;
@@ -143,13 +144,9 @@ function SubscribeForm() {
         }
       }
       
-      // Save email for dashboard access
-      localStorage.setItem('lefilonao_email', formData.email);
-      
       // Free signup - show success
       setSuccess(true);
     } catch (err) {
-      console.error('Subscription error:', err);
       setError('Erreur de connexion. Réessayez.');
     } finally {
       setLoading(false);
@@ -260,7 +257,7 @@ function SubscribeForm() {
               />
               <button
                 onClick={() => setStep(2)}
-                disabled={!formData.email.includes('@')}
+                disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(formData.email)}
                 className="w-full bg-white text-black p-4 font-bold text-lg disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 Continuer <ArrowRight className="w-5 h-5" />

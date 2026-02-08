@@ -7,7 +7,6 @@ import { Suspense } from 'react';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get('session_id');
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
@@ -55,11 +54,7 @@ function SuccessContent() {
           </a>
         </div>
         
-        {sessionId && (
-          <p className="mt-8 text-sm text-neutral-600">
-            Référence: {sessionId.slice(0, 20)}...
-          </p>
-        )}
+
       </div>
     </div>
   );
