@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { CheckCircle, Zap, Building2, ArrowRight } from 'lucide-react';
 
 const SECTORS = [
@@ -54,7 +55,10 @@ const REGIONS = [
   'Toute la France',
 ];
 
-export default function SubscribePage() {
+function SubscribeForm() {
+  const searchParams = useSearchParams();
+  const plan = searchParams.get('plan'); // starter, pro, or null
+  
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -92,25 +96,55 @@ export default function SubscribePage() {
     setError(null);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      console.log('[Subscribe] API URL:', apiUrl);
+      console.log('[Subscribe] API URL:', apiUrl, 'Plan:', plan);
       
+      // First, create the subscriber
       const res = await fetch(`${apiUrl}/api/excalibur/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          source: 'landing-page',
+          source: plan ? `pricing-${plan}` : 'landing-page',
         }),
       });
       
       const data = await res.json();
       console.log('[Subscribe] Response:', res.status, data);
       
-      if (res.ok) {
-        setSuccess(true);
-      } else {
-        setError(data.error || `Erreur ${res.status}`);
+      if (!res.ok) {
+        // If already subscribed, still allow checkout
+        if (res.status !== 409) {
+          setError(data.error || `Erreur ${res.status}`);
+          return;
+        }
       }
+      
+      // If a paid plan is selected, redirect to Stripe checkout
+      if (plan && (plan === 'starter' || plan === 'pro')) {
+        console.log('[Subscribe] Redirecting to Stripe checkout...');
+        const checkoutRes = await fetch(`${apiUrl}/api/excalibur/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            plan: plan,
+          }),
+        });
+        
+        const checkoutData = await checkoutRes.json();
+        console.log('[Subscribe] Checkout response:', checkoutData);
+        
+        if (checkoutRes.ok && checkoutData.url) {
+          window.location.href = checkoutData.url;
+          return;
+        } else {
+          setError(checkoutData.error || 'Erreur lors du paiement');
+          return;
+        }
+      }
+      
+      // Free signup - show success
+      setSuccess(true);
     } catch (err) {
       console.error('Subscription error:', err);
       setError('Erreur de connexion. Réessayez.');
@@ -318,9 +352,11 @@ export default function SubscribePage() {
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="flex-1 bg-white text-black p-4 font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+                  className={`flex-1 p-4 font-bold disabled:opacity-50 flex items-center justify-center gap-2 ${
+                    plan ? 'bg-yellow-500 text-black' : 'bg-white text-black'
+                  }`}
                 >
-                  {loading ? 'Inscription...' : 'S\'inscrire gratuitement'}
+                  {loading ? 'Redirection...' : (plan ? `Démarrer l'essai ${plan.charAt(0).toUpperCase() + plan.slice(1)}` : 'S\'inscrire gratuitement')}
                 </button>
               </div>
             </div>
@@ -341,5 +377,17 @@ export default function SubscribePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function SubscribePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="animate-pulse text-xl">Chargement...</div>
+      </div>
+    }>
+      <SubscribeForm />
+    </Suspense>
   );
 }
