@@ -4,14 +4,42 @@ import { useState } from 'react';
 import { CheckCircle, Zap, Building2, ArrowRight } from 'lucide-react';
 
 const SECTORS = [
-  'Développement Web',
-  'Intelligence Artificielle',
+  // IT & Digital
+  'Développement Web & Logiciel',
+  'Intelligence Artificielle & ML',
   'Cloud & Infrastructure',
   'Cybersécurité',
   'Data & Analytics',
   'Applications Mobiles',
-  'Conseil IT',
+  'Conseil IT & Digital',
   'Intégration Systèmes',
+  // BTP & Construction
+  'BTP & Travaux Publics',
+  'Architecture & Urbanisme',
+  'Génie Civil',
+  'Rénovation Énergétique',
+  // Ingénierie & Industrie
+  'Ingénierie Industrielle',
+  'Électronique & Électricité',
+  'Mécanique & Maintenance',
+  'Environnement & Déchets',
+  // Services
+  'Formation & Éducation',
+  'Communication & Marketing',
+  'Études & Conseil',
+  'Services Juridiques',
+  'Comptabilité & Finance',
+  // Santé & Social
+  'Santé & Médical',
+  'Services Sociaux',
+  // Transport & Logistique
+  'Transport & Mobilité',
+  'Logistique & Supply Chain',
+  // Autres
+  'Restauration & Traiteur',
+  'Nettoyage & Propreté',
+  'Sécurité & Gardiennage',
+  'Événementiel',
 ];
 
 const REGIONS = [
