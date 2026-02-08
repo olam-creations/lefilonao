@@ -143,6 +143,9 @@ function SubscribeForm() {
         }
       }
       
+      // Save email for dashboard access
+      localStorage.setItem('lefilonao_email', formData.email);
+      
       // Free signup - show success
       setSuccess(true);
     } catch (err) {
@@ -162,6 +165,13 @@ function SubscribeForm() {
           <p className="text-neutral-400 mb-6">
             Vous recevrez votre premier digest d'appels d'offres très bientôt.
           </p>
+          <a
+            href="/dashboard"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-colors mb-6"
+          >
+            Accéder au dashboard
+            <ArrowRight className="w-4 h-4" />
+          </a>
           <div className="bg-neutral-900 border border-neutral-800 p-4 text-left">
             <p className="text-sm text-neutral-500 mb-2">Votre profil:</p>
             <p className="font-mono text-sm">
