@@ -1,10 +1,6 @@
-# Excalibur Web
+# FilonAO
 
-Public frontend for Excalibur RFP Alert Service.
-
-## Status
-
-Awaiting domain name decision.
+Trouvez le filon des marches publics.
 
 ## Stack
 
@@ -12,34 +8,29 @@ Awaiting domain name decision.
 - Tailwind CSS 4
 - Vercel deployment
 
-## Pages
+## Features
 
-- `/` - Landing page
-- `/subscribe` - Multi-step signup form
-- `/pricing` - Plans comparison
-
-## API
-
-Connects to Meragel internal API:
-```
-POST /api/excalibur/subscribe
-GET  /api/excalibur/plans
-```
-
-## Domain Candidates
-
-- vigie-ao.fr
-- filon-ao.fr
-- gomarche.fr
-- veillego.fr
+- Alertes AO personnalisees
+- Score Go/No-Go IA
+- 3 AO/mois gratuits
 
 ## Development
 
 ```bash
 npm install
-npm run dev  # Port 3050
+npm run dev  # http://localhost:3050
 ```
+
+## Deployment
+
+```bash
+vercel --prod
+```
+
+## Domain
+
+https://filonao.com
 
 ---
 
-Part of Metatron Labs.
+Metatron Labs 2026

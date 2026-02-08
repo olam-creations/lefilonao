@@ -106,9 +106,8 @@ export default function SubscribePage() {
       {/* Header */}
       <header className="border-b border-neutral-800 p-6">
         <div className="max-w-4xl mx-auto flex items-center gap-3">
-          <span className="text-3xl">⚔️</span>
-          <span className="text-2xl font-bold">Excalibur</span>
-          <span className="text-neutral-500 text-sm">by Metatron Labs</span>
+          <span className="text-3xl font-black text-yellow-500">FILON</span>
+          <span className="text-2xl font-bold">AO</span>
         </div>
       </header>
 
