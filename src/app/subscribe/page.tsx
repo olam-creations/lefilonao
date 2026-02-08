@@ -135,7 +135,7 @@ export default function SubscribePage() {
       <header className="border-b border-neutral-800 p-6">
         <div className="max-w-4xl mx-auto flex items-center gap-2">
           <span className="text-2xl font-black"><span className="text-yellow-500">Le Filon</span> AO</span>
-          <span className="text-neutral-600 text-sm ml-2">| Veille marches publics</span>
+          <span className="text-neutral-600 text-sm ml-2">| Veille marchés publics</span>
         </div>
       </header>
 
@@ -154,13 +154,13 @@ export default function SubscribePage() {
           </p>
           <div className="flex gap-4 justify-center text-sm text-neutral-500">
             <span className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" /> 3 RFPs/mois gratuits
+              <CheckCircle className="w-4 h-4 text-green-500" /> 3 AO/mois gratuits
             </span>
             <span className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-500" /> Score de compatibilité
             </span>
             <span className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" /> Aucune carte requise
+              <CheckCircle className="w-4 h-4 text-green-500" /> Sans carte bancaire
             </span>
           </div>
         </div>
