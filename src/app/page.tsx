@@ -9,20 +9,26 @@ export default function LandingPage() {
       {/* Header */}
       <header className="border-b border-neutral-800 p-6">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <span className="text-2xl font-black">
+          <Link href="/" className="text-2xl font-black">
             <span className="text-yellow-500">Le Filon</span> AO
-          </span>
-          <div className="flex gap-4">
-            <Link href="/pricing" className="px-4 py-2 text-neutral-400 hover:text-white transition-colors">
+          </Link>
+          <nav className="flex items-center gap-6">
+            <Link href="/#how" className="text-neutral-400 hover:text-white transition-colors hidden md:block">
+              Comment ça marche
+            </Link>
+            <Link href="/pricing" className="text-neutral-400 hover:text-white transition-colors">
               Tarifs
             </Link>
-            <Link 
-              href="/subscribe" 
-              className="px-4 py-2 bg-white text-black font-bold hover:bg-neutral-200 transition-colors"
-            >
-              Essai gratuit
+            <Link href="/subscribe" className="text-neutral-400 hover:text-white transition-colors">
+              S'inscrire
             </Link>
-          </div>
+            <Link 
+              href="/pricing" 
+              className="px-4 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-colors"
+            >
+              Essai gratuit →
+            </Link>
+          </nav>
         </div>
       </header>
 
@@ -126,7 +132,7 @@ export default function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section className="py-20 px-6 border-t border-neutral-800">
+      <section id="how" className="py-20 px-6 border-t border-neutral-800">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
             Comment ça marche
