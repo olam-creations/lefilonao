@@ -203,9 +203,15 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="border-b border-neutral-800 p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-xl font-black">
-            <span className="text-yellow-500">Le Filon</span> AO
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link href="/" className="text-xl font-black">
+              <span className="text-yellow-500">Le Filon</span> AO
+            </Link>
+            <nav className="flex gap-4 text-sm">
+              <Link href="/dashboard" className="text-yellow-500 font-medium">Mes AO</Link>
+              <Link href="/dashboard/market" className="text-neutral-400 hover:text-white">Market Intel 🎯</Link>
+            </nav>
+          </div>
           <div className="flex items-center gap-4">
             <span className="text-neutral-400 text-sm">{userEmail}</span>
             <button className="p-2 hover:bg-neutral-800 transition-colors">
