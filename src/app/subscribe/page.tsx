@@ -58,6 +58,7 @@ export default function SubscribePage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
@@ -88,8 +89,11 @@ export default function SubscribePage() {
 
   const handleSubmit = async () => {
     setLoading(true);
+    setError(null);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      console.log('[Subscribe] API URL:', apiUrl);
+      
       const res = await fetch(`${apiUrl}/api/excalibur/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,11 +103,17 @@ export default function SubscribePage() {
         }),
       });
       
+      const data = await res.json();
+      console.log('[Subscribe] Response:', res.status, data);
+      
       if (res.ok) {
         setSuccess(true);
+      } else {
+        setError(data.error || `Erreur ${res.status}`);
       }
-    } catch (error) {
-      console.error('Subscription error:', error);
+    } catch (err) {
+      console.error('Subscription error:', err);
+      setError('Erreur de connexion. Réessayez.');
     } finally {
       setLoading(false);
     }
@@ -291,6 +301,12 @@ export default function SubscribePage() {
                   className="w-full"
                 />
               </div>
+              
+              {error && (
+                <div className="mb-4 p-4 bg-red-900/50 border border-red-500 text-red-200">
+                  {error}
+                </div>
+              )}
               
               <div className="flex gap-4">
                 <button
