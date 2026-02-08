@@ -133,23 +133,24 @@ export default function SubscribePage() {
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <header className="border-b border-neutral-800 p-6">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
-          <span className="text-sm text-neutral-500 mr-1">Le</span>
-          <span className="text-3xl font-black text-yellow-500">FILON</span>
-          <span className="text-2xl font-bold">AO</span>
+        <div className="max-w-4xl mx-auto flex items-center gap-2">
+          <span className="text-2xl font-black"><span className="text-yellow-500">Le Filon</span> AO</span>
+          <span className="text-neutral-600 text-sm ml-2">| Veille marches publics</span>
         </div>
       </header>
 
       {/* Hero */}
       <section className="py-16 px-6 border-b border-neutral-800">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
-            Les meilleurs appels d'offres<br />
-            <span className="text-neutral-400">livrés dans votre inbox</span>
+          <h1 className="text-4xl md:text-6xl font-black mb-6">
+            <span className="text-yellow-500">Le filon</span> d'appels d'offres
           </h1>
-          <p className="text-xl text-neutral-400 mb-8 max-w-2xl mx-auto">
-            On scanne les marchés publics 24/7. Vous recevez uniquement les opportunités 
-            qui matchent votre expertise. Gratuit.
+          <p className="text-xl md:text-2xl text-neutral-300 mb-4">
+            Trouvez les marchés publics faits pour vous.
+          </p>
+          <p className="text-lg text-neutral-500 mb-8 max-w-2xl mx-auto">
+            On scanne le BOAMP et les sources officielles 24/7. 
+            Vous recevez uniquement les AO qui matchent votre expertise, avec un score Go/No-Go.
           </p>
           <div className="flex gap-4 justify-center text-sm text-neutral-500">
             <span className="flex items-center gap-2">
