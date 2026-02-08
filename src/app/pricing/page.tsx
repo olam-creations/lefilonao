@@ -5,56 +5,63 @@ import Link from 'next/link';
 
 const PLANS = [
   {
-    name: 'Découverte',
-    price: 0,
-    period: 'gratuit',
-    description: 'Pour tester le service',
+    name: 'Starter',
+    price: 29,
+    period: '/mois',
+    yearlyPrice: '348€/an',
+    description: 'Pour démarrer sur les marchés publics',
     icon: Zap,
     features: [
-      '3 appels d\'offres par mois',
-      'Digest hebdomadaire',
-      'Score de compatibilité',
-      'Accès BOAMP',
+      'Appels d\'offres illimités',
+      'Alertes quotidiennes',
+      'Score Go/No-Go',
+      'Accès BOAMP complet',
+      'Historique 30 jours',
     ],
-    cta: 'Commencer gratuitement',
-    href: '/subscribe',
+    cta: 'Essai gratuit 14 jours',
+    href: '/subscribe?plan=starter',
     popular: false,
+    savings: '4x moins cher que la concurrence',
   },
   {
-    name: 'Professionnel',
-    price: 99,
+    name: 'Pro',
+    price: 79,
     period: '/mois',
+    yearlyPrice: '948€/an',
     description: 'Pour les entreprises actives',
     icon: Building2,
     features: [
-      'Appels d\'offres illimités',
+      'Tout Starter +',
       'Alertes temps réel',
-      'Analyse approfondie incluse',
-      'Accès BOAMP + TED Europa',
+      'BOAMP + TED + sources régionales',
+      'Analyse IA détaillée',
+      'Export Excel/CSV',
       'Support prioritaire',
-      'Export CSV/Excel',
     ],
-    cta: 'Passer à Pro',
+    cta: 'Essai gratuit 14 jours',
     href: '/subscribe?plan=pro',
     popular: true,
+    savings: '2x moins cher que la concurrence',
   },
   {
-    name: 'Entreprise',
-    price: 299,
+    name: 'Business',
+    price: 199,
     period: '/mois',
-    description: 'Pour les grandes structures',
+    yearlyPrice: '2 388€/an',
+    description: 'Pour les équipes et grandes structures',
     icon: Crown,
     features: [
-      'Tout Professionnel +',
-      'API access',
-      'Rédaction assistée IA',
+      'Tout Pro +',
+      'Accès API',
+      'Multi-utilisateurs (5 inclus)',
       'Account manager dédié',
       'Intégration CRM',
       'SLA 99.9%',
     ],
     cta: 'Nous contacter',
-    href: 'mailto:contact@lefilonao.com?subject=Offre%20Entreprise',
+    href: 'mailto:contact@lefilonao.com?subject=Offre%20Business',
     popular: false,
+    savings: null,
   },
 ];
 
@@ -109,14 +116,14 @@ export default function PricingPage() {
                 <h2 className="text-xl font-bold">{plan.name}</h2>
               </div>
               
-              <div className="mb-4">
-                <span className="text-4xl font-black">
-                  {plan.price === 0 ? 'Gratuit' : `${plan.price}€`}
-                </span>
-                {plan.price > 0 && (
-                  <span className="text-neutral-500">{plan.period}</span>
-                )}
+              <div className="mb-2">
+                <span className="text-4xl font-black">{plan.price}€</span>
+                <span className="text-neutral-500">{plan.period}</span>
               </div>
+              <p className="text-sm text-neutral-500 mb-2">{plan.yearlyPrice}</p>
+              {plan.savings && (
+                <p className="text-sm text-green-500 font-medium mb-2">✓ {plan.savings}</p>
+              )}
               
               <p className="text-neutral-400 mb-6">{plan.description}</p>
               
