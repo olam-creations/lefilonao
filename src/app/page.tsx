@@ -36,7 +36,7 @@ export default function LandingPage() {
       <section className="py-24 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-block px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-sm font-medium mb-8">
-            🎯 4x moins cher que la concurrence
+            🎯 3x moins cher que la concurrence
           </div>
           
           <h1 className="text-5xl md:text-7xl font-black mb-6 leading-tight">
@@ -123,7 +123,7 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="text-green-500 mt-1">✓</span>
-                  <span>À partir de 29€/mois (4x moins cher)</span>
+                  <span>50€/mois tout inclus (3x moins cher)</span>
                 </li>
               </ul>
             </div>
@@ -179,21 +179,14 @@ export default function LandingPage() {
             Tarifs <span className="text-yellow-500">disruptifs</span>
           </h2>
           <p className="text-xl text-neutral-400 mb-8">
-            La concurrence facture 1 500 à 4 000€/an. Nous, on commence à 29€/mois.
+            La concurrence facture 1 500 à 4 000€/an. Nous, c'est 50€/mois tout inclus.
           </p>
-          
-          <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <div className="border border-neutral-800 p-6">
-              <div className="text-2xl font-bold">29€<span className="text-neutral-500 text-lg">/mois</span></div>
-              <div className="text-neutral-400">Starter</div>
-            </div>
-            <div className="border border-yellow-500 p-6 bg-yellow-500/5">
-              <div className="text-2xl font-bold">79€<span className="text-neutral-500 text-lg">/mois</span></div>
-              <div className="text-yellow-500">Pro</div>
-            </div>
-            <div className="border border-neutral-800 p-6">
-              <div className="text-2xl font-bold">199€<span className="text-neutral-500 text-lg">/mois</span></div>
-              <div className="text-neutral-400">Business</div>
+
+          <div className="max-w-sm mx-auto mb-12">
+            <div className="border-2 border-yellow-500 p-6 bg-yellow-500/5">
+              <div className="text-3xl font-black">50€<span className="text-neutral-500 text-lg">/mois</span></div>
+              <div className="text-yellow-500 font-bold">Pro — Tout inclus</div>
+              <div className="text-neutral-400 text-sm mt-1">600€/an · Essai gratuit 14 jours</div>
             </div>
           </div>
           
