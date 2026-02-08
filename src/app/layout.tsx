@@ -2,12 +2,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'FilonAO | Trouvez le filon des marches publics',
+  title: 'Le Filon AO | Trouvez le filon des marches publics',
   description: 'Alertes appels d\'offres qui matchent votre expertise. Score Go/No-Go IA. 3 AO/mois gratuits.',
   openGraph: {
-    title: 'FilonAO - Le filon des marches publics',
+    title: 'Le Filon AO - Trouvez votre filon',
     description: 'Recevez uniquement les AO qui vous correspondent. Gratuit.',
-    url: 'https://filonao.com',
+    url: 'https://lefilonao.com',
   },
 };
 
