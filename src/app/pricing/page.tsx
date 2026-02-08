@@ -3,8 +3,8 @@
 import { Check, Zap, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
-// CONFIG: Un seul prix à modifier ici
-const PRICE = 49; // €/mois — à confirmer avec Isaac
+// CONFIG: Prix unique
+const PRICE = 50; // €/mois
 
 const FEATURES = [
   'Appels d\'offres illimités',
