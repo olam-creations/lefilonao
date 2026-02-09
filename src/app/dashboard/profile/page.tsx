@@ -12,6 +12,7 @@ import CompanyInfoCard from '@/components/profile/CompanyInfoCard';
 import AdminDocumentsCard from '@/components/profile/AdminDocumentsCard';
 import TeamReferencesCard from '@/components/profile/TeamReferencesCard';
 import SectorsRegionsCard from '@/components/profile/SectorsRegionsCard';
+import CachetUploadCard from '@/components/profile/CachetUploadCard';
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<CompanyProfile>(MOCK_COMPANY_PROFILE);
@@ -154,6 +155,14 @@ export default function ProfilePage() {
     });
   }, []);
 
+  const handleSaveCachet = useCallback((base64: string | undefined) => {
+    setProfile((prev) => {
+      const next = { ...prev, cachetBase64: base64 };
+      saveCompanyProfile(next);
+      return next;
+    });
+  }, []);
+
   const validDocs = profile.documents.filter((d) => d.status === 'valid' || d.status === 'expiring').length;
   const totalDocs = profile.documents.length;
   const cvCount = profile.team.filter((m) => m.cvFileId).length;
@@ -243,6 +252,10 @@ export default function ProfilePage() {
             sectors={profile.sectors}
             regions={profile.regions}
             onSave={handleSaveSectorsRegions}
+          />
+          <CachetUploadCard
+            cachetBase64={profile.cachetBase64}
+            onSave={handleSaveCachet}
           />
         </div>
       </div>

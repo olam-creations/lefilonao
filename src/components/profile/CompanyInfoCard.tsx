@@ -9,9 +9,9 @@ interface CompanyInfoCardProps {
   onSave: (updated: CompanyProfile) => void;
 }
 
-type StringField = {
+type StringField = Exclude<{
   [K in keyof CompanyProfile]: CompanyProfile[K] extends string ? K : never;
-}[keyof CompanyProfile];
+}[keyof CompanyProfile], undefined>;
 
 const identityFields: { key: StringField; label: string; placeholder: string; half?: boolean }[] = [
   { key: 'companyName', label: 'Raison sociale', placeholder: 'Nom de l\'entreprise' },

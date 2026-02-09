@@ -113,6 +113,7 @@ export interface CompanyProfile {
   references: ProjectReference[];
   sectors: string[];
   regions: string[];
+  cachetBase64?: string;
 }
 
 export const MOCK_COMPANY_PROFILE: CompanyProfile = {
