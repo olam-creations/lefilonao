@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -33,6 +33,8 @@ export default function Header({ variant = 'public', activePage, backHref, right
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authed, setAuthed] = useState(false);
   const pathname = usePathname();
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setAuthed(isAuthenticated());
@@ -49,14 +51,56 @@ export default function Header({ variant = 'public', activePage, backHref, right
     setMobileOpen(false);
   }, [pathname]);
 
+  // Focus trap: trap Tab inside mobile overlay, auto-focus close button
   useEffect(() => {
     if (!mobileOpen) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMobileOpen(false);
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+
+    const closeBtn = overlay.querySelector<HTMLElement>('[aria-label="Fermer le menu"]');
+    closeBtn?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileOpen(false);
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      const focusable = overlay.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      triggerRef.current?.focus();
+    };
   }, [mobileOpen]);
+
+  // Sync auth state across browser tabs via storage events
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'lefilonao_token' || e.key === null) {
+        setAuthed(isAuthenticated());
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const handleLogout = useCallback(() => {
     clearToken();
@@ -157,6 +201,7 @@ export default function Header({ variant = 'public', activePage, backHref, right
 
             {/* Mobile hamburger */}
             <button
+              ref={triggerRef}
               className="md:hidden p-2 rounded-lg hover:bg-slate-100"
               onClick={() => setMobileOpen(true)}
               aria-label="Ouvrir le menu"
@@ -171,6 +216,7 @@ export default function Header({ variant = 'public', activePage, backHref, right
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
+            ref={overlayRef}
             className="fixed inset-0 z-50 bg-white"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
