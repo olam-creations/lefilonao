@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, TrendingUp, Clock, Sparkles, AlertTriangle, XCircle } from 'lucide-react';
+import { Building2, TrendingUp, Clock, Sparkles, AlertTriangle, XCircle, Upload } from 'lucide-react';
 import { formatDate, daysUntil } from '@/lib/ao-utils';
 import type { Recommendation } from '@/lib/dev';
 
@@ -13,6 +13,8 @@ interface AoHeroHeaderProps {
   score: number;
   scoreLabel: 'GO' | 'MAYBE' | 'PASS';
   recommendation: Recommendation;
+  dceAnalyzed?: boolean;
+  onAnalyzeDce?: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -23,6 +25,7 @@ const VERDICT_STYLES = {
 
 export default function AoHeroHeader({
   title, issuer, budget, deadline, region, score, scoreLabel, recommendation,
+  dceAnalyzed, onAnalyzeDce,
 }: AoHeroHeaderProps) {
   const daysLeft = daysUntil(deadline);
   const config = VERDICT_STYLES[recommendation.verdict];
@@ -55,9 +58,21 @@ export default function AoHeroHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-sm text-slate-600">
-        <Icon className={`w-4 h-4 ${config.iconColor}`} />
-        <span className="font-medium">{recommendation.headline}</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <Icon className={`w-4 h-4 ${config.iconColor}`} />
+          <span className="font-medium">{recommendation.headline}</span>
+        </div>
+        {!dceAnalyzed && onAnalyzeDce && (
+          <button
+            onClick={onAnalyzeDce}
+            className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg"
+          >
+            <Upload className="w-4 h-4" />
+            <span className="hidden sm:inline">Analyser un DCE</span>
+            <span className="sm:hidden">DCE</span>
+          </button>
+        )}
       </div>
     </div>
   );

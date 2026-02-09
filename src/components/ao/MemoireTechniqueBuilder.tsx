@@ -1,15 +1,23 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Pencil } from 'lucide-react';
+import { Pencil, Sparkles, Loader2 } from 'lucide-react';
 import { fadeUp } from '@/lib/motion-variants';
 import MemoireSection from './MemoireSection';
-import type { TechnicalPlanSection } from '@/lib/dev';
+import type { TechnicalPlanSection, CompanyProfile, SelectionCriteria } from '@/lib/dev';
+import type { CoachSuggestion, CoachResponse } from '@/lib/dev';
+import AiCoachPanel from './AiCoachPanel';
+import { saveGeneratedSections, getGeneratedSections } from '@/lib/ao-storage';
 
 interface MemoireTechniqueBuilderProps {
   sections: TechnicalPlanSection[];
   reviewed: Record<string, boolean>;
   onToggleReviewed: (sectionId: string) => void;
+  profile?: CompanyProfile | null;
+  dceContext?: string;
+  selectionCriteria?: SelectionCriteria[];
+  aoId?: string;
 }
 
 function ProgressRing({ current, total }: { current: number; total: number }) {
@@ -46,8 +54,128 @@ function ProgressRing({ current, total }: { current: number; total: number }) {
   );
 }
 
-export default function MemoireTechniqueBuilder({ sections, reviewed, onToggleReviewed }: MemoireTechniqueBuilderProps) {
+export default function MemoireTechniqueBuilder({
+  sections, reviewed, onToggleReviewed,
+  profile, dceContext, selectionCriteria, aoId,
+}: MemoireTechniqueBuilderProps) {
   const reviewedCount = Object.values(reviewed).filter(Boolean).length;
+  const [generatingAll, setGeneratingAll] = useState(false);
+  const [coachData, setCoachData] = useState<CoachResponse | null>(null);
+  const [coachLoading, setCoachLoading] = useState(false);
+
+  const handleSectionUpdated = useCallback((sectionId: string, newDraft: string) => {
+    if (!aoId) return;
+    const existing = getGeneratedSections(aoId) ?? {};
+    const section = sections.find((s) => s.id === sectionId);
+    if (!section) return;
+    const updated = {
+      ...existing,
+      [sectionId]: { ...section, aiDraft: newDraft },
+    };
+    saveGeneratedSections(aoId, updated);
+  }, [aoId, sections]);
+
+  const handleGenerateAll = useCallback(async () => {
+    if (!profile || generatingAll) return;
+    setGeneratingAll(true);
+
+    for (const section of sections) {
+      try {
+        const response = await fetch('/api/ai/generate-section', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sectionTitle: section.title,
+            buyerExpectation: section.buyerExpectation,
+            dceContext: dceContext || '',
+            companyProfile: {
+              companyName: profile.companyName,
+              sectors: profile.sectors,
+              references: profile.references,
+              team: profile.team,
+              caN1: profile.caN1,
+              caN2: profile.caN2,
+              caN3: profile.caN3,
+            },
+            options: { tone: 'standard', length: 'medium' },
+          }),
+        });
+
+        if (!response.ok) continue;
+
+        const reader = response.body?.getReader();
+        if (!reader) continue;
+
+        const decoder = new TextDecoder();
+        let fullText = '';
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.text) fullText += parsed.text;
+              } catch { /* skip */ }
+            }
+          }
+        }
+
+        if (fullText && aoId) {
+          handleSectionUpdated(section.id, fullText);
+        }
+      } catch { /* continue with next section */ }
+    }
+
+    setGeneratingAll(false);
+  }, [profile, generatingAll, sections, dceContext, aoId, handleSectionUpdated]);
+
+  const handleRefreshCoach = useCallback(async () => {
+    if (!profile || coachLoading) return;
+    setCoachLoading(true);
+
+    try {
+      const response = await fetch('/api/ai/coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sections,
+          profile: {
+            companyName: profile.companyName,
+            sectors: profile.sectors,
+            references: profile.references,
+            team: profile.team,
+            caN1: profile.caN1,
+            caN2: profile.caN2,
+            caN3: profile.caN3,
+          },
+          dceContext: dceContext || '',
+          selectionCriteria: selectionCriteria || [],
+        }),
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        if (json.success) {
+          setCoachData(json.data);
+        }
+      }
+    } catch { /* silent */ }
+    setCoachLoading(false);
+  }, [profile, coachLoading, sections, dceContext, selectionCriteria]);
+
+  const getSuggestionsForSection = (sectionId: string): CoachSuggestion[] => {
+    if (!coachData) return [];
+    return coachData.suggestions.filter((s) => s.sectionId === sectionId);
+  };
 
   return (
     <motion.section
@@ -57,15 +185,40 @@ export default function MemoireTechniqueBuilder({ sections, reviewed, onToggleRe
       viewport={{ once: true }}
       id="memoire-builder"
     >
+      {/* Coach Panel */}
+      {profile && (
+        <AiCoachPanel
+          coachData={coachData}
+          loading={coachLoading}
+          onRefresh={handleRefreshCoach}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
           <Pencil className="w-5 h-5 text-indigo-500" />
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Mémoire Technique</h2>
+            <h2 className="text-lg font-bold text-slate-900">Memoire Technique</h2>
             <p className="text-xs text-slate-400">Brouillon IA pour chaque section — personnalisez et copiez</p>
           </div>
         </div>
-        <ProgressRing current={reviewedCount} total={sections.length} />
+        <div className="flex items-center gap-3">
+          {profile && (
+            <button
+              onClick={handleGenerateAll}
+              disabled={generatingAll}
+              className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generatingAll ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              {generatingAll ? 'Generation...' : 'Generer tout'}
+            </button>
+          )}
+          <ProgressRing current={reviewedCount} total={sections.length} />
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -76,6 +229,11 @@ export default function MemoireTechniqueBuilder({ sections, reviewed, onToggleRe
             index={i}
             isReviewed={!!reviewed[section.id]}
             onToggleReviewed={() => onToggleReviewed(section.id)}
+            profile={profile}
+            dceContext={dceContext}
+            selectionCriteria={selectionCriteria}
+            suggestions={getSuggestionsForSection(section.id)}
+            onSectionUpdated={handleSectionUpdated}
           />
         ))}
       </div>

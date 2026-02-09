@@ -15,10 +15,10 @@
 | TED Europa | ✅ | ✅ | ❌ TODO |
 | Sources régionales | ✅ | ✅ | ❌ TODO |
 | Dédoublonnage | ✅ | ✅ | ⚠️ Basic |
-| Dashboard client | ✅ | ✅ | ❌ TODO |
+| Dashboard client | ✅ | ✅ | ✅ Cockpit complet |
 | Historique | ✅ | ✅ | ❌ TODO |
 | Attribution (gagnants) | ✅ | ❌ | ❌ TODO |
-| Export Excel/CSV | ✅ | ✅ | ⚠️ Basic |
+| Export Excel/CSV | ✅ | ✅ | ✅ CSV avec filtres |
 | Contacts enrichis | ✅ | ❌ | ❌ Future |
 | **Score IA Go/No-Go** | ❌ | ❌ | ✅ UNIQUE |
 | **Analyse IA détaillée** | ❌ | ❌ | ✅ UNIQUE |
@@ -42,25 +42,28 @@ Ce que personne d'autre ne fait:
 - [x] Landing page pro
 - [x] Pricing simplifié (50€)
 - [x] Inscription + email welcome
-- [ ] **Dashboard minimal** `/dashboard`
-  - Liste des AO matchés
-  - Score Go/No-Go pour chaque
-  - Lien vers BOAMP
+- [x] **Dashboard cockpit** `/dashboard`
+  - KPIs (pipeline, deadlines, profil, taux reponse)
+  - Timeline deadlines horizontale
+  - Alertes rapides (docs expires, deadlines urgentes)
+  - Filtres avances (recherche, score, region, budget, deadline, tri)
+  - Cartes AO redesignees avec countdown J-X et barre de progression
 - [ ] **Email quotidien** avec les AO du jour
 - [ ] Stripe fonctionnel
 
 ### 🟠 P1 - Parité concurrence (Semaine 2-3)
 - [ ] **TED Europa** - marchés européens
 - [ ] **Historique** - voir les AO passés
-- [ ] **Filtres avancés** - budget, deadline, région
-- [ ] **Export CSV** - télécharger sa liste
+- [x] **Filtres avancés** - recherche, score, budget, deadline, région, tri (6 dimensions)
+- [x] **Export CSV** - export filtre avec protection injection formules
 - [ ] **Dédoublonnage intelligent**
 
 ### 🟡 P2 - Différenciation (Mois 2)
-- [ ] **Analyse IA détaillée**
-  - Forces de l'entreprise vs exigences AO
-  - Concurrence estimée
-  - Conseil stratégique
+- [x] **Analyse IA détaillée**
+  - Analyse DCE avec upload PDF (Anthropic Claude)
+  - Coach IA avec suggestions inline (Gemini)
+  - Génération mémoire technique par section (streaming SSE)
+  - Score de complétude et recommandations stratégiques
 - [ ] **Attribution data** - qui a gagné les AO passés
 - [ ] **Mémorisation profil** - apprend des AO gagnés
 
@@ -80,7 +83,7 @@ Ce que personne d'autre ne fait:
 | Backend/API | Next.js (meragel) | ✅ |
 | Database | Supabase | ✅ |
 | Scraping | BOAMP OpenDataSoft | ✅ |
-| AI Analysis | Gemini API | ✅ |
+| AI Analysis | Gemini + Anthropic (dual) | ✅ |
 | Emails | Resend | ⚠️ Config needed |
 | Payments | Stripe | ⚠️ Config needed |
 | Auth | Supabase Auth | ❌ TODO |
@@ -89,11 +92,12 @@ Ce que personne d'autre ne fait:
 
 ## Actions immédiates
 
-1. **Dashboard utilisateur** - page `/dashboard` avec auth
+1. ~~**Dashboard utilisateur**~~ ✅ Cockpit complet avec KPIs, timeline, filtres
 2. **Email quotidien** - cron 8h envoie les nouveaux AO
 3. **Stripe live** - paiements fonctionnels
 4. **TED integration** - doubler les sources
+5. **Tests E2E** - parcours critiques (login, dashboard, detail AO)
 
 ---
 
-*Généré le 2026-02-08*
+*Mis à jour le 2026-02-09*

@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://plausible.io",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data:",
-              "connect-src 'self' https://meragel.vercel.app https://*.ingest.sentry.io https://plausible.io https://api.anthropic.com",
+              "connect-src 'self' https://meragel.vercel.app https://*.ingest.sentry.io https://plausible.io https://generativelanguage.googleapis.com https://api.anthropic.com",
               "font-src 'self'",
             ].join('; ') + ';',
           },

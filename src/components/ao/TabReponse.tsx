@@ -3,7 +3,7 @@
 import DocumentSplitView from './DocumentSplitView';
 import MemoireTechniqueBuilder from './MemoireTechniqueBuilder';
 import DossierExportCard from './DossierExportCard';
-import type { RequiredDocumentDetailed, TechnicalPlanSection, ProfileDocument, CompanyProfile, AoUploadedFile } from '@/lib/dev';
+import type { RequiredDocumentDetailed, TechnicalPlanSection, ProfileDocument, CompanyProfile, AoUploadedFile, SelectionCriteria } from '@/lib/dev';
 import type { WorkspaceState } from '@/lib/ao-utils';
 
 interface TabReponseProps {
@@ -20,6 +20,9 @@ interface TabReponseProps {
   onAoFileUpload: (documentName: string, file: File) => Promise<void>;
   aoFiles: AoUploadedFile[];
   onAoFileDelete: (fileId: string) => void;
+  dceContext?: string;
+  selectionCriteria?: SelectionCriteria[];
+  aoId?: string;
 }
 
 export default function TabReponse({
@@ -27,6 +30,7 @@ export default function TabReponse({
   sections, sectionsReviewed, onToggleSection,
   profile, rfp, workspace,
   onAoFileUpload, aoFiles, onAoFileDelete,
+  dceContext, selectionCriteria, aoId,
 }: TabReponseProps) {
   return (
     <div className="space-y-8">
@@ -50,6 +54,10 @@ export default function TabReponse({
         sections={sections}
         reviewed={sectionsReviewed}
         onToggleReviewed={onToggleSection}
+        profile={profile}
+        dceContext={dceContext}
+        selectionCriteria={selectionCriteria}
+        aoId={aoId}
       />
     </div>
   );

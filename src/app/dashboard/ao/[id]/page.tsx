@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
@@ -8,7 +8,7 @@ import { isAuthenticated } from '@/lib/auth';
 import Header from '@/components/Header';
 import { isDevMode, MOCK_RFPS, MOCK_AO_DETAILS, type AoDetail, type CompanyProfile, type AoUploadedFile } from '@/lib/dev';
 import { daysUntil, computeProgress } from '@/lib/ao-utils';
-import { getWorkspaceState, saveWorkspaceState } from '@/lib/ao-storage';
+import { getWorkspaceState, saveWorkspaceState, getDceAnalysis, saveDceAnalysis } from '@/lib/ao-storage';
 import type { WorkspaceState } from '@/lib/ao-utils';
 import { getCompanyProfile } from '@/lib/profile-storage';
 import { uploadFile } from '@/lib/file-storage';
@@ -19,6 +19,8 @@ import TabEssentiel from '@/components/ao/TabEssentiel';
 import TabAnalyse from '@/components/ao/TabAnalyse';
 import TabReponse from '@/components/ao/TabReponse';
 import TabMarche from '@/components/ao/TabMarche';
+import DceDropZone from '@/components/ao/DceDropZone';
+import { useDceAnalysis } from '@/hooks/useDceAnalysis';
 
 export default function AoDetailPage() {
   const params = useParams();
@@ -29,6 +31,10 @@ export default function AoDetailPage() {
   const [workspace, setWorkspace] = useState<WorkspaceState>({ decisionMade: false, documentsReady: {}, sectionsReviewed: {}, aoFiles: [] });
   const [activeTab, setActiveTab] = useState<AoTab>('essentiel');
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [dceAnalyzed, setDceAnalyzed] = useState(false);
+
+  const dce = useDceAnalysis();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -36,13 +42,28 @@ export default function AoDetailPage() {
       return;
     }
     if (isDevMode()) {
-      setRfp(MOCK_RFPS.find((r) => r.id === id) || null);
-      setDetail(MOCK_AO_DETAILS[id] || null);
+      const savedDce = getDceAnalysis(id);
+      if (savedDce) {
+        setDetail(savedDce);
+        setDceAnalyzed(true);
+        setRfp(MOCK_RFPS.find((r) => r.id === id) || null);
+      } else {
+        setRfp(MOCK_RFPS.find((r) => r.id === id) || null);
+        setDetail(MOCK_AO_DETAILS[id] || null);
+      }
     }
     setWorkspace(getWorkspaceState(id));
     setProfile(getCompanyProfile());
     setLoading(false);
   }, [id]);
+
+  useEffect(() => {
+    if (dce.state === 'done' && dce.result) {
+      setDetail(dce.result);
+      setDceAnalyzed(true);
+      saveDceAnalysis(id, dce.result);
+    }
+  }, [dce.state, dce.result, id]);
 
   const updateWorkspace = useCallback((updater: (prev: WorkspaceState) => WorkspaceState) => {
     setWorkspace((prev) => {
@@ -90,6 +111,20 @@ export default function AoDetailPage() {
     }));
   }, [updateWorkspace]);
 
+  const handleOpenFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      dce.analyzeDce(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [dce]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -130,6 +165,26 @@ export default function AoDetailPage() {
         }
       />
 
+      {/* Hidden file input for DCE picker */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf"
+        className="hidden"
+        onChange={handleFileInputChange}
+        aria-label="Choisir un fichier DCE"
+      />
+
+      {/* DCE Drop Zone Overlay */}
+      <DceDropZone
+        state={dce.state}
+        progress={dce.progress}
+        error={dce.error}
+        onDrop={dce.analyzeDce}
+        onReset={dce.reset}
+        onOpenFilePicker={handleOpenFilePicker}
+      />
+
       <div className="max-w-7xl mx-auto p-6">
         <div className="flex gap-6">
           {/* Main content */}
@@ -144,6 +199,8 @@ export default function AoDetailPage() {
               score={rfp.score}
               scoreLabel={rfp.scoreLabel}
               recommendation={detail.recommendation}
+              dceAnalyzed={dceAnalyzed}
+              onAnalyzeDce={handleOpenFilePicker}
             />
 
             {/* Tab Bar */}
@@ -182,6 +239,9 @@ export default function AoDetailPage() {
                 onAoFileUpload={handleAoFileUpload}
                 aoFiles={workspace.aoFiles ?? []}
                 onAoFileDelete={handleAoFileDelete}
+                dceContext={detail.aiSummary}
+                selectionCriteria={detail.selectionCriteria}
+                aoId={id}
               />
             )}
 

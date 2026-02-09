@@ -25,6 +25,18 @@ export interface VigilancePoint {
   description: string;
 }
 
+export interface CoachSuggestion {
+  sectionId: string | null;
+  type: 'tip' | 'warning' | 'missing';
+  message: string;
+}
+
+export interface CoachResponse {
+  completenessScore: number;
+  suggestions: CoachSuggestion[];
+  overallAdvice: string;
+}
+
 export interface TechnicalPlanSection {
   id: string;
   title: string;
