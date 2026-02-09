@@ -1,474 +1,629 @@
-import { PDFDocument, PDFFont, PDFPage, PDFForm, rgb, degrees, StandardFonts, type Color } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFPage, PDFForm, PDFImage, rgb, StandardFonts, type Color } from 'pdf-lib';
 
-// ─── Color palette ───
+/*
+ * COORDINATE SYSTEM:
+ * - y = top of the current element to draw
+ * - All drawing goes DOWNWARD from y
+ * - Every function returns the y for the NEXT element below (with gap included)
+ * - No element ever paints ABOVE the y passed in
+ */
+
+// ─── Palette — muted, professional ───
 export const C = {
-  navy: rgb(0.06, 0.1, 0.25),
-  indigo: rgb(0.27, 0.33, 0.76),
-  indigoLight: rgb(0.82, 0.84, 0.96),
-  darkText: rgb(0.13, 0.13, 0.17),
-  mediumText: rgb(0.35, 0.36, 0.42),
-  lightText: rgb(0.55, 0.56, 0.62),
-  sectionBg: rgb(0.94, 0.95, 0.98),
-  tableBorder: rgb(0.82, 0.84, 0.9),
-  tableHeaderBg: rgb(0.08, 0.12, 0.28),
-  fieldBg: rgb(0.97, 0.97, 0.99),
-  divider: rgb(0.88, 0.89, 0.93),
+  black: rgb(0.12, 0.12, 0.14),
+  dark: rgb(0.22, 0.23, 0.27),
+  mid: rgb(0.44, 0.45, 0.5),
+  light: rgb(0.62, 0.63, 0.67),
+  rule: rgb(0.8, 0.81, 0.84),
+  ruleLight: rgb(0.89, 0.9, 0.92),
+  fill: rgb(0.955, 0.96, 0.97),
   white: rgb(1, 1, 1),
-  black: rgb(0, 0, 0),
-  bleu: rgb(0, 0.14, 0.58),
-  rouge: rgb(0.94, 0.16, 0.22),
-  successBg: rgb(0.93, 0.98, 0.95),
-  successText: rgb(0.13, 0.55, 0.33),
-  warnBg: rgb(1, 0.97, 0.92),
-  warnText: rgb(0.72, 0.53, 0.1),
+  accent: rgb(0.18, 0.25, 0.42),
+  accentBg: rgb(0.92, 0.935, 0.96),
+  stripe: rgb(0.97, 0.975, 0.98),
 };
 
-// ─── A4 page ───
+// ─── A4 dimensions ───
 export const PAGE_W = 595.28;
 export const PAGE_H = 841.89;
-export const M = { left: 50, right: 50, top: 50, bottom: 56 };
+export const M = { left: 56, right: 56, top: 56, bottom: 48 };
 export const CW = PAGE_W - M.left - M.right;
 
-export interface PdfFonts { regular: PDFFont; bold: PDFFont }
+export interface PdfFonts { regular: PDFFont; bold: PDFFont; italic: PDFFont }
 
 export async function loadFonts(doc: PDFDocument): Promise<PdfFonts> {
   return {
     regular: await doc.embedFont(StandardFonts.Helvetica),
     bold: await doc.embedFont(StandardFonts.HelveticaBold),
+    italic: await doc.embedFont(StandardFonts.HelveticaOblique),
   };
 }
 
-// ─── Tricolore top stripe ───
-function drawTricolore(page: PDFPage): void {
-  const h = 5;
-  const third = PAGE_W / 3;
-  page.drawRectangle({ x: 0, y: PAGE_H - h, width: third, height: h, color: C.bleu });
-  page.drawRectangle({ x: third, y: PAGE_H - h, width: third, height: h, color: C.white });
-  page.drawRectangle({ x: third * 2, y: PAGE_H - h, width: third + 1, height: h, color: C.rouge });
+export interface ESignData {
+  name: string;
+  title: string;
+  email: string;
+  city?: string;
+  date?: Date;           // defaults to now
+  transactionId?: string; // auto-generated if absent
 }
 
-// ─── Page border ───
-export function drawPageBorder(page: PDFPage): void {
-  const inset = 28;
-  page.drawRectangle({
-    x: inset, y: inset,
-    width: PAGE_W - inset * 2,
-    height: PAGE_H - inset * 2,
-    borderColor: C.divider,
-    borderWidth: 0.5,
-    color: undefined as unknown as Color, // transparent fill
-  });
-}
+// ═══════════════════════════════════════════
+// HEADER
+// ═══════════════════════════════════════════
 
-// ─── Watermark ───
-export function drawWatermark(page: PDFPage, fonts: PdfFonts, text: string): void {
-  const size = 54;
-  const w = fonts.bold.widthOfTextAtSize(text, size);
-  page.pushOperators();
-  page.drawText(text, {
-    x: (PAGE_W - w * 0.7) / 2,
-    y: PAGE_H / 2 - 20,
-    size,
-    font: fonts.bold,
-    color: rgb(0.92, 0.93, 0.96),
-    rotate: degrees(-30),
-  });
-}
-
-// ─── Document header (SOTA) ───
 export function drawDocHeader(
-  page: PDFPage,
-  fonts: PdfFonts,
+  page: PDFPage, fonts: PdfFonts,
   opts: { docType: string; docTitle: string; issuer?: string; title?: string },
 ): number {
-  drawTricolore(page);
-  let y = PAGE_H - M.top - 4;
+  // Accent bar at very top
+  page.drawRectangle({ x: M.left, y: PAGE_H - M.top + 8, width: CW, height: 2.5, color: C.accent });
 
-  // REPUBLIQUE FRANCAISE — centered, spaced
-  const rep = 'REPUBLIQUE FRANCAISE';
-  const repW = fonts.bold.widthOfTextAtSize(rep, 7);
-  page.drawText(rep, { x: (PAGE_W - repW) / 2, y, size: 7, font: fonts.bold, color: C.lightText });
-  y -= 5;
+  let y = PAGE_H - M.top;
 
-  // Thin centered indigo ornament
-  const ornW = 40;
-  page.drawLine({ start: { x: (PAGE_W - ornW) / 2, y }, end: { x: (PAGE_W + ornW) / 2, y }, thickness: 0.6, color: C.indigo });
+  // Category left + form ref right
+  page.drawText('MARCH\u00c9S PUBLICS', { x: M.left, y, size: 6.5, font: fonts.regular, color: C.mid });
+  const refTxt = `FORMULAIRE ${opts.docType}`;
+  const refW = fonts.bold.widthOfTextAtSize(refTxt, 7.5);
+  page.drawText(refTxt, { x: PAGE_W - M.right - refW, y, size: 7.5, font: fonts.bold, color: C.light });
   y -= 14;
 
-  // Doc type badge — pill shape
-  const badgeText = opts.docType;
-  const badgeTextW = fonts.bold.widthOfTextAtSize(badgeText, 10);
-  const badgeW = badgeTextW + 28;
-  const badgeH = 24;
-  const badgeX = (PAGE_W - badgeW) / 2;
-  page.drawRectangle({ x: badgeX, y: y - 4, width: badgeW, height: badgeH, color: C.navy });
-  // Small indigo underline accent inside badge
-  page.drawRectangle({ x: badgeX, y: y - 4, width: badgeW, height: 2.5, color: C.indigo });
-  page.drawText(badgeText, {
-    x: badgeX + 14,
-    y: y + 3,
-    size: 10,
-    font: fonts.bold,
-    color: C.white,
-  });
-  y -= badgeH + 10;
+  // Title band with accent background
+  const bandH = 28;
+  page.drawRectangle({ x: M.left, y: y - bandH, width: CW, height: bandH, color: C.accentBg });
+  page.drawRectangle({ x: M.left, y: y - bandH, width: 3, height: bandH, color: C.accent });
+  page.drawText(opts.docTitle, { x: M.left + 12, y: y - bandH + 10, size: 16, font: fonts.bold, color: C.accent });
+  y -= bandH + 8;
 
-  // Title
-  const titleSize = 14;
-  const titleW = fonts.bold.widthOfTextAtSize(opts.docTitle, titleSize);
-  page.drawText(opts.docTitle, { x: (PAGE_W - titleW) / 2, y, size: titleSize, font: fonts.bold, color: C.navy });
-  y -= 14;
-
-  // Subtitle
-  const sub = '(Formulaire non obligatoire)';
-  const subW = fonts.regular.widthOfTextAtSize(sub, 7.5);
-  page.drawText(sub, { x: (PAGE_W - subW) / 2, y, size: 7.5, font: fonts.regular, color: C.lightText });
-  y -= 16;
-
-  // Issuer + market info card (with left indigo bar)
-  if (opts.issuer || opts.title) {
-    const boxH = (opts.issuer && opts.title) ? 44 : 26;
-    const boxY = y - boxH + 14;
-
-    // Background
-    page.drawRectangle({ x: M.left, y: boxY, width: CW, height: boxH, color: C.fieldBg, borderColor: C.tableBorder, borderWidth: 0.5 });
-    // Left accent bar
-    page.drawRectangle({ x: M.left, y: boxY, width: 4, height: boxH, color: C.indigo });
-
-    if (opts.issuer) {
-      page.drawText('Acheteur :', { x: M.left + 14, y: boxY + boxH - 14, size: 7.5, font: fonts.bold, color: C.mediumText });
-      page.drawText(opts.issuer, { x: M.left + 78, y: boxY + boxH - 14, size: 8.5, font: fonts.regular, color: C.darkText });
-    }
-    if (opts.title) {
-      const objY = opts.issuer ? boxY + boxH - 30 : boxY + boxH - 14;
-      page.drawText('Objet :', { x: M.left + 14, y: objY, size: 7.5, font: fonts.bold, color: C.mediumText });
-      page.drawText(truncate(opts.title, 82), { x: M.left + 78, y: objY, size: 8.5, font: fonts.regular, color: C.darkText });
-    }
-    y = boxY - 6;
+  // Issuer with label
+  if (opts.issuer) {
+    page.drawText('Acheteur', { x: M.left, y: y - 9, size: 7, font: fonts.regular, color: C.mid });
+    page.drawText(opts.issuer, { x: M.left + 52, y: y - 9, size: 9, font: fonts.regular, color: C.dark });
+    y -= 15;
+  }
+  // Market object with label
+  if (opts.title) {
+    page.drawText('Objet', { x: M.left, y: y - 9, size: 7, font: fonts.regular, color: C.mid });
+    page.drawText(truncate(opts.title, 88), { x: M.left + 52, y: y - 9, size: 9, font: fonts.regular, color: C.mid });
+    y -= 15;
   }
 
-  // Heavy separator
-  page.drawLine({ start: { x: M.left, y }, end: { x: PAGE_W - M.right, y }, thickness: 1.2, color: C.navy });
-  page.drawLine({ start: { x: M.left, y: y - 2 }, end: { x: PAGE_W - M.right, y: y - 2 }, thickness: 0.3, color: C.indigo });
+  y -= 2;
 
-  return y - 14;
+  // Double rule — accent
+  page.drawRectangle({ x: M.left, y, width: CW, height: 1.5, color: C.accent });
+  page.drawLine({ start: { x: M.left, y: y - 3.5 }, end: { x: PAGE_W - M.right, y: y - 3.5 }, thickness: 0.3, color: C.rule });
+  y -= 14;
+
+  return y;
 }
 
-// ─── Section header with letter badge ───
+export function drawContinuationHeader(page: PDFPage, fonts: PdfFonts, docType: string, docTitle: string): number {
+  page.drawRectangle({ x: M.left, y: PAGE_H - M.top + 8, width: CW, height: 2.5, color: C.accent });
+
+  let y = PAGE_H - M.top;
+  page.drawText(`${docType} \u2014 ${docTitle}`, { x: M.left, y, size: 8, font: fonts.bold, color: C.mid });
+
+  const tag = '(suite)';
+  const tagW = fonts.regular.widthOfTextAtSize(tag, 7.5);
+  page.drawText(tag, { x: PAGE_W - M.right - tagW, y, size: 7.5, font: fonts.regular, color: C.light });
+  y -= 10;
+
+  page.drawRectangle({ x: M.left, y, width: CW, height: 1.5, color: C.accent });
+  page.drawLine({ start: { x: M.left, y: y - 3.5 }, end: { x: PAGE_W - M.right, y: y - 3.5 }, thickness: 0.3, color: C.rule });
+  y -= 14;
+
+  return y;
+}
+
+// ═══════════════════════════════════════════
+// SECTION HEADER
+// ═══════════════════════════════════════════
+
 export function drawSection(page: PDFPage, fonts: PdfFonts, title: string, y: number): number {
-  const h = 24;
-  const barY = y - 3;
+  const dashIdx = title.indexOf('\u2013');
+  const letter = dashIdx > 0 ? title.slice(0, dashIdx).trim() : '';
+  const label = dashIdx > 0 ? title.slice(dashIdx + 1).trim() : title;
 
-  // Background full width
-  page.drawRectangle({ x: M.left, y: barY, width: CW, height: h, color: C.sectionBg });
+  y -= 6; // top margin
 
-  // Left accent bar (thicker, rounded feel)
-  page.drawRectangle({ x: M.left, y: barY, width: 4, height: h, color: C.navy });
+  const stripH = 20;
+  const badgeW = 26;
 
-  // Extract letter for badge (e.g. "A" from "A – ...")
-  const letter = title.charAt(0);
-  const badgeSize = 16;
-  const badgeCx = M.left + 16;
-  const badgeCy = barY + h / 2;
+  // Full-width background strip
+  page.drawRectangle({ x: M.left, y: y - stripH, width: CW, height: stripH, color: C.fill });
 
-  // Circle badge (approximated with small square)
-  page.drawRectangle({
-    x: badgeCx - badgeSize / 2,
-    y: badgeCy - badgeSize / 2,
-    width: badgeSize,
-    height: badgeSize,
-    color: C.navy,
-  });
-  const letterW = fonts.bold.widthOfTextAtSize(letter, 9);
-  page.drawText(letter, {
-    x: badgeCx - letterW / 2,
-    y: badgeCy - 3.5,
-    size: 9,
-    font: fonts.bold,
-    color: C.white,
-  });
-
-  // Rest of title (after "A ")
-  const restTitle = title.length > 2 ? title.slice(1) : '';
-  page.drawText(restTitle, {
-    x: M.left + 30,
-    y: barY + 7,
-    size: 9,
-    font: fonts.bold,
-    color: C.navy,
-  });
-
-  return barY - 10;
-}
-
-// ─── Continuation header for page 2+ ───
-export function drawContinuationHeader(page: PDFPage, fonts: PdfFonts, title: string): number {
-  drawTricolore(page);
-  let y = PAGE_H - M.top - 4;
-
-  // Left: doc title, right: page indicator
-  page.drawText(title, { x: M.left, y, size: 9, font: fonts.bold, color: C.navy });
-
-  y -= 6;
-  page.drawLine({ start: { x: M.left, y }, end: { x: PAGE_W - M.right, y }, thickness: 1, color: C.navy });
-  page.drawLine({ start: { x: M.left, y: y - 2 }, end: { x: PAGE_W - M.right, y: y - 2 }, thickness: 0.3, color: C.indigo });
-
-  return y - 14;
-}
-
-// ─── Field pair (label + value inline) ───
-export function drawField(
-  page: PDFPage, fonts: PdfFonts, label: string, value: string, x: number, y: number,
-  opts?: { labelWidth?: number; valueColor?: Color },
-): number {
-  const lw = opts?.labelWidth ?? 140;
-  page.drawText(label, { x, y, size: 7.5, font: fonts.regular, color: C.lightText });
-
-  // Dotted underline from label end to value
-  const dotY = y - 3;
-  const labelEnd = x + fonts.regular.widthOfTextAtSize(label, 7.5) + 4;
-  for (let dx = labelEnd; dx < x + lw - 4; dx += 4) {
-    page.drawRectangle({ x: dx, y: dotY, width: 1, height: 0.4, color: C.divider });
+  if (letter) {
+    // Accent badge tab
+    page.drawRectangle({ x: M.left, y: y - stripH, width: badgeW, height: stripH, color: C.accent });
+    const lw = fonts.bold.widthOfTextAtSize(letter, 10);
+    page.drawText(letter, {
+      x: M.left + (badgeW - lw) / 2, y: y - stripH + 6,
+      size: 10, font: fonts.bold, color: C.white,
+    });
   }
+  const textX = letter ? M.left + badgeW + 10 : M.left + 8;
+  page.drawText(label, { x: textX, y: y - stripH + 6, size: 8.5, font: fonts.bold, color: C.black });
 
-  page.drawText(value || '\u2014', {
-    x: x + lw,
-    y,
-    size: 9,
-    font: value ? fonts.bold : fonts.regular,
-    color: value ? (opts?.valueColor ?? C.darkText) : C.lightText,
-  });
-  return y - 18;
+  y -= stripH;
+  // Bottom accent line
+  page.drawLine({ start: { x: M.left, y }, end: { x: PAGE_W - M.right, y }, thickness: 0.6, color: C.accent });
+  y -= 8;
+
+  return y;
 }
 
-// ─── Field block (label above value, boxed) ───
-export function drawFieldBlock(
-  page: PDFPage, fonts: PdfFonts, label: string, value: string, x: number, y: number, width: number,
+// ═══════════════════════════════════════════
+// FIELDS
+// ═══════════════════════════════════════════
+
+/** Single field: label .... value on one line */
+export function drawField(
+  page: PDFPage, fonts: PdfFonts, label: string, value: string,
+  x: number, y: number, opts?: { labelWidth?: number },
 ): number {
-  // Box
-  page.drawRectangle({ x, y: y - 18, width, height: 32, color: C.fieldBg, borderColor: C.tableBorder, borderWidth: 0.4 });
-  // Top mini accent
-  page.drawRectangle({ x, y: y + 14, width, height: 1.5, color: C.indigoLight });
-  // Label
-  page.drawText(label, { x: x + 8, y: y + 3, size: 6.5, font: fonts.regular, color: C.lightText });
-  // Value
-  page.drawText(value || '\u2014', { x: x + 8, y: y - 11, size: 9, font: value ? fonts.bold : fonts.regular, color: value ? C.darkText : C.lightText });
-  return y - 34;
+  const lw = opts?.labelWidth ?? 155;
+
+  page.drawText(label, { x, y: y - 9, size: 7.5, font: fonts.regular, color: C.mid });
+  page.drawText(value || '\u2014', {
+    x: x + lw, y: y - 9, size: 9,
+    font: value ? fonts.bold : fonts.regular,
+    color: value ? C.black : C.light,
+  });
+  page.drawLine({ start: { x, y: y - 14 }, end: { x: x + CW, y: y - 14 }, thickness: 0.15, color: C.ruleLight });
+
+  return y - 20;
 }
 
-// ─── Editable form field ───
+/** Field block: label above, value inside a box */
+export function drawFieldBlock(
+  page: PDFPage, fonts: PdfFonts, label: string, value: string,
+  x: number, y: number, width: number,
+): void {
+  // Label
+  page.drawText(label, { x: x + 1, y: y - 8, size: 6.5, font: fonts.regular, color: C.mid });
+  // Box below label
+  const boxTop = y - 14;
+  const boxH = 22;
+  page.drawRectangle({ x, y: boxTop - boxH, width, height: boxH, color: C.fill, borderColor: C.rule, borderWidth: 0.4 });
+  // Value centered in box
+  page.drawText(value || '\u2014', {
+    x: x + 8, y: boxTop - boxH + 7, size: 9,
+    font: value ? fonts.bold : fonts.regular,
+    color: value ? C.black : C.light,
+  });
+}
+
+/** Returns y after a row of field blocks (call after drawing blocks at same y) */
+export function afterFieldBlocks(y: number): number {
+  // label ~8 + gap 6 + box 22 + gap 6 = 42
+  return y - 42;
+}
+
+/** Editable PDF form field */
 export function drawEditableField(
   page: PDFPage, form: PDFForm, fonts: PdfFonts,
-  label: string, fieldName: string, x: number, y: number, width: number, height: number = 22,
+  label: string, fieldName: string,
+  x: number, y: number, width: number, height: number = 22,
 ): number {
-  page.drawText(label, { x, y: y + 4, size: 7, font: fonts.regular, color: C.lightText });
+  page.drawText(label, { x, y: y - 8, size: 7, font: fonts.regular, color: C.mid });
   const field = form.createTextField(fieldName);
+  const boxTop = y - 14;
   field.addToPage(page, {
-    x, y: y - height, width, height,
-    borderWidth: 0.5,
-    borderColor: C.tableBorder,
-    backgroundColor: C.fieldBg,
+    x, y: boxTop - height, width, height,
+    borderWidth: 0.4, borderColor: C.rule, backgroundColor: C.fill,
   });
-  return y - height - 12;
+  return boxTop - height - 8;
 }
 
-// ─── Table (SOTA: navy header, white text, alternating rows) ───
+// ═══════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════
+
 export interface TableColumn { header: string; width: number; align?: 'left' | 'right' }
 
 export function drawTable(
-  page: PDFPage, fonts: PdfFonts, columns: TableColumn[], rows: string[][], x: number, y: number,
+  page: PDFPage, fonts: PdfFonts, columns: TableColumn[], rows: string[][],
+  x: number, y: number,
 ): number {
-  const rowH = 22;
-  const headerH = 24;
-  const pad = 8;
+  const hdrH = 20;
+  const rowH = 20;
+  const pad = 7;
   const totalW = columns.reduce((s, c) => s + c.width, 0);
 
-  // Header row — navy background, white text
-  page.drawRectangle({ x, y: y - headerH + 8, width: totalW, height: headerH, color: C.tableHeaderBg });
+  // Header
+  const hdrTop = y;
+  page.drawRectangle({ x, y: hdrTop - hdrH, width: totalW, height: hdrH, color: C.accent });
 
-  let colX = x;
+  let cx = x;
   for (const col of columns) {
-    page.drawText(col.header, { x: colX + pad, y: y - 7, size: 7.5, font: fonts.bold, color: C.white });
-    colX += col.width;
+    const tx = col.align === 'right'
+      ? cx + col.width - pad - fonts.bold.widthOfTextAtSize(col.header, 7)
+      : cx + pad;
+    page.drawText(col.header, { x: tx, y: hdrTop - hdrH + 6, size: 7, font: fonts.bold, color: C.white });
+    cx += col.width;
+  }
+
+  // Rows
+  let rowTop = hdrTop - hdrH;
+  for (let ri = 0; ri < rows.length; ri++) {
+    if (ri % 2 === 0) {
+      page.drawRectangle({ x, y: rowTop - rowH, width: totalW, height: rowH, color: C.stripe });
+    }
+    page.drawLine({ start: { x, y: rowTop - rowH }, end: { x: x + totalW, y: rowTop - rowH }, thickness: 0.15, color: C.rule });
+
+    cx = x;
+    for (let ci = 0; ci < columns.length; ci++) {
+      const txt = truncate(rows[ri][ci] || '\u2014', Math.floor(columns[ci].width / 4.2));
+      const tx = columns[ci].align === 'right'
+        ? cx + columns[ci].width - pad - fonts.regular.widthOfTextAtSize(txt, 8)
+        : cx + pad;
+      page.drawText(txt, { x: tx, y: rowTop - rowH + 6, size: 8, font: fonts.regular, color: rows[ri][ci] ? C.black : C.light });
+      cx += columns[ci].width;
+    }
+    rowTop -= rowH;
   }
 
   // Outer border
-  const tableH = headerH + rows.length * rowH;
-  page.drawRectangle({
-    x, y: y + 8 - tableH, width: totalW, height: tableH,
-    borderColor: C.tableBorder, borderWidth: 0.6,
-    color: undefined as unknown as Color,
-  });
+  const tableH = hdrH + rows.length * rowH;
+  page.drawRectangle({ x, y: hdrTop - tableH, width: totalW, height: tableH, borderColor: C.rule, borderWidth: 0.4, color: undefined as unknown as Color });
 
-  // Vertical dividers
-  colX = x;
+  // Column dividers
+  cx = x;
   for (let i = 1; i < columns.length; i++) {
-    colX += columns[i - 1].width;
-    page.drawLine({
-      start: { x: colX, y: y + 8 },
-      end: { x: colX, y: y + 8 - tableH },
-      thickness: 0.4, color: C.tableBorder,
-    });
+    cx += columns[i - 1].width;
+    page.drawLine({ start: { x: cx, y: hdrTop }, end: { x: cx, y: hdrTop - tableH }, thickness: 0.15, color: C.rule });
   }
 
-  let curY = y - headerH + 8;
-  for (let ri = 0; ri < rows.length; ri++) {
-    if (ri % 2 === 0) {
-      page.drawRectangle({ x: x + 0.3, y: curY - rowH, width: totalW - 0.6, height: rowH, color: C.fieldBg });
-    }
-    // Bottom border
-    page.drawLine({ start: { x, y: curY - rowH }, end: { x: x + totalW, y: curY - rowH }, thickness: 0.3, color: C.tableBorder });
-
-    let cellX = x;
-    for (let ci = 0; ci < columns.length; ci++) {
-      const text = truncate(rows[ri][ci] || '\u2014', Math.floor(columns[ci].width / 4.2));
-      const textX = columns[ci].align === 'right'
-        ? cellX + columns[ci].width - pad - fonts.regular.widthOfTextAtSize(text, 8.5)
-        : cellX + pad;
-      page.drawText(text, {
-        x: textX, y: curY - 14, size: 8.5, font: fonts.regular,
-        color: rows[ri][ci] ? C.darkText : C.lightText,
-      });
-      cellX += columns[ci].width;
-    }
-    curY -= rowH;
-  }
-
-  return curY - 8;
+  return hdrTop - tableH - 8;
 }
 
-// ─── Paragraph ───
+// ═══════════════════════════════════════════
+// TEXT
+// ═══════════════════════════════════════════
+
 export function drawParagraph(
-  page: PDFPage, fonts: PdfFonts, text: string, x: number, y: number, maxWidth: number,
+  page: PDFPage, fonts: PdfFonts, text: string,
+  x: number, y: number, maxWidth: number,
   opts?: { size?: number; color?: Color; font?: PDFFont; lineHeight?: number },
 ): number {
   const sz = opts?.size ?? 8.5;
   const ft = opts?.font ?? fonts.regular;
-  const cl = opts?.color ?? C.darkText;
-  const lh = opts?.lineHeight ?? sz + 4.5;
+  const cl = opts?.color ?? C.dark;
+  const lh = opts?.lineHeight ?? sz + 4;
+
   const words = text.split(' ');
   let line = '';
   let curY = y;
   for (const word of words) {
     const test = line ? `${line} ${word}` : word;
     if (ft.widthOfTextAtSize(test, sz) > maxWidth && line) {
-      page.drawText(line, { x, y: curY, size: sz, font: ft, color: cl });
+      page.drawText(line, { x, y: curY - sz, size: sz, font: ft, color: cl });
       curY -= lh;
       line = word;
     } else {
       line = test;
     }
   }
-  if (line) { page.drawText(line, { x, y: curY, size: sz, font: ft, color: cl }); curY -= lh; }
+  if (line) {
+    page.drawText(line, { x, y: curY - sz, size: sz, font: ft, color: cl });
+    curY -= lh;
+  }
   return curY;
 }
 
-// ─── Attestation box (bordered, light indigo bg) ───
+// ═══════════════════════════════════════════
+// SPECIAL BLOCKS
+// ═══════════════════════════════════════════
+
 export function drawAttestationBox(
-  page: PDFPage, fonts: PdfFonts, text: string, x: number, y: number, width: number,
+  page: PDFPage, fonts: PdfFonts, text: string,
+  x: number, y: number, width: number,
 ): number {
-  // Measure height needed
   const sz = 8.5;
-  const lh = sz + 4.5;
+  const lh = sz + 4;
+  const pad = 10;
+  const innerW = width - pad * 2;
+
+  // Pre-measure height
   const words = text.split(' ');
   let line = '';
-  let lines = 0;
+  let lineCount = 0;
   for (const word of words) {
     const test = line ? `${line} ${word}` : word;
-    if (fonts.regular.widthOfTextAtSize(test, sz) > width - 24 && line) { lines++; line = word; }
+    if (fonts.regular.widthOfTextAtSize(test, sz) > innerW && line) { lineCount++; line = word; }
     else { line = test; }
   }
-  if (line) lines++;
-  const boxH = lines * lh + 20;
+  if (line) lineCount++;
+  const boxH = lineCount * lh + pad * 2;
 
-  // Box with left indigo bar
-  page.drawRectangle({ x, y: y - boxH + 6, width, height: boxH, color: rgb(0.95, 0.96, 0.99), borderColor: C.indigoLight, borderWidth: 0.6 });
-  page.drawRectangle({ x, y: y - boxH + 6, width: 4, height: boxH, color: C.indigo });
-
-  // Icon-like "!" marker
-  page.drawRectangle({ x: x + 14, y: y - 5, width: 14, height: 14, color: C.indigo });
-  page.drawText('!', { x: x + 18.5, y: y - 2, size: 9, font: fonts.bold, color: C.white });
+  // Box
+  page.drawRectangle({ x, y: y - boxH, width, height: boxH, color: C.accentBg, borderColor: C.rule, borderWidth: 0.3 });
+  page.drawRectangle({ x, y: y - boxH, width: 3, height: boxH, color: C.accent });
 
   // Text
-  const textY = drawParagraph(page, fonts, text, x + 36, y - 2, width - 48, { size: sz });
+  drawParagraph(page, fonts, text, x + pad, y - pad + 4, innerW, { size: sz, color: C.dark });
 
-  return y - boxH - 4;
+  return y - boxH - 6;
 }
 
-// ─── Checkbox ───
 export function drawCheckbox(page: PDFPage, fonts: PdfFonts, label: string, checked: boolean, x: number, y: number): number {
-  const s = 10;
-  page.drawRectangle({ x, y: y - 2, width: s, height: s, borderColor: checked ? C.indigo : C.tableBorder, borderWidth: 0.8, color: checked ? C.indigo : C.white });
+  const s = 9;
+  const boxY = y - s - 1;
+
+  page.drawRectangle({
+    x, y: boxY, width: s, height: s,
+    borderColor: checked ? C.accent : C.rule, borderWidth: 0.6,
+    color: checked ? C.accent : C.white,
+  });
+
   if (checked) {
-    page.drawLine({ start: { x: x + 2, y: y + 2 }, end: { x: x + 4, y: y - 1 }, thickness: 1.5, color: C.white });
-    page.drawLine({ start: { x: x + 4, y: y - 1 }, end: { x: x + 8, y: y + 6 }, thickness: 1.5, color: C.white });
+    const bx = x;
+    const by = boxY;
+    page.drawLine({ start: { x: bx + 2, y: by + 5 }, end: { x: bx + 3.5, y: by + 2 }, thickness: 1.2, color: C.white });
+    page.drawLine({ start: { x: bx + 3.5, y: by + 2 }, end: { x: bx + 7, y: by + 7 }, thickness: 1.2, color: C.white });
   }
-  page.drawText(label, { x: x + s + 6, y, size: 8, font: fonts.regular, color: C.darkText });
-  return y - 18;
+
+  page.drawText(label, { x: x + s + 6, y: boxY + 2, size: 8, font: fonts.regular, color: C.black });
+  return y - s - 7;
 }
 
-// ─── Signature block (professional) ───
+// ═══════════════════════════════════════════
+// SIGNATURE
+// ═══════════════════════════════════════════
+
 export function drawSignatureBlock(
   page: PDFPage, form: PDFForm, fonts: PdfFonts, y: number, prefix: string,
+  cachetImage?: PDFImage,
 ): number {
-  // "Lu et approuve" mention
-  page.drawText('Lu et approuve, bon pour accord', { x: M.left, y: y + 2, size: 7.5, font: fonts.regular, color: C.mediumText });
-  y -= 14;
+  // Light separator
+  page.drawLine({ start: { x: M.left, y: y - 2 }, end: { x: PAGE_W - M.right, y: y - 2 }, thickness: 0.3, color: C.rule });
+  y -= 10;
 
-  // Fait a / Le
-  const half = (CW - 12) / 2;
-  const faitY = y;
-  drawEditableField(page, form, fonts, 'Fait a', `${prefix}_fait_a`, M.left, faitY, half);
-  drawEditableField(page, form, fonts, 'Le (date)', `${prefix}_date`, M.left + half + 12, faitY, half);
-  y = faitY - 38;
+  const half = (CW - 16) / 2;
+  const leftY = drawEditableField(page, form, fonts, 'Fait a', `${prefix}_fait_a`, M.left, y, half);
+  drawEditableField(page, form, fonts, 'Le (date)', `${prefix}_date`, M.left + half + 16, y, half);
+  y = leftY;
 
-  // Signataire
   y = drawEditableField(page, form, fonts, 'Nom et qualite du signataire', `${prefix}_signataire`, M.left, y, CW);
 
-  // Signature — taller, with "Signature" centered above
-  page.drawText('Signature', { x: M.left, y: y + 4, size: 7, font: fonts.regular, color: C.lightText });
+  // Signature + Cachet side by side
+  const sigW = Math.floor(CW * 0.58);
+  const gutter = 12;
+  const cachetW = CW - sigW - gutter;
+  const areaH = 36;
+
+  page.drawText('Signature', { x: M.left, y: y - 8, size: 7, font: fonts.regular, color: C.mid });
   const sigField = form.createTextField(`${prefix}_signature`);
   sigField.addToPage(page, {
-    x: M.left, y: y - 54, width: CW, height: 54,
-    borderWidth: 0.5, borderColor: C.tableBorder, backgroundColor: C.fieldBg,
+    x: M.left, y: y - 14 - areaH, width: sigW, height: areaH,
+    borderWidth: 0.4, borderColor: C.rule, backgroundColor: C.fill,
   });
-  y -= 70;
 
-  return y;
+  const cachetX = M.left + sigW + gutter;
+  page.drawText('Cachet de l\u2019entreprise', { x: cachetX, y: y - 8, size: 7, font: fonts.regular, color: C.mid });
+  page.drawRectangle({
+    x: cachetX, y: y - 14 - areaH, width: cachetW, height: areaH,
+    color: C.fill, borderColor: C.rule, borderWidth: 0.4,
+  });
+
+  if (cachetImage) {
+    const imgDims = cachetImage.scaleToFit(cachetW - 8, areaH - 8);
+    page.drawImage(cachetImage, {
+      x: cachetX + (cachetW - imgDims.width) / 2,
+      y: y - 14 - areaH + (areaH - imgDims.height) / 2,
+      width: imgDims.width,
+      height: imgDims.height,
+    });
+  }
+
+  return y - 14 - areaH - 8;
 }
 
-// ─── Footer (SOTA: with doc type) ───
+/**
+ * Electronic signature block (LegalPlace / Yousign / DocuSign style).
+ *
+ * Elements (based on industry standards):
+ * - Header "SIGNATURE ELECTRONIQUE"
+ * - Signer name in italic (signature-like)
+ * - Signer title + email
+ * - Date/time + city ("Fait a …")
+ * - Transaction reference ID (audit trail)
+ * - Checkmark + "Certifie via Le Filon AO"
+ * - Legal mention (art. 1367 Code civil)
+ * - Cachet area on the right
+ */
+export function drawESignatureBlock(
+  page: PDFPage, fonts: PdfFonts, esign: ESignData, y: number,
+  cachetImage?: PDFImage,
+): number {
+  // Separator
+  page.drawLine({ start: { x: M.left, y: y - 2 }, end: { x: PAGE_W - M.right, y: y - 2 }, thickness: 0.3, color: C.rule });
+  y -= 10;
+
+  // Date formatting
+  const d = esign.date ?? new Date();
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const datePart = esign.city
+    ? `Fait \u00e0 ${esign.city}, le ${dd}/${mm}/${yyyy} \u00e0 ${hh}:${min}`
+    : `Le ${dd}/${mm}/${yyyy} \u00e0 ${hh}:${min}`;
+
+  // Transaction ID (auto-generated if absent)
+  const txId = esign.transactionId
+    ?? `LFAO-${yyyy}${mm}${dd}-${Math.floor(Math.random() * 0xFFFF).toString(16).toUpperCase().padStart(4, '0')}`;
+
+  // Layout
+  const sigW = Math.floor(CW * 0.6);
+  const gutter = 12;
+  const cachetW = CW - sigW - gutter;
+  const pad = 12;
+  const barW = 3;
+  const innerW = sigW - pad - barW - 8;
+
+  // Pre-measure legal text to compute exact box height
+  const legalText = 'Ce document a \u00e9t\u00e9 sign\u00e9 \u00e9lectroniquement'
+    + ' conform\u00e9ment \u00e0 l\u2019article 1367 du Code civil.';
+  const legalSz = 6;
+  const legalLh = 8.5;
+  const legalLines = countLines(fonts.regular, legalText, legalSz, innerW);
+
+  // Total height = fixed content (118) + legal paragraph + bottom padding
+  const areaH = Math.ceil(118 + legalLines * legalLh);
+  const boxY = y - areaH;
+  const cx = M.left + pad;
+
+  // ── Certificate box background ──
+  page.drawRectangle({ x: M.left, y: boxY, width: sigW, height: areaH, color: C.accentBg, borderColor: C.rule, borderWidth: 0.3 });
+  page.drawRectangle({ x: M.left, y: boxY, width: barW, height: areaH, color: C.accent });
+
+  let cy = y;
+
+  // Header
+  cy -= 8;
+  page.drawText('SIGNATURE \u00c9LECTRONIQUE', {
+    x: cx, y: cy - 6.5, size: 6.5, font: fonts.bold, color: C.mid,
+  });
+  cy -= 10;
+  page.drawLine({ start: { x: cx, y: cy }, end: { x: cx + 120, y: cy }, thickness: 0.3, color: C.rule });
+
+  // ── Identity block ──
+  // Signer name (italic, large, accent — signature-like)
+  cy -= 6;
+  page.drawText(esign.name, {
+    x: cx, y: cy - 14, size: 14, font: fonts.italic, color: C.accent,
+  });
+  // Signer title
+  cy -= 20;
+  page.drawText(esign.title, {
+    x: cx, y: cy - 8.5, size: 8.5, font: fonts.regular, color: C.dark,
+  });
+  // Signer email
+  cy -= 12;
+  page.drawText(esign.email, {
+    x: cx, y: cy - 7, size: 7, font: fonts.regular, color: C.light,
+  });
+
+  // ── Info separator ──
+  cy -= 11;
+  page.drawLine({ start: { x: cx, y: cy }, end: { x: cx + innerW, y: cy }, thickness: 0.15, color: C.ruleLight });
+
+  // Date/time + city
+  cy -= 8;
+  page.drawText(datePart, {
+    x: cx, y: cy - 7.5, size: 7.5, font: fonts.regular, color: C.mid,
+  });
+  // Transaction reference
+  cy -= 10;
+  page.drawText(`R\u00e9f. : ${txId}`, {
+    x: cx, y: cy - 6.5, size: 6.5, font: fonts.regular, color: C.light,
+  });
+
+  // Checkmark + certification badge
+  cy -= 9;
+  const ckX = cx;
+  const ckY = cy - 7;
+  const ckS = 7;
+  page.drawRectangle({ x: ckX, y: ckY, width: ckS, height: ckS, borderColor: C.accent, borderWidth: 0.5, color: C.accent });
+  page.drawLine({ start: { x: ckX + 1.5, y: ckY + 3.8 }, end: { x: ckX + 2.8, y: ckY + 1.5 }, thickness: 1, color: C.white });
+  page.drawLine({ start: { x: ckX + 2.8, y: ckY + 1.5 }, end: { x: ckX + 5.5, y: ckY + 5.5 }, thickness: 1, color: C.white });
+  page.drawText('Certifi\u00e9 via Le Filon AO', {
+    x: ckX + ckS + 5, y: ckY + 1, size: 7.5, font: fonts.regular, color: C.mid,
+  });
+
+  // ── Legal separator ──
+  cy -= 12;
+  page.drawLine({ start: { x: cx, y: cy }, end: { x: cx + innerW, y: cy }, thickness: 0.15, color: C.ruleLight });
+
+  // Legal mention (wrapped paragraph)
+  cy -= 6;
+  const words = legalText.split(' ');
+  let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (fonts.regular.widthOfTextAtSize(test, legalSz) > innerW && line) {
+      page.drawText(line, { x: cx, y: cy - legalSz, size: legalSz, font: fonts.regular, color: C.light });
+      cy -= legalLh;
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) {
+    page.drawText(line, { x: cx, y: cy - legalSz, size: legalSz, font: fonts.regular, color: C.light });
+  }
+
+  // ── Cachet area (right) ──
+  const cachetX = M.left + sigW + gutter;
+  const cachetH = areaH - 14;
+  page.drawText('Cachet de l\u2019entreprise', { x: cachetX, y: y - 8, size: 7, font: fonts.regular, color: C.mid });
+  page.drawRectangle({
+    x: cachetX, y: boxY, width: cachetW, height: cachetH,
+    color: C.fill, borderColor: C.rule, borderWidth: 0.4,
+  });
+
+  if (cachetImage) {
+    const imgDims = cachetImage.scaleToFit(cachetW - 8, cachetH - 8);
+    page.drawImage(cachetImage, {
+      x: cachetX + (cachetW - imgDims.width) / 2,
+      y: boxY + (cachetH - imgDims.height) / 2,
+      width: imgDims.width,
+      height: imgDims.height,
+    });
+  }
+
+  return boxY - 8;
+}
+
+// ═══════════════════════════════════════════
+// FOOTER
+// ═══════════════════════════════════════════
+
 export function drawFooter(page: PDFPage, fonts: PdfFonts, docType: string, pageNum: number, totalPages: number): void {
-  const y = M.bottom - 26;
-
-  page.drawLine({ start: { x: M.left, y: y + 14 }, end: { x: PAGE_W - M.right, y: y + 14 }, thickness: 0.4, color: C.divider });
-
-  // Left — branding
-  page.drawText('Le Filon AO', { x: M.left, y, size: 6.5, font: fonts.bold, color: C.lightText });
-
-  // Center — doc type + date
-  const center = `${docType}  |  Genere le ${new Date().toLocaleDateString('fr-FR')}`;
-  const centerW = fonts.regular.widthOfTextAtSize(center, 6.5);
-  page.drawText(center, { x: (PAGE_W - centerW) / 2, y, size: 6.5, font: fonts.regular, color: C.lightText });
-
-  // Right — page
-  const pageStr = `${pageNum} / ${totalPages}`;
-  const pageW = fonts.regular.widthOfTextAtSize(pageStr, 6.5);
-  page.drawText(pageStr, { x: PAGE_W - M.right - pageW, y, size: 6.5, font: fonts.bold, color: C.lightText });
+  const y = M.bottom - 16;
+  page.drawLine({ start: { x: M.left, y: y + 8 }, end: { x: PAGE_W - M.right, y: y + 8 }, thickness: 0.2, color: C.ruleLight });
+  const s = `${docType} \u2014 ${pageNum} / ${totalPages}`;
+  const w = fonts.regular.widthOfTextAtSize(s, 7);
+  page.drawText(s, { x: (PAGE_W - w) / 2, y, size: 7, font: fonts.regular, color: C.light });
 }
 
-// ─── Inline divider between field groups ───
+// ═══════════════════════════════════════════
+// DIVIDER
+// ═══════════════════════════════════════════
+
 export function drawDivider(page: PDFPage, y: number): number {
-  page.drawLine({
-    start: { x: M.left + 8, y },
-    end: { x: PAGE_W - M.right - 8, y },
-    thickness: 0.3,
-    color: C.divider,
-  });
+  page.drawLine({ start: { x: M.left, y: y - 2 }, end: { x: PAGE_W - M.right, y: y - 2 }, thickness: 0.15, color: C.ruleLight });
   return y - 8;
 }
 
-// ─── Helpers ───
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+
 function truncate(text: string, max: number): string {
   return text.length > max ? text.slice(0, max - 1) + '\u2026' : text;
+}
+
+function countLines(font: PDFFont, text: string, size: number, maxWidth: number): number {
+  const words = text.split(' ');
+  let line = '';
+  let count = 0;
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (font.widthOfTextAtSize(test, size) > maxWidth && line) { count++; line = w; }
+    else { line = test; }
+  }
+  if (line) count++;
+  return count;
+}
+
+export function base64ToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(',')[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
