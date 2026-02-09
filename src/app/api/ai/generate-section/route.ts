@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { hasApiKey, hasGeminiKey, getGeminiModel, getAnthropicClient } from '@/lib/ai-client';
+import { hasApiKey, hasGeminiKey, getGeminiModel, hasAnthropicKey, getAnthropicClient, hasNvidiaKey, nvidiaStream } from '@/lib/ai-client';
 
 interface GenerateBody {
   sectionTitle: string;
@@ -115,34 +115,82 @@ ${lengthInstruction}
       });
     }
 
-    const client = getAnthropicClient();
-    const stream = await client.messages.stream({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    if (hasAnthropicKey()) {
+      const client = getAnthropicClient();
+      const stream = await client.messages.stream({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }],
+      });
 
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const event of stream) {
-            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`));
+      const readable = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const event of stream) {
+              if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`));
+              }
             }
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Erreur streaming';
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
+            controller.close();
           }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Erreur streaming';
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
-          controller.close();
-        }
-      },
-    });
+        },
+      });
 
-    return new Response(readable, {
-      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
-    });
+      return new Response(readable, {
+        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+      });
+    }
+
+    if (hasNvidiaKey()) {
+      const nvidiaBody = await nvidiaStream(prompt);
+      const decoder = new TextDecoder();
+
+      const readable = new ReadableStream({
+        async start(controller) {
+          try {
+            const reader = nvidiaBody.getReader();
+            let buffer = '';
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() ?? '';
+              for (const line of lines) {
+                if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+                try {
+                  const parsed = JSON.parse(line.slice(6));
+                  const content = parsed.choices?.[0]?.delta?.content;
+                  if (content) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: content })}\n\n`));
+                  }
+                } catch { /* skip malformed chunks */ }
+              }
+            }
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Erreur streaming NVIDIA';
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(readable, {
+        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({ error: 'Aucun provider IA disponible' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur interne';
     return new Response(JSON.stringify({ error: message }), {

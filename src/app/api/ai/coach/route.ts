@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { hasApiKey, hasGeminiKey, getGeminiModel, getAnthropicClient } from '@/lib/ai-client';
+import { hasApiKey, hasGeminiKey, getGeminiModel, hasAnthropicKey, getAnthropicClient, hasNvidiaKey, nvidiaGenerate } from '@/lib/ai-client';
 
 interface CoachBody {
   sections: { id: string; title: string; aiDraft: string; buyerExpectation: string }[];
@@ -96,7 +96,7 @@ Regles:
       const model = getGeminiModel();
       const result = await model.generateContent(prompt);
       rawText = result.response.text();
-    } else {
+    } else if (hasAnthropicKey()) {
       const client = getAnthropicClient();
       const message = await client.messages.create({
         model: 'claude-sonnet-4-5-20250929',
@@ -105,6 +105,10 @@ Regles:
       });
       const textBlock = message.content.find((b) => b.type === 'text');
       rawText = textBlock?.type === 'text' ? textBlock.text : '';
+    } else if (hasNvidiaKey()) {
+      rawText = await nvidiaGenerate(prompt);
+    } else {
+      rawText = '';
     }
 
     if (!rawText) {

@@ -31,18 +31,19 @@ Configured in `next.config.ts`: X-Frame-Options DENY, HSTS, CSP (Gemini + Anthro
 
 ## AI Integration
 
-### Dual-Provider Routing
-Le systeme utilise deux fournisseurs IA avec un routing intelligent :
+### Tri-Provider Routing
+Le systeme utilise trois fournisseurs IA avec un routing intelligent et cascade :
 
-| Route | Provider principal | Fallback | Raison |
-|-------|-------------------|----------|--------|
-| `/api/ai/analyze-dce` | **Anthropic** (Claude Sonnet) | Gemini | Extraction JSON complexe |
-| `/api/ai/generate-section` | **Gemini** (2.0 Flash) | Anthropic | Streaming rapide |
-| `/api/ai/coach` | **Gemini** (2.0 Flash) | Anthropic | Analyse legere |
+| Route | Priorite 1 | Priorite 2 | Priorite 3 |
+|-------|-----------|-----------|-----------|
+| `/api/ai/analyze-dce` | **Anthropic** (Claude Sonnet) | Gemini | NVIDIA |
+| `/api/ai/generate-section` | **Gemini** (2.0 Flash) | Anthropic | NVIDIA |
+| `/api/ai/coach` | **Gemini** (2.0 Flash) | Anthropic | NVIDIA |
 
-### Env vars requises
+### Env vars IA
 - `GEMINI_API_KEY` — Google AI Studio (free tier: 15 RPM, 1M tokens/min)
 - `ANTHROPIC_API_KEY` — Console Anthropic ($600 credits)
+- `NVIDIA_API_KEY` — NVIDIA NIM (Llama 3.3 70B, free tier)
 - Si aucune cle: erreur 503 explicite (pas de mock/fallback)
 
 ### Fichiers cles

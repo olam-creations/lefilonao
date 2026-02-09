@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { hasApiKey, hasAnthropicKey, getAnthropicClient, getGeminiModel } from '@/lib/ai-client';
+import { hasApiKey, hasAnthropicKey, getAnthropicClient, hasGeminiKey, getGeminiModel, hasNvidiaKey, nvidiaGenerate } from '@/lib/ai-client';
 
 const DCE_PROMPT = `Tu es un expert en marches publics francais. Analyse ce DCE (Dossier de Consultation des Entreprises) et extrais les informations au format JSON strict.
 
@@ -101,10 +101,14 @@ export async function POST(request: NextRequest) {
       });
       const textBlock = message.content.find((b) => b.type === 'text');
       rawText = textBlock?.type === 'text' ? textBlock.text : '';
-    } else {
+    } else if (hasGeminiKey()) {
       const model = getGeminiModel();
       const result = await model.generateContent(prompt);
       rawText = result.response.text();
+    } else if (hasNvidiaKey()) {
+      rawText = await nvidiaGenerate(prompt);
+    } else {
+      rawText = '';
     }
 
     if (!rawText) {
