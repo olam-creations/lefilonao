@@ -8,6 +8,7 @@ import {
   BarChart3, Mail, Shield, Sparkles, FileText, Pencil,
 } from 'lucide-react';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 const ease = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] };
 
@@ -637,61 +638,8 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* ─── Footer — 4 columns ─── */}
-      <footer className="py-16 px-6 border-t border-transparent" style={{ borderImage: 'linear-gradient(to right, transparent, #c7d2fe, transparent) 1' }}>
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
-            {/* Brand */}
-            <div className="col-span-2 md:col-span-1">
-              <span className="text-lg font-semibold text-slate-900">
-                Le Filon <span className="gradient-text">AO</span>
-              </span>
-              <p className="text-sm text-slate-400 mt-3 leading-relaxed">
-                Veille marchés publics intelligente par IA.
-              </p>
-              <div className="flex items-center gap-2 mt-4 text-xs text-slate-400">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-pulse-dot absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                Tous les systèmes opérationnels
-              </div>
-            </div>
-
-            {/* Product */}
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-4">Produit</p>
-              <ul className="space-y-3 text-sm">
-                <li><Link href="/#features" className="text-slate-500 hover:text-slate-900 transition-colors">Fonctionnalités</Link></li>
-                <li><Link href="/pricing" className="text-slate-500 hover:text-slate-900 transition-colors">Prix</Link></li>
-                <li><Link href="/dashboard" className="text-slate-500 hover:text-slate-900 transition-colors">Dashboard</Link></li>
-              </ul>
-            </div>
-
-            {/* Resources */}
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-4">Ressources</p>
-              <ul className="space-y-3 text-sm">
-                <li><Link href="/#how" className="text-slate-500 hover:text-slate-900 transition-colors">Comment ça marche</Link></li>
-                <li><Link href="/subscribe" className="text-slate-500 hover:text-slate-900 transition-colors">S&apos;inscrire</Link></li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-4">Contact</p>
-              <ul className="space-y-3 text-sm">
-                <li><a href="mailto:contact@lefilonao.com" className="text-slate-500 hover:text-slate-900 transition-colors">contact@lefilonao.com</a></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-slate-400 text-sm">&copy; 2026 Le Filon AO</p>
-            <p className="text-slate-300 text-xs">Fait avec soin à Paris</p>
-          </div>
-        </div>
-      </footer>
+      {/* ─── Footer ─── */}
+      <Footer />
     </div>
   );
 }

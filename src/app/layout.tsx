@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import CookieBanner from '@/components/CookieBanner';
 import './globals.css';
 
 const inter = Inter({
@@ -100,6 +101,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         {children}
+        <CookieBanner />
       </body>
     </html>
   );

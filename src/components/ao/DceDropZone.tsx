@@ -187,6 +187,7 @@ export default function DceDropZone({ state, progress, error, onDrop, onReset, o
                     </motion.div>
                     <div className="space-y-2">
                       <h3 className="text-lg font-bold text-white">Analyse IA en cours</h3>
+                      <p className="text-[10px] text-white/40 mt-1">Analyse g&eacute;n&eacute;r&eacute;e par IA &mdash; v&eacute;rifiez les r&eacute;sultats</p>
                       <motion.p
                         key={progress.step}
                         initial={{ opacity: 0, y: 5 }}
@@ -235,6 +236,7 @@ export default function DceDropZone({ state, progress, error, onDrop, onReset, o
                     <p className="text-sm text-white/60">
                       Le DCE a ete analyse avec succes. Les donnees ont ete injectees dans votre dossier.
                     </p>
+                    <p className="text-[10px] text-white/40 mt-2">Analyse g&eacute;n&eacute;r&eacute;e par IA &mdash; v&eacute;rifiez les r&eacute;sultats</p>
                     <button
                       onClick={onReset}
                       className="mt-2 px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold text-sm rounded-xl hover:from-indigo-600 hover:to-violet-600 transition-all"

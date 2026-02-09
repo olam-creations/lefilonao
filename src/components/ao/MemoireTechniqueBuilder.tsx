@@ -199,7 +199,8 @@ export default function MemoireTechniqueBuilder({
           <Pencil className="w-5 h-5 text-indigo-500" />
           <div>
             <h2 className="text-lg font-bold text-slate-900">Memoire Technique</h2>
-            <p className="text-xs text-slate-400">Brouillon IA pour chaque section — personnalisez et copiez</p>
+            <p className="text-xs text-slate-400">Brouillon IA pour chaque section &mdash; personnalisez et copiez</p>
+            <p className="text-[10px] text-slate-300 mt-0.5">Contenu g&eacute;n&eacute;r&eacute; par IA &mdash; &agrave; v&eacute;rifier avant utilisation</p>
           </div>
         </div>
         <div className="flex items-center gap-3">

@@ -56,6 +56,7 @@ export default function AiCoachPanel({ coachData, loading, onRefresh }: AiCoachP
             <div>
               <h3 className="text-sm font-bold text-slate-900">Coach IA</h3>
               <p className="text-xs text-slate-500">Analyse et suggestions pour votre memoire</p>
+              <p className="text-[10px] text-slate-300">Suggestions g&eacute;n&eacute;r&eacute;es par IA</p>
             </div>
           </div>
           <button
