@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-const SITE_PASSWORD = process.env.SITE_PASSWORD || '';
+const SITE_PASSWORD = (process.env.SITE_PASSWORD || '').trim();
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
-    if (password !== SITE_PASSWORD) {
+    if (password.trim() !== SITE_PASSWORD) {
       return NextResponse.json({ error: 'Mot de passe incorrect' }, { status: 403 });
     }
 
