@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const COOKIE_NAME = 'lefilonao_access';
 const LOGIN_PATH = '/gate';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip gate page, API routes, static files, and SEO files

@@ -1,230 +1,780 @@
 'use client';
 
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Search, Zap, TrendingUp, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import {
+  ArrowRight, Search, Zap, TrendingUp, Check, X,
+  Menu, BarChart3, Mail, Shield, Sparkles, FileText, Pencil,
+} from 'lucide-react';
+
+const ease = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] };
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: ease },
+};
+
+const stagger = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.12 } },
+};
+
+/* ─── Spotlight handler for feature cards ─── */
+function useSpotlight() {
+  const ref = useRef<HTMLDivElement>(null);
+  const handleMouse = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+    el.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+  }, []);
+  return { ref, handleMouse };
+}
+
+/* ─── Mobile Nav ─── */
+function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 bg-white"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100">
+            <span className="text-lg font-semibold text-slate-900">
+              Le Filon <span className="gradient-text">AO</span>
+            </span>
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100">
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+          </div>
+          <nav className="p-6 space-y-1">
+            {[
+              { href: '/#features', label: 'Fonctionnalités' },
+              { href: '/#how', label: 'Comment ça marche' },
+              { href: '/pricing', label: 'Prix' },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={onClose}
+                className="block py-3 px-4 text-slate-700 hover:bg-slate-50 rounded-lg text-lg"
+              >
+                {link.label}
+              </Link>
+            ))}
+            <div className="pt-4">
+              <Link href="/subscribe" onClick={onClose} className="btn-primary w-full justify-center py-3">
+                Essai gratuit <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </nav>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/* ─── Dashboard Preview Mockup ─── */
+function DashboardMockup() {
+  const mockRfps = [
+    { score: 92, label: 'GO', title: 'Maintenance informatique - Ville de Lyon', issuer: 'Mairie de Lyon', budget: '120k€' },
+    { score: 78, label: 'GO', title: 'Développement application web portail citoyen', issuer: 'Métropole de Bordeaux', budget: '85k€' },
+    { score: 54, label: 'MAYBE', title: 'Infogérance et support niveau 2', issuer: 'CHU de Toulouse', budget: '200k€' },
+  ];
+
+  return (
+    <motion.div
+      className="mt-16 max-w-4xl mx-auto"
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ...ease, delay: 0.5 }}
+    >
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+        {/* Browser bar */}
+        <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-100">
+          <div className="flex gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-slate-200" />
+            <div className="w-3 h-3 rounded-full bg-slate-200" />
+            <div className="w-3 h-3 rounded-full bg-slate-200" />
+          </div>
+          <div className="flex-1 mx-4">
+            <div className="bg-white border border-slate-200 rounded-md px-3 py-1 text-xs text-slate-400 font-mono">
+              lefilonao.com/dashboard
+            </div>
+          </div>
+        </div>
+        {/* Mock cards */}
+        <div className="p-4 space-y-3">
+          {mockRfps.map((rfp, i) => (
+            <motion.div
+              key={rfp.title}
+              className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ ...ease, delay: 0.7 + i * 0.15 }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                  rfp.label === 'GO'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {rfp.score} &middot; {rfp.label}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">{rfp.title}</p>
+                  <p className="text-xs text-slate-400">{rfp.issuer}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                  <span className="text-sm font-mono text-slate-500">{rfp.budget}</span>
+                  {rfp.label === 'GO' && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-md">Préparer</span>
+                  )}
+                </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+      {/* Fade out gradient at bottom */}
+      <div className="h-16 bg-gradient-to-b from-transparent to-white -mt-16 relative z-10" />
+    </motion.div>
+  );
+}
+
+/* ─── Feature Card with Spotlight ─── */
+function FeatureCard({
+  icon, title, desc, className = '',
+}: {
+  icon: React.ReactNode; title: string; desc: string; className?: string;
+}) {
+  const { handleMouse } = useSpotlight();
+
+  return (
+    <motion.div
+      className={`spotlight-card bg-white rounded-xl p-8 border border-slate-200 hover:border-indigo-200 transition-all group ${className}`}
+      variants={fadeUp}
+      onMouseMove={handleMouse}
+    >
+      <div className="relative z-10">
+        <div className="w-11 h-11 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center text-white mb-5 shadow-lg shadow-indigo-500/20">
+          {icon}
+        </div>
+        <h3 className="text-lg font-semibold text-slate-900 mb-2">{title}</h3>
+        <p className="text-slate-500 leading-relaxed">{desc}</p>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function LandingPage() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
+
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
+  const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="border-b border-neutral-800 p-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-2xl font-black">
-            <span className="text-yellow-500">Le Filon</span> AO
+    <div className="min-h-screen">
+      <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+
+      {/* ─── Nav ─── */}
+      <header className={`sticky top-0 z-40 transition-all duration-300 ${scrolled ? 'glass-scrolled' : 'glass'}`}>
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-lg font-semibold text-slate-900 hover:opacity-80 transition-opacity">
+            Le Filon <span className="gradient-text">AO</span>
           </Link>
-          <nav className="flex items-center gap-6">
-            <Link href="/#how" className="text-neutral-400 hover:text-white transition-colors hidden md:block">
-              Comment ça marche
-            </Link>
-            <Link href="/pricing" className="text-neutral-400 hover:text-white transition-colors">
-              Tarifs
-            </Link>
-            <Link href="/subscribe" className="text-neutral-400 hover:text-white transition-colors">
-              S'inscrire
-            </Link>
-            <Link 
-              href="/pricing" 
-              className="px-4 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-colors"
-            >
-              Essai gratuit →
-            </Link>
+          <nav className="hidden md:flex items-center gap-8">
+            {[
+              { href: '/#features', label: 'Fonctionnalités' },
+              { href: '/#how', label: 'Comment ça marche' },
+              { href: '/pricing', label: 'Prix' },
+            ].map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-sm text-slate-500 hover:text-slate-900 transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
+          <div className="hidden md:flex items-center gap-3">
+            <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
+              Connexion
+            </Link>
+            <Link href="/subscribe" className="btn-primary text-sm py-2 px-4">
+              Essai gratuit <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <button
+            className="md:hidden p-2 rounded-lg hover:bg-slate-100"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Ouvrir le menu"
+          >
+            <Menu className="w-5 h-5 text-slate-700" />
+          </button>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-block px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-sm font-medium mb-8">
-            🎯 3x moins cher que la concurrence
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-black mb-6 leading-tight">
-            Les appels d'offres<br/>
-            <span className="text-yellow-500">faits pour vous</span>
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-neutral-400 mb-8 max-w-2xl mx-auto">
-            On scanne le BOAMP 24/7. Vous recevez uniquement les marchés publics 
-            qui matchent votre expertise, avec un score Go/No-Go.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Link
-              href="/pricing"
-              className="px-8 py-4 bg-yellow-500 text-black font-bold text-lg flex items-center justify-center gap-2 hover:bg-yellow-400 transition-colors"
-            >
-              Voir les tarifs <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link
-              href="/subscribe"
-              className="px-8 py-4 border border-neutral-700 font-bold text-lg hover:border-white transition-colors"
-            >
-              Essai gratuit 14 jours
-            </Link>
-          </div>
-          
-          <p className="text-neutral-500 text-sm">
-            Sans engagement · Annulable à tout moment · Support réactif
-          </p>
-        </div>
-      </section>
+      {/* ─── Hero ─── */}
+      <section ref={heroRef} className="relative pt-20 pb-8 px-6 overflow-hidden">
+        {/* Grid dot background */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white via-white/80 to-white" />
 
-      {/* Problem/Solution */}
-      <section className="py-20 px-6 border-t border-neutral-800">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-16">
-            {/* Problem */}
-            <div>
-              <div className="flex items-center gap-2 text-red-500 mb-4">
-                <AlertTriangle className="w-5 h-5" />
-                <span className="font-bold uppercase text-sm">Le problème</span>
-              </div>
-              <h2 className="text-3xl font-bold mb-6">Vous perdez des heures sur le BOAMP</h2>
-              <ul className="space-y-4 text-neutral-400">
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-1">✗</span>
-                  <span>Des centaines d'AO à trier chaque semaine</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-1">✗</span>
-                  <span>Impossible de savoir lesquels valent le coup</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-1">✗</span>
-                  <span>Vous ratez des opportunités faute de temps</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-red-500 mt-1">✗</span>
-                  <span>Les outils existants coûtent 1500-4000€/an</span>
-                </li>
-              </ul>
-            </div>
-            
-            {/* Solution */}
-            <div>
-              <div className="flex items-center gap-2 text-green-500 mb-4">
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-bold uppercase text-sm">La solution</span>
-              </div>
-              <h2 className="text-3xl font-bold mb-6">Le Filon fait le tri pour vous</h2>
-              <ul className="space-y-4 text-neutral-400">
-                <li className="flex items-start gap-3">
-                  <span className="text-green-500 mt-1">✓</span>
-                  <span>Alertes ciblées selon votre profil</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-green-500 mt-1">✓</span>
-                  <span>Score Go/No-Go sur chaque AO</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-green-500 mt-1">✓</span>
-                  <span>Plus de temps pour rédiger vos réponses</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-green-500 mt-1">✓</span>
-                  <span>50€/mois tout inclus (3x moins cher)</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section id="how" className="py-20 px-6 border-t border-neutral-800">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
-            Comment ça marche
-          </h2>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center mx-auto mb-6">
-                <Search className="w-8 h-8 text-yellow-500" />
-              </div>
-              <div className="text-yellow-500 font-bold mb-2">1. Créez votre profil</div>
-              <p className="text-neutral-400">
-                Secteurs, régions, budget cible. 2 minutes pour configurer.
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center mx-auto mb-6">
-                <Zap className="w-8 h-8 text-yellow-500" />
-              </div>
-              <div className="text-yellow-500 font-bold mb-2">2. Recevez les alertes</div>
-              <p className="text-neutral-400">
-                On scanne le BOAMP et les sources officielles. Vous recevez les matchs par email.
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center mx-auto mb-6">
-                <TrendingUp className="w-8 h-8 text-yellow-500" />
-              </div>
-              <div className="text-yellow-500 font-bold mb-2">3. Gagnez des marchés</div>
-              <p className="text-neutral-400">
-                Concentrez-vous sur les AO à fort potentiel. Maximisez votre taux de succès.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing teaser */}
-      <section className="py-20 px-6 border-t border-neutral-800 bg-neutral-900/50">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Tarifs <span className="text-yellow-500">disruptifs</span>
-          </h2>
-          <p className="text-xl text-neutral-400 mb-8">
-            La concurrence facture 1 500 à 4 000€/an. Nous, c'est 50€/mois tout inclus.
-          </p>
-
-          <div className="max-w-sm mx-auto mb-12">
-            <div className="border-2 border-yellow-500 p-6 bg-yellow-500/5">
-              <div className="text-3xl font-black">50€<span className="text-neutral-500 text-lg">/mois</span></div>
-              <div className="text-yellow-500 font-bold">Pro — Tout inclus</div>
-              <div className="text-neutral-400 text-sm mt-1">600€/an · Essai gratuit 14 jours</div>
-            </div>
-          </div>
-          
-          <Link
-            href="/pricing"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-white text-black font-bold hover:bg-neutral-200 transition-colors"
+        <motion.div className="relative max-w-4xl mx-auto text-center" style={{ opacity: heroOpacity }}>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...ease, delay: 0.1 }}
           >
-            Comparer les offres <ArrowRight className="w-5 h-5" />
-          </Link>
+            {/* Animated badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full mb-8">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-pulse-dot absolute inline-flex h-full w-full rounded-full bg-indigo-400" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
+              </span>
+              <span className="text-indigo-700 text-sm font-medium">
+                De la veille à la réponse, 50€/mois
+              </span>
+            </div>
+
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-slate-900 tracking-tight leading-[1.08] mb-6">
+              La veille marchés publics{' '}
+              <span className="gradient-text">intelligente</span>
+            </h1>
+
+            <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10">
+              De la détection à la réponse : trouvez les bons appels d&apos;offres,
+              analysez le DCE et préparez vos réponses avec l&apos;IA. 50&euro;/mois tout inclus.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/subscribe" className="btn-primary text-base py-3.5 px-7">
+                Démarrer l&apos;essai gratuit
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link href="/pricing" className="btn-secondary text-base py-3.5 px-7">
+                En savoir plus
+              </Link>
+            </div>
+          </motion.div>
+
+          {/* Trust indicators */}
+          <motion.div
+            className="flex flex-wrap items-center justify-center gap-8 mt-14 text-sm text-slate-400"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ ...ease, delay: 0.4 }}
+          >
+            <span className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-indigo-400" /> Essai 14 jours
+            </span>
+            <span className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-400" /> Sans engagement
+            </span>
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-violet-400" /> Score IA Go/No-Go
+            </span>
+          </motion.div>
+
+          {/* Dashboard mockup */}
+          <DashboardMockup />
+        </motion.div>
+      </section>
+
+      {/* ─── Stats bar ─── */}
+      <section className="py-12 px-6 border-y border-slate-100">
+        <motion.div
+          className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          variants={stagger}
+        >
+          {[
+            { value: '500+', label: 'AO analysés / semaine' },
+            { value: '50€', label: 'par mois, tout inclus' },
+            { value: '14j', label: 'd\'essai gratuit' },
+            { value: '5 min', label: 'pour s\'inscrire' },
+          ].map((stat) => (
+            <motion.div key={stat.label} variants={fadeUp}>
+              <div className="text-2xl md:text-3xl font-bold gradient-text">{stat.value}</div>
+              <div className="text-sm text-slate-400 mt-1">{stat.label}</div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* ─── Features — Bento Grid ─── */}
+      <section id="features" className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
+            variants={fadeUp}
+          >
+            <p className="text-indigo-600 text-sm font-semibold mb-3 tracking-wide uppercase">Fonctionnalités</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
+              Tout ce qu&apos;il faut pour gagner des marchés
+            </h2>
+          </motion.div>
+
+          <motion.div
+            className="grid md:grid-cols-3 gap-4"
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-60px' }}
+          >
+            {/* Hero card — spans 2 cols */}
+            <motion.div
+              className="spotlight-card md:col-span-2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-xl p-10 text-white relative overflow-hidden group"
+              variants={fadeUp}
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                e.currentTarget.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+                e.currentTarget.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+              }}
+            >
+              <div className="absolute inset-0 bg-grid-pattern-dark opacity-30" />
+              <div className="relative z-10">
+                <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center mb-6 border border-white/20">
+                  <BarChart3 className="w-6 h-6" />
+                </div>
+                <h3 className="text-2xl font-bold mb-3">De la veille à la victoire</h3>
+                <p className="text-indigo-100 leading-relaxed max-w-md text-lg">
+                  Score Go/No-Go, analyse du DCE, aide à la réponse, intelligence concurrentielle.
+                  Un seul outil pour tout le cycle de l&apos;appel d&apos;offres.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-6">
+                  <span className="px-3 py-1 bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 rounded-full text-sm font-medium">Score Go/No-Go</span>
+                  <span className="px-3 py-1 bg-white/15 text-white/80 border border-white/20 rounded-full text-sm font-medium">Analyse DCE</span>
+                  <span className="px-3 py-1 bg-white/15 text-white/80 border border-white/20 rounded-full text-sm font-medium">Aide réponse</span>
+                  <span className="px-3 py-1 bg-white/15 text-white/80 border border-white/20 rounded-full text-sm font-medium">Intel marché</span>
+                </div>
+              </div>
+            </motion.div>
+
+            <FeatureCard
+              icon={<Mail className="w-5 h-5" />}
+              title="Alertes & scoring IA"
+              desc="Alertes quotidiennes ciblées. Chaque AO est scoré selon votre profil : Go, Maybe ou Pass."
+            />
+
+            <FeatureCard
+              icon={<FileText className="w-5 h-5" />}
+              title="Analyse du DCE"
+              desc="L'IA extrait les critères de sélection, les pièces requises et la pondération. Vous voyez l'essentiel en un coup d'œil."
+            />
+
+            <FeatureCard
+              icon={<Pencil className="w-5 h-5" />}
+              title="Aide à la réponse"
+              desc="Plan de mémoire technique, résumé exécutif, checklist conformité. L'IA structure votre candidature."
+            />
+
+            <FeatureCard
+              icon={<TrendingUp className="w-5 h-5" />}
+              title="Intelligence de marché"
+              desc="Qui gagne quoi, à quel prix. Analysez vos concurrents et optimisez votre stratégie tarifaire."
+            />
+          </motion.div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 px-6 border-t border-neutral-800">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Prêt à trouver <span className="text-yellow-500">le filon</span> ?
+      {/* ─── Problem / Solution ─── */}
+      <section className="py-24 px-6 bg-slate-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16 md:gap-8 relative">
+            {/* Vertical divider on desktop */}
+            <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px">
+              <motion.div
+                className="w-full h-full bg-gradient-to-b from-transparent via-indigo-200 to-transparent"
+                initial={{ scaleY: 0 }}
+                whileInView={{ scaleY: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
+              />
+            </div>
+
+            <motion.div
+              className="md:pr-12"
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true }}
+              variants={fadeUp}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-red-400 to-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/20">
+                  <X className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-red-600 font-semibold text-sm uppercase tracking-wide">Le problème</span>
+              </div>
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-6">
+                Vous perdez des heures sur le BOAMP
+              </h2>
+              <ul className="space-y-4">
+                {[
+                  'Des centaines d\'AO à trier chaque semaine',
+                  'Des heures à éplucher les DCE pour rien',
+                  'Pas le temps de rédiger des réponses solides',
+                  'Les outils existants coûtent 1 500-4 000€/an',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-slate-600">
+                    <span className="w-5 h-5 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <X className="w-3 h-3 text-red-400" />
+                    </span>
+                    <span className="leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            <motion.div
+              className="md:pl-12"
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true }}
+              variants={fadeUp}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                  <Check className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-emerald-600 font-semibold text-sm uppercase tracking-wide">La solution</span>
+              </div>
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-6">
+                Le Filon fait le tri pour vous
+              </h2>
+              <ul className="space-y-4">
+                {[
+                  'Alertes ciblées + score Go/No-Go automatique',
+                  'L\'IA analyse le DCE et extrait l\'essentiel',
+                  'Aide à la rédaction : plan, checklist, résumé',
+                  '50€/mois tout inclus (3x moins cher)',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-slate-600">
+                    <span className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Check className="w-3 h-3 text-emerald-500" />
+                    </span>
+                    <span className="leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── How it works — Connected Timeline ─── */}
+      <section id="how" className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true }}
+            variants={fadeUp}
+          >
+            <p className="text-indigo-600 text-sm font-semibold mb-3 tracking-wide uppercase">Processus</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
+              Comment ça marche
+            </h2>
+          </motion.div>
+
+          <motion.div
+            className="grid md:grid-cols-3 gap-0 relative"
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-60px' }}
+          >
+            {/* Connecting line */}
+            <div className="hidden md:block absolute top-[3.25rem] left-[16.67%] right-[16.67%] h-0.5">
+              <motion.div
+                className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500 rounded-full"
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+                style={{ transformOrigin: 'left' }}
+              />
+            </div>
+
+            {[
+              {
+                icon: <Search className="w-5 h-5" />,
+                step: '1',
+                title: 'Configurez votre radar',
+                desc: 'Secteurs, régions, budget cible. 2 minutes pour paramétrer vos alertes.',
+              },
+              {
+                icon: <Zap className="w-5 h-5" />,
+                step: '2',
+                title: 'Découvrez les opportunités',
+                desc: 'Alertes quotidiennes, score Go/No-Go. Vous savez immédiatement où concentrer vos efforts.',
+              },
+              {
+                icon: <TrendingUp className="w-5 h-5" />,
+                step: '3',
+                title: 'Préparez et gagnez',
+                desc: 'L\'IA analyse le DCE et structure votre réponse. Maximisez vos chances de succès.',
+              },
+            ].map((item) => (
+              <motion.div
+                key={item.step}
+                className="text-center px-8 relative"
+                variants={fadeUp}
+              >
+                {/* Step number */}
+                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center text-white text-lg font-bold mx-auto mb-6 shadow-lg shadow-indigo-500/25 relative z-10">
+                  {item.step}
+                </div>
+                <div className="w-10 h-10 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 mx-auto mb-4">
+                  {item.icon}
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">{item.title}</h3>
+                <p className="text-slate-500 leading-relaxed">{item.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ─── Pricing teaser ─── */}
+      <section className="py-24 px-6 bg-slate-50">
+        <motion.div
+          className="max-w-lg mx-auto text-center"
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          variants={fadeUp}
+        >
+          <p className="text-indigo-600 text-sm font-semibold mb-3 tracking-wide uppercase">Prix</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mb-4">
+            Un prix. Zéro limite.
           </h2>
-          <p className="text-xl text-neutral-400 mb-8">
-            Essai gratuit 14 jours. Sans engagement.
+          <p className="text-slate-500 mb-10">
+            Veille, scoring, analyse du DCE, aide à la réponse. Tout pour 50€/mois.
+          </p>
+
+          <div className="bg-white rounded-2xl p-10 border border-slate-200 glow-indigo relative">
+            <div className="flex items-baseline justify-center gap-1 mb-1">
+              <span className="text-6xl font-bold gradient-text-price">50€</span>
+              <span className="text-xl text-slate-400">/mois</span>
+            </div>
+            <p className="text-slate-400 text-sm mb-6">600€/an &middot; Sans engagement</p>
+            <div className="flex gap-2 justify-center mb-8">
+              <span className="badge-go">GO</span>
+              <span className="badge-maybe">MAYBE</span>
+              <span className="badge-pass">PASS</span>
+            </div>
+            <Link href="/subscribe" className="btn-primary w-full justify-center py-3.5">
+              Démarrer l&apos;essai gratuit
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <p className="text-slate-400 text-xs mt-4">
+              Carte bancaire requise &middot; Annulation facile
+            </p>
+          </div>
+
+          <Link href="/pricing" className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-medium text-sm mt-8 transition-colors group">
+            Voir tout ce qui est inclus
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        </motion.div>
+      </section>
+
+      {/* ─── FAQ with Schema Markup ─── */}
+      <section className="py-24 px-6" id="faq">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "Combien coûte la veille marchés publics ?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Le Filon AO propose une veille complète à partir de 29€/mois pour les indépendants, 79€/mois pour les TPE/PME et 199€/mois pour les entreprises avec volume illimité. C'est 3 à 5 fois moins cher que les solutions traditionnelles comme France Marchés ou Wanao."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "D'où viennent les appels d'offres ?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Nous agrégeons les données officielles du BOAMP (Bulletin Officiel des Annonces de Marchés Publics), le portail officiel de la commande publique française. Les données sont mises à jour quotidiennement."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Puis-je annuler à tout moment ?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Oui, tous nos abonnements sont sans engagement. Vous pouvez annuler en un clic depuis votre espace client, sans frais cachés ni période de préavis."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Comment fonctionne l'IA de matching ?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Notre IA analyse sémantiquement votre profil d'activité et compare avec les appels d'offres. Contrairement aux alertes par mots-clés, elle comprend le contexte et vous propose uniquement les opportunités pertinentes pour votre entreprise."
+                  }
+                }
+              ]
+            })
+          }}
+        />
+        <motion.div
+          className="max-w-3xl mx-auto"
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          variants={stagger}
+        >
+          <motion.div className="text-center mb-12" variants={fadeUp}>
+            <p className="text-indigo-600 text-sm font-semibold mb-3 tracking-wide uppercase">FAQ</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
+              Questions fréquentes
+            </h2>
+          </motion.div>
+
+          <div className="space-y-4">
+            {[
+              {
+                q: "Combien coûte la veille marchés publics ?",
+                a: "Le Filon AO propose une veille complète à partir de 29€/mois pour les indépendants, 79€/mois pour les TPE/PME et 199€/mois pour les entreprises avec volume illimité. C'est 3 à 5 fois moins cher que les solutions traditionnelles."
+              },
+              {
+                q: "D'où viennent les appels d'offres ?",
+                a: "Nous agrégeons les données officielles du BOAMP (Bulletin Officiel des Annonces de Marchés Publics), le portail officiel de la commande publique française. Les données sont mises à jour quotidiennement."
+              },
+              {
+                q: "Puis-je annuler à tout moment ?",
+                a: "Oui, tous nos abonnements sont sans engagement. Vous pouvez annuler en un clic depuis votre espace client, sans frais cachés."
+              },
+              {
+                q: "Comment fonctionne l'IA de matching ?",
+                a: "Notre IA analyse sémantiquement votre profil d'activité et compare avec les appels d'offres. Contrairement aux alertes par mots-clés, elle comprend le contexte et vous propose uniquement les opportunités pertinentes."
+              }
+            ].map((item, i) => (
+              <motion.details
+                key={i}
+                className="group bg-white border border-slate-200 rounded-xl overflow-hidden"
+                variants={fadeUp}
+              >
+                <summary className="flex items-center justify-between p-6 cursor-pointer list-none">
+                  <span className="font-semibold text-slate-900">{item.q}</span>
+                  <span className="text-slate-400 group-open:rotate-45 transition-transform">+</span>
+                </summary>
+                <div className="px-6 pb-6 text-slate-500 leading-relaxed">
+                  {item.a}
+                </div>
+              </motion.details>
+            ))}
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ─── CTA ─── */}
+      <section className="py-24 px-6 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern-dark opacity-40" />
+        <motion.div
+          className="max-w-3xl mx-auto text-center relative z-10"
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          variants={fadeUp}
+        >
+          <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-5">
+            Prêt à trouver votre prochain marché ?
+          </h2>
+          <p className="text-lg text-slate-400 mb-10">
+            Essai gratuit 14 jours. Sans engagement. Annulation en un clic.
           </p>
           <Link
             href="/subscribe"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-yellow-500 text-black font-bold text-lg hover:bg-yellow-400 transition-colors"
+            className="inline-flex items-center gap-2 text-base py-3.5 px-8 bg-white text-slate-900 font-semibold rounded-xl hover:bg-slate-100 hover:shadow-lg hover:shadow-white/10 transition-all"
           >
-            Commencer maintenant <ArrowRight className="w-5 h-5" />
+            Commencer maintenant
+            <ArrowRight className="w-4 h-4" />
           </Link>
-        </div>
+        </motion.div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-neutral-800 py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-neutral-500">© 2026 Le Filon AO — Metatron Labs</p>
-          <div className="flex gap-6 text-neutral-500">
-            <Link href="/pricing" className="hover:text-white">Tarifs</Link>
-            <Link href="/subscribe" className="hover:text-white">S'inscrire</Link>
-            <a href="mailto:contact@lefilonao.com" className="hover:text-white">Contact</a>
+      {/* ─── Footer — 4 columns ─── */}
+      <footer className="py-16 px-6 border-t border-transparent" style={{ borderImage: 'linear-gradient(to right, transparent, #c7d2fe, transparent) 1' }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+            {/* Brand */}
+            <div className="col-span-2 md:col-span-1">
+              <span className="text-lg font-semibold text-slate-900">
+                Le Filon <span className="gradient-text">AO</span>
+              </span>
+              <p className="text-sm text-slate-400 mt-3 leading-relaxed">
+                Veille marchés publics intelligente par IA.
+              </p>
+              <div className="flex items-center gap-2 mt-4 text-xs text-slate-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-pulse-dot absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                Tous les systèmes opérationnels
+              </div>
+            </div>
+
+            {/* Product */}
+            <div>
+              <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-4">Produit</p>
+              <ul className="space-y-3 text-sm">
+                <li><Link href="/#features" className="text-slate-500 hover:text-slate-900 transition-colors">Fonctionnalités</Link></li>
+                <li><Link href="/pricing" className="text-slate-500 hover:text-slate-900 transition-colors">Prix</Link></li>
+                <li><Link href="/dashboard" className="text-slate-500 hover:text-slate-900 transition-colors">Dashboard</Link></li>
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div>
+              <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-4">Ressources</p>
+              <ul className="space-y-3 text-sm">
+                <li><Link href="/#how" className="text-slate-500 hover:text-slate-900 transition-colors">Comment ça marche</Link></li>
+                <li><Link href="/subscribe" className="text-slate-500 hover:text-slate-900 transition-colors">S&apos;inscrire</Link></li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-4">Contact</p>
+              <ul className="space-y-3 text-sm">
+                <li><a href="mailto:contact@lefilonao.com" className="text-slate-500 hover:text-slate-900 transition-colors">contact@lefilonao.com</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-slate-400 text-sm">&copy; 2026 Le Filon AO</p>
+            <p className="text-slate-300 text-xs">Fait avec soin à Paris</p>
           </div>
         </div>
       </footer>

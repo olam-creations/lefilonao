@@ -1,60 +1,123 @@
 'use client';
 
-import { CheckCircle, ArrowRight } from 'lucide-react';
+import { CheckCircle, ArrowRight, Search, Zap, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+
+const ease = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] };
+
+const STEPS = [
+  {
+    icon: Search,
+    title: 'Configurez vos alertes',
+    desc: 'Secteurs, régions, budget. Votre radar est prêt.',
+  },
+  {
+    icon: Zap,
+    title: 'Recevez les opportunités',
+    desc: 'Score Go/No-Go pour chaque appel d\'offres.',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Préparez et gagnez',
+    desc: 'Analyse du DCE, aide à la réponse, intelligence marché.',
+  },
+];
 
 function SuccessContent() {
-  const searchParams = useSearchParams();
+  useSearchParams();
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          window.location.href = '/dashboard';
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
-      <div className="max-w-lg text-center">
-        <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-6" />
-        
-        <h1 className="text-4xl font-black mb-4">
-          Bienvenue dans <span className="text-yellow-500">Le Filon</span> !
-        </h1>
-        
-        <p className="text-xl text-neutral-300 mb-6">
-          Votre abonnement est activé. Vous allez recevoir vos premières alertes très bientôt.
-        </p>
-        
-        <div className="bg-neutral-900 border border-neutral-800 p-6 mb-8 text-left">
-          <h2 className="font-bold mb-4">Prochaines étapes :</h2>
-          <ul className="space-y-3 text-neutral-300">
-            <li className="flex items-start gap-3">
-              <span className="text-yellow-500 font-bold">1.</span>
-              <span>Vérifiez votre email de confirmation</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="text-yellow-500 font-bold">2.</span>
-              <span>Configurez vos alertes (secteurs, régions, budget)</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="text-yellow-500 font-bold">3.</span>
-              <span>Recevez les appels d'offres qui matchent votre profil</span>
-            </li>
-          </ul>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            href="/subscribe"
-            className="px-6 py-3 bg-white text-black font-bold flex items-center justify-center gap-2 hover:bg-neutral-200 transition-colors"
-          >
-            Modifier mon profil <ArrowRight className="w-5 h-5" />
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="glass">
+        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-lg font-semibold text-slate-900">
+            Le Filon <span className="gradient-text">AO</span>
           </Link>
-          <a
-            href="mailto:contact@lefilonao.com"
-            className="px-6 py-3 border border-neutral-700 font-bold hover:border-white transition-colors"
-          >
-            Une question ?
-          </a>
         </div>
-        
+      </header>
 
+      <div className="flex items-center justify-center px-6 pt-20 pb-16">
+        <motion.div
+          className="max-w-lg w-full text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={ease}
+        >
+          {/* Success icon */}
+          <motion.div
+            className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-emerald-500/25"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
+          >
+            <CheckCircle className="w-10 h-10 text-white" />
+          </motion.div>
+
+          <h1 className="text-3xl font-bold text-slate-900 mb-3">
+            Bienvenue dans Le Filon <span className="gradient-text">AO</span>
+          </h1>
+          <p className="text-slate-500 text-lg mb-10">
+            Votre essai de 14 jours commence maintenant.
+          </p>
+
+          {/* Steps */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 mb-8 text-left">
+            <div className="space-y-6">
+              {STEPS.map((step, i) => {
+                const Icon = step.icon;
+                return (
+                  <motion.div
+                    key={step.title}
+                    className="flex items-start gap-4"
+                    initial={{ opacity: 0, x: -16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ ...ease, delay: 0.4 + i * 0.15 }}
+                  >
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-sm shadow-indigo-500/20">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900 mb-0.5">{step.title}</h3>
+                      <p className="text-sm text-slate-500">{step.desc}</p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* CTA */}
+          <Link
+            href="/dashboard"
+            className="btn-primary w-full justify-center py-3.5 text-base mb-4"
+          >
+            Accéder au dashboard
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+
+          <p className="text-slate-400 text-sm">
+            Redirection automatique dans {countdown}s
+          </p>
+        </motion.div>
       </div>
     </div>
   );
@@ -62,11 +125,13 @@ function SuccessContent() {
 
 export default function SuccessPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="animate-pulse">Chargement...</div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="text-slate-400">Chargement...</div>
+        </div>
+      }
+    >
       <SuccessContent />
     </Suspense>
   );

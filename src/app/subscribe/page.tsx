@@ -2,10 +2,15 @@
 
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle, Zap, Building2, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, ArrowRight, ArrowLeft, X } from 'lucide-react';
+import Link from 'next/link';
+import { setToken, setTrialStart, initOnboarding } from '@/lib/auth';
+import { api, API_URL } from '@/lib/api';
+
+const ease = { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] };
 
 const SECTORS = [
-  // IT & Digital
   'Développement Web & Logiciel',
   'Intelligence Artificielle & ML',
   'Cloud & Infrastructure',
@@ -14,29 +19,23 @@ const SECTORS = [
   'Applications Mobiles',
   'Conseil IT & Digital',
   'Intégration Systèmes',
-  // BTP & Construction
   'BTP & Travaux Publics',
   'Architecture & Urbanisme',
   'Génie Civil',
   'Rénovation Énergétique',
-  // Ingénierie & Industrie
   'Ingénierie Industrielle',
   'Électronique & Électricité',
   'Mécanique & Maintenance',
   'Environnement & Déchets',
-  // Services
   'Formation & Éducation',
   'Communication & Marketing',
   'Études & Conseil',
   'Services Juridiques',
   'Comptabilité & Finance',
-  // Santé & Social
   'Santé & Médical',
   'Services Sociaux',
-  // Transport & Logistique
   'Transport & Mobilité',
   'Logistique & Supply Chain',
-  // Autres
   'Restauration & Traiteur',
   'Nettoyage & Propreté',
   'Sécurité & Gardiennage',
@@ -55,39 +54,90 @@ const REGIONS = [
   'Toute la France',
 ];
 
+const COMPANY_SIZES = [
+  { value: 'auto', label: 'Auto-entrepreneur' },
+  { value: '1-10', label: '1 à 10 salariés' },
+  { value: '11-50', label: '11 à 50 salariés' },
+  { value: '51-250', label: '51 à 250 salariés' },
+  { value: '250+', label: 'Plus de 250 salariés' },
+];
+
+const FREQUENCIES = [
+  { value: 'instant', label: 'Instantané', desc: 'Dès qu\'un AO correspond' },
+  { value: 'daily', label: 'Quotidien', desc: 'Un digest chaque matin', recommended: true },
+  { value: 'weekly', label: 'Hebdomadaire', desc: 'Un résumé chaque lundi' },
+];
+
+const stepVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? 40 : -40,
+    opacity: 0,
+  }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction: number) => ({
+    x: direction > 0 ? -40 : 40,
+    opacity: 0,
+  }),
+};
+
 function SubscribeForm() {
   const searchParams = useSearchParams();
-  const plan = searchParams.get('plan'); // starter, pro, or null
-  
+  const plan = searchParams.get('plan');
+
   const [step, setStep] = useState(1);
+  const [direction, setDirection] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shakeError, setShakeError] = useState(false);
+  const [keywordInput, setKeywordInput] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
     company: '',
     sectors: [] as string[],
+    companySize: '',
+    keywords: [] as string[],
+    notificationFrequency: 'daily',
     regions: [] as string[],
     budgetMin: 50000,
     budgetMax: 500000,
   });
 
+  const goToStep = (newStep: number) => {
+    setDirection(newStep > step ? 1 : -1);
+    setStep(newStep);
+  };
+
   const toggleSector = (sector: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       sectors: prev.sectors.includes(sector)
-        ? prev.sectors.filter(s => s !== sector)
+        ? prev.sectors.filter((s) => s !== sector)
         : [...prev.sectors, sector],
     }));
   };
 
   const toggleRegion = (region: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       regions: prev.regions.includes(region)
-        ? prev.regions.filter(r => r !== region)
+        ? prev.regions.filter((r) => r !== region)
         : [...prev.regions, region],
+    }));
+  };
+
+  const addKeyword = () => {
+    const kw = keywordInput.trim();
+    if (kw && !formData.keywords.includes(kw) && formData.keywords.length < 10) {
+      setFormData((prev) => ({ ...prev, keywords: [...prev.keywords, kw] }));
+      setKeywordInput('');
+    }
+  };
+
+  const removeKeyword = (kw: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      keywords: prev.keywords.filter((k) => k !== kw),
     }));
   };
 
@@ -95,305 +145,414 @@ function SubscribeForm() {
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      
-      // First, create the subscriber
-      const res = await fetch(`${apiUrl}/api/excalibur/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          source: plan ? `pricing-${plan}` : 'landing-page',
-        }),
+      const res = await api.subscribe({
+        ...formData,
+        source: plan ? `pricing-${plan}` : 'landing-page',
       });
-      
+
       const data = await res.json();
-      
-      if (!res.ok) {
-        // If already subscribed, still allow checkout
-        if (res.status !== 409) {
-          setError(data.error || `Erreur ${res.status}`);
-          return;
-        }
-      }
-      
-      // Save auth token for dashboard access
-      const authToken = data.token;
-      if (authToken) {
-        localStorage.setItem('lefilonao_token', authToken);
+
+      if (!res.ok && res.status !== 409) {
+        setError(data.error || `Erreur ${res.status}`);
+        setShakeError(true);
+        setTimeout(() => setShakeError(false), 600);
+        return;
       }
 
-      // If a paid plan is selected, redirect to Stripe checkout
+      const authToken = data.token;
+      if (authToken) {
+        setToken(authToken);
+      }
+
+      // Initialize trial and onboarding
+      setTrialStart();
+      initOnboarding();
+
       if (plan && (plan === 'starter' || plan === 'pro')) {
-          const checkoutRes = await fetch(`${apiUrl}/api/excalibur/checkout`, {
+        const checkoutRes = await fetch(`${API_URL}/api/excalibur/checkout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
           },
         });
-        
         const checkoutData = await checkoutRes.json();
-          
         if (checkoutRes.ok && checkoutData.url) {
           window.location.href = checkoutData.url;
           return;
-        } else {
-          setError(checkoutData.error || 'Erreur lors du paiement');
-          return;
         }
+        setError(checkoutData.error || 'Erreur lors du paiement');
+        setShakeError(true);
+        setTimeout(() => setShakeError(false), 600);
+        return;
       }
-      
-      // Free signup - show success
-      setSuccess(true);
-    } catch (err) {
+
+      // Redirect to dashboard
+      window.location.href = '/dashboard';
+    } catch {
       setError('Erreur de connexion. Réessayez.');
+      setShakeError(true);
+      setTimeout(() => setShakeError(false), 600);
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
-        <div className="max-w-md text-center">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
-          <h1 className="text-3xl font-bold mb-4">Inscription confirmée!</h1>
-          <p className="text-neutral-400 mb-6">
-            Vous recevrez votre premier digest d'appels d'offres très bientôt.
-          </p>
-          <a
-            href="/dashboard"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-colors mb-6"
-          >
-            Accéder au dashboard
-            <ArrowRight className="w-4 h-4" />
-          </a>
-          <div className="bg-neutral-900 border border-neutral-800 p-4 text-left">
-            <p className="text-sm text-neutral-500 mb-2">Votre profil:</p>
-            <p className="font-mono text-sm">
-              {formData.sectors.length > 0 && `Secteurs: ${formData.sectors.join(', ')}`}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const steps = ['Coordonnées', 'Secteurs', 'Affinage', 'Régions'];
+  const progressPercent = ((step - 1) / (steps.length - 1)) * 100;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="border-b border-neutral-800 p-6">
-        <div className="max-w-4xl mx-auto flex items-center gap-2">
-          <span className="text-2xl font-black"><span className="text-yellow-500">Le Filon</span> AO</span>
-          <span className="text-neutral-600 text-sm ml-2">| Veille marchés publics</span>
+      <header className="glass">
+        <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-lg font-semibold text-slate-900">
+            Le Filon <span className="gradient-text">AO</span>
+          </Link>
+          <span className="text-sm text-slate-400">Inscription</span>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="py-16 px-6 border-b border-neutral-800">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-black mb-6">
-            <span className="text-yellow-500">Le filon</span> d'appels d'offres
-          </h1>
-          <p className="text-xl md:text-2xl text-neutral-300 mb-4">
-            Trouvez les marchés publics faits pour vous.
-          </p>
-          <p className="text-lg text-neutral-500 mb-8 max-w-2xl mx-auto">
-            On scanne le BOAMP et les sources officielles 24/7. 
-            Vous recevez uniquement les AO qui matchent votre expertise, avec un score Go/No-Go.
-          </p>
-          <div className="flex gap-4 justify-center text-sm text-neutral-500">
-            <span className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" /> 3 AO/mois gratuits
-            </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" /> Score de compatibilité
-            </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" /> Sans carte bancaire
-            </span>
+      <div className="max-w-xl mx-auto px-6 py-12">
+        {/* Progress bar */}
+        <div className="mb-2">
+          <div className="progress-bar">
+            <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }} />
           </div>
         </div>
-      </section>
 
-      {/* Form */}
-      <section className="py-16 px-6">
-        <div className="max-w-2xl mx-auto">
-          {/* Progress */}
-          <div className="flex gap-2 mb-8">
-            {[1, 2, 3].map(i => (
-              <div
-                key={i}
-                className={`h-1 flex-1 ${i <= step ? 'bg-white' : 'bg-neutral-800'}`}
-              />
-            ))}
-          </div>
+        {/* Step labels */}
+        <div className="flex items-center justify-between mb-10">
+          {steps.map((label, i) => {
+            const stepNum = i + 1;
+            const isActive = stepNum === step;
+            const isDone = stepNum < step;
+            return (
+              <div key={label} className="flex items-center gap-2">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
+                  isDone
+                    ? 'bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/20'
+                    : isActive
+                      ? 'bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/20'
+                      : 'bg-slate-200 text-slate-400'
+                }`}>
+                  {isDone ? <CheckCircle className="w-3.5 h-3.5" /> : stepNum}
+                </div>
+                <span className={`text-sm hidden sm:block ${isActive ? 'text-slate-900 font-medium' : 'text-slate-400'}`}>
+                  {label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
 
-          {/* Step 1: Email */}
-          {step === 1 && (
-            <div>
-              <h2 className="text-2xl font-bold mb-6">Votre email professionnel</h2>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="vous@entreprise.com"
-                className="w-full bg-neutral-900 border border-neutral-700 p-4 text-lg mb-4 focus:border-white focus:outline-none"
-              />
-              <input
-                type="text"
-                value={formData.firstName}
-                onChange={e => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                placeholder="Prénom"
-                className="w-full bg-neutral-900 border border-neutral-700 p-4 text-lg mb-4 focus:border-white focus:outline-none"
-              />
-              <input
-                type="text"
-                value={formData.company}
-                onChange={e => setFormData(prev => ({ ...prev, company: e.target.value }))}
-                placeholder="Nom de l'entreprise"
-                className="w-full bg-neutral-900 border border-neutral-700 p-4 text-lg mb-6 focus:border-white focus:outline-none"
-              />
-              <button
-                onClick={() => setStep(2)}
-                disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(formData.email)}
-                className="w-full bg-white text-black p-4 font-bold text-lg disabled:opacity-50 flex items-center justify-center gap-2"
+        {/* Form card */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 overflow-hidden">
+          <AnimatePresence mode="wait" custom={direction}>
+            {/* Step 1: Coordonnées */}
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                custom={direction}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={ease}
               >
-                Continuer <ArrowRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+                <h2 className="text-xl font-bold text-slate-900 mb-1">Vos coordonnées</h2>
+                <p className="text-slate-500 text-sm mb-6">Pour créer votre espace de veille.</p>
+                <div className="space-y-4 mb-8">
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                    placeholder="vous@entreprise.com"
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all"
+                  />
+                  <input
+                    type="text"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, firstName: e.target.value }))}
+                    placeholder="Prénom"
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all"
+                  />
+                  <input
+                    type="text"
+                    value={formData.company}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, company: e.target.value }))}
+                    placeholder="Nom de l'entreprise"
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all"
+                  />
+                </div>
+                <button
+                  onClick={() => goToStep(2)}
+                  disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(formData.email)}
+                  className="btn-primary w-full justify-center py-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Continuer
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
 
-          {/* Step 2: Sectors */}
-          {step === 2 && (
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Vos secteurs d'expertise</h2>
-              <p className="text-neutral-400 mb-6">Sélectionnez les domaines où vous répondez aux AO</p>
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                {SECTORS.map(sector => (
-                  <button
-                    key={sector}
-                    onClick={() => toggleSector(sector)}
-                    className={`p-4 border text-left transition-colors ${
-                      formData.sectors.includes(sector)
-                        ? 'border-white bg-white text-black'
-                        : 'border-neutral-700 hover:border-neutral-500'
-                    }`}
-                  >
-                    {sector}
+            {/* Step 2: Secteurs */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                custom={direction}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={ease}
+              >
+                <h2 className="text-xl font-bold text-slate-900 mb-1">Vos secteurs d&apos;expertise</h2>
+                <p className="text-slate-500 text-sm mb-6">Sélectionnez les domaines où vous répondez aux AO.</p>
+                <div className="grid grid-cols-2 gap-2 mb-8 max-h-[360px] overflow-y-auto">
+                  {SECTORS.map((sector) => {
+                    const isSelected = formData.sectors.includes(sector);
+                    return (
+                      <motion.button
+                        key={sector}
+                        onClick={() => toggleSector(sector)}
+                        className={`text-left text-sm px-3 py-2.5 rounded-xl border transition-all ${
+                          isSelected
+                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-medium shadow-sm shadow-indigo-500/10'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        }`}
+                        whileTap={{ scale: 0.97 }}
+                      >
+                        {sector}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => goToStep(1)} className="btn-secondary flex-1 justify-center">
+                    <ArrowLeft className="w-4 h-4" /> Retour
                   </button>
-                ))}
-              </div>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 border border-neutral-700 p-4 font-bold"
-                >
-                  Retour
-                </button>
-                <button
-                  onClick={() => setStep(3)}
-                  disabled={formData.sectors.length === 0}
-                  className="flex-1 bg-white text-black p-4 font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  Continuer <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          )}
+                  <button
+                    onClick={() => goToStep(3)}
+                    disabled={formData.sectors.length === 0}
+                    className="btn-primary flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Continuer <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
 
-          {/* Step 3: Regions & Budget */}
-          {step === 3 && (
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Régions & Budget</h2>
-              <p className="text-neutral-400 mb-6">Affinez votre recherche</p>
-              
-              <div className="mb-6">
-                <p className="text-sm text-neutral-500 mb-3">Régions (optionnel)</p>
-                <div className="flex flex-wrap gap-2">
-                  {REGIONS.map(region => (
+            {/* Step 3: Affinage */}
+            {step === 3 && (
+              <motion.div
+                key="step3"
+                custom={direction}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={ease}
+              >
+                <h2 className="text-xl font-bold text-slate-900 mb-1">Affinez votre profil</h2>
+                <p className="text-slate-500 text-sm mb-6">Pour des alertes encore plus pertinentes.</p>
+
+                {/* Company Size */}
+                <div className="mb-6">
+                  <p className="text-sm text-slate-700 font-medium mb-3">Taille de l&apos;entreprise</p>
+                  <div className="space-y-2">
+                    {COMPANY_SIZES.map((size) => (
+                      <button
+                        key={size.value}
+                        onClick={() => setFormData((prev) => ({ ...prev, companySize: size.value }))}
+                        className={`radio-card w-full ${formData.companySize === size.value ? 'selected' : ''}`}
+                      >
+                        <div className="radio-dot" />
+                        <span className="text-sm text-slate-700">{size.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Keywords */}
+                <div className="mb-6">
+                  <p className="text-sm text-slate-700 font-medium mb-3">
+                    Mots-clés <span className="text-slate-400 font-normal">(optionnel, max 10)</span>
+                  </p>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="text"
+                      value={keywordInput}
+                      onChange={(e) => setKeywordInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addKeyword(); } }}
+                      placeholder="Ex : cybersécurité, React, audit..."
+                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all"
+                    />
                     <button
-                      key={region}
-                      onClick={() => toggleRegion(region)}
-                      className={`px-3 py-2 border text-sm transition-colors ${
-                        formData.regions.includes(region)
-                          ? 'border-white bg-white text-black'
-                          : 'border-neutral-700 hover:border-neutral-500'
-                      }`}
+                      onClick={addKeyword}
+                      disabled={!keywordInput.trim()}
+                      className="btn-secondary text-sm py-2 px-4 disabled:opacity-40"
                     >
-                      {region}
+                      Ajouter
                     </button>
-                  ))}
+                  </div>
+                  {formData.keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.keywords.map((kw) => (
+                        <span key={kw} className="keyword-tag">
+                          {kw}
+                          <button onClick={() => removeKeyword(kw)} aria-label={`Supprimer ${kw}`}>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-              
-              <div className="mb-8">
-                <p className="text-sm text-neutral-500 mb-3">
-                  Budget cible: {(formData.budgetMin / 1000).toFixed(0)}k€ - {(formData.budgetMax / 1000).toFixed(0)}k€
-                </p>
-                <input
-                  type="range"
-                  min={10000}
-                  max={2000000}
-                  step={10000}
-                  value={formData.budgetMax}
-                  onChange={e => setFormData(prev => ({ ...prev, budgetMax: parseInt(e.target.value) }))}
-                  className="w-full"
-                />
-              </div>
-              
-              {error && (
-                <div className="mb-4 p-4 bg-red-900/50 border border-red-500 text-red-200">
-                  {error}
-                </div>
-              )}
-              
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setStep(2)}
-                  className="flex-1 border border-neutral-700 p-4 font-bold"
-                >
-                  Retour
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className={`flex-1 p-4 font-bold disabled:opacity-50 flex items-center justify-center gap-2 ${
-                    plan ? 'bg-yellow-500 text-black' : 'bg-white text-black'
-                  }`}
-                >
-                  {loading ? 'Redirection...' : (plan ? `Démarrer l'essai ${plan.charAt(0).toUpperCase() + plan.slice(1)}` : 'S\'inscrire gratuitement')}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
 
-      {/* Social Proof */}
-      <section className="py-16 px-6 border-t border-neutral-800">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-neutral-500 mb-8">Utilisé par des agences et ESN en France</p>
-          <div className="flex justify-center gap-8 opacity-50">
-            <Building2 className="w-8 h-8" />
-            <Building2 className="w-8 h-8" />
-            <Building2 className="w-8 h-8" />
-            <Building2 className="w-8 h-8" />
-          </div>
+                {/* Notification Frequency */}
+                <div className="mb-8">
+                  <p className="text-sm text-slate-700 font-medium mb-3">Fréquence des alertes</p>
+                  <div className="space-y-2">
+                    {FREQUENCIES.map((freq) => (
+                      <button
+                        key={freq.value}
+                        onClick={() => setFormData((prev) => ({ ...prev, notificationFrequency: freq.value }))}
+                        className={`radio-card w-full ${formData.notificationFrequency === freq.value ? 'selected' : ''}`}
+                      >
+                        <div className="radio-dot" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-700 font-medium">{freq.label}</span>
+                            {freq.recommended && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-md">
+                                Recommandé
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-400">{freq.desc}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button onClick={() => goToStep(2)} className="btn-secondary flex-1 justify-center">
+                    <ArrowLeft className="w-4 h-4" /> Retour
+                  </button>
+                  <button
+                    onClick={() => goToStep(4)}
+                    className="btn-primary flex-1 justify-center"
+                  >
+                    Continuer <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 4: Régions & Budget */}
+            {step === 4 && (
+              <motion.div
+                key="step4"
+                custom={direction}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={ease}
+              >
+                <h2 className="text-xl font-bold text-slate-900 mb-1">Régions & budget</h2>
+                <p className="text-slate-500 text-sm mb-6">Affinez votre recherche (optionnel).</p>
+
+                <div className="mb-8">
+                  <p className="text-sm text-slate-700 font-medium mb-3">Régions</p>
+                  <div className="flex flex-wrap gap-2">
+                    {REGIONS.map((region) => {
+                      const isSelected = formData.regions.includes(region);
+                      return (
+                        <motion.button
+                          key={region}
+                          onClick={() => toggleRegion(region)}
+                          className={`text-sm px-3 py-2 rounded-xl border transition-all ${
+                            isSelected
+                              ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-medium shadow-sm shadow-indigo-500/10'
+                              : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                          }`}
+                          whileTap={{ scale: 0.97 }}
+                        >
+                          {region}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mb-8">
+                  <p className="text-sm text-slate-700 font-medium mb-3">
+                    Budget cible :{' '}
+                    <span className="font-mono gradient-text">
+                      {(formData.budgetMin / 1000).toFixed(0)}k&euro; &ndash; {(formData.budgetMax / 1000).toFixed(0)}k&euro;
+                    </span>
+                  </p>
+                  <input
+                    type="range"
+                    min={10000}
+                    max={2000000}
+                    step={10000}
+                    value={formData.budgetMax}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, budgetMax: parseInt(e.target.value) }))}
+                    className="w-full accent-indigo-600"
+                  />
+                </div>
+
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      className={`mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm ${shakeError ? 'animate-shake' : ''}`}
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      {error}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="flex gap-3">
+                  <button onClick={() => goToStep(3)} className="btn-secondary flex-1 justify-center">
+                    <ArrowLeft className="w-4 h-4" /> Retour
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="btn-primary flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {loading
+                      ? 'Redirection...'
+                      : plan
+                        ? `Démarrer l'essai`
+                        : 'S\'inscrire gratuitement'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
 
 export default function SubscribePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="animate-pulse text-xl">Chargement...</div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <p className="text-slate-400">Chargement...</p>
+        </div>
+      }
+    >
       <SubscribeForm />
     </Suspense>
   );
