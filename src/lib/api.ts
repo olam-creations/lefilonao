@@ -16,9 +16,14 @@ export async function authenticatedFetch(
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
   if (res.status === 401) {
-    clearToken();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+    // In dev mode, don't clear token or redirect — let the caller handle fallback to mock data
+    const isDev = typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (!isDev) {
+      clearToken();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
   }
 

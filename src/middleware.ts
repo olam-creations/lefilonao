@@ -11,7 +11,7 @@ function shouldSkip(pathname: string): boolean {
   return SKIP_PATHS.some(p => pathname === p || pathname.startsWith(p));
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip static assets and SEO files
