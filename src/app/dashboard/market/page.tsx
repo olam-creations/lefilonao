@@ -104,7 +104,7 @@ export default function MarketPage() {
         {/* Page Title */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Intelligence de Marché
+            Marché
           </h1>
           <p className="text-slate-500">
             Analysez les marchés attribués, identifiez les acheteurs et vos concurrents.

@@ -13,7 +13,7 @@ interface OnboardingChecklistProps {
 const STEPS = [
   { key: 'profile' as const, label: 'Créer votre profil', icon: UserCircle },
   { key: 'explore' as const, label: 'Explorer un appel d\'offres', icon: Search },
-  { key: 'market' as const, label: 'Consulter l\'intelligence de marché', icon: TrendingUp },
+  { key: 'market' as const, label: 'Consulter le marché', icon: TrendingUp },
   { key: 'export' as const, label: 'Exporter vos AO', icon: Download },
   { key: 'alerts' as const, label: 'Affiner vos alertes', icon: Mail },
 ];

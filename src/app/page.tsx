@@ -298,7 +298,7 @@ export default function LandingPage() {
 
             <FeatureCard
               icon={<TrendingUp className="w-5 h-5" />}
-              title="Intelligence de marché"
+              title="Marché"
               desc="Qui gagne quoi, à quel prix. Analysez vos concurrents et optimisez votre stratégie tarifaire."
             />
           </motion.div>
