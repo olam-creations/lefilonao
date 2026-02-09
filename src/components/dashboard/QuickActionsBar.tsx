@@ -90,18 +90,13 @@ export default function QuickActionsBar({ rfps, profile, profileCompleteness }: 
       animate="show"
       className="flex flex-wrap items-center gap-3 mb-6"
     >
-      {/* New AO button (disabled) */}
-      <div className="relative group">
-        <button
-          disabled
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-400 rounded-lg border border-slate-200 bg-slate-50 cursor-not-allowed"
-        >
-          <Plus className="w-3.5 h-3.5" /> Nouvel AO
-        </button>
-        <div className="hidden group-hover:block absolute bottom-full mb-2 left-0 z-10 bg-slate-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
-          Bientot disponible
-        </div>
-      </div>
+      {/* New AO button */}
+      <Link
+        href="/dashboard/opportunities"
+        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-indigo-700 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+      >
+        <Plus className="w-3.5 h-3.5" /> Nouvel AO
+      </Link>
 
       {/* Alert pills */}
       {alerts.map((alert) => {

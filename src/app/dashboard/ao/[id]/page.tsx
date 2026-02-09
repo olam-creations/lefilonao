@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
-import { isAuthenticated } from '@/lib/auth';
+import { isAuthenticated, getTokenPayload } from '@/lib/auth';
 import Header from '@/components/Header';
 import { isDevMode, MOCK_RFPS, MOCK_AO_DETAILS, type AoDetail, type CompanyProfile, type AoUploadedFile } from '@/lib/dev';
 import { daysUntil, computeProgress } from '@/lib/ao-utils';
@@ -41,20 +41,48 @@ export default function AoDetailPage() {
       window.location.href = '/login';
       return;
     }
-    if (isDevMode()) {
-      const savedDce = getDceAnalysis(id);
-      if (savedDce) {
-        setDetail(savedDce);
-        setDceAnalyzed(true);
-        setRfp(MOCK_RFPS.find((r) => r.id === id) || null);
-      } else {
-        setRfp(MOCK_RFPS.find((r) => r.id === id) || null);
-        setDetail(MOCK_AO_DETAILS[id] || null);
+
+    const loadData = async () => {
+      // Try loading from API first
+      try {
+        const res = await fetch(`/api/opportunities/${encodeURIComponent(id)}`);
+        if (res.ok) {
+          const json = await res.json();
+          setRfp(json.rfp);
+          // Check if DCE was already analyzed (stored locally)
+          const savedDce = getDceAnalysis(id);
+          if (savedDce) {
+            setDetail(savedDce);
+            setDceAnalyzed(true);
+          }
+          setWorkspace(getWorkspaceState(id));
+          setProfile(getCompanyProfile());
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Fall through to dev mode
       }
-    }
-    setWorkspace(getWorkspaceState(id));
-    setProfile(getCompanyProfile());
-    setLoading(false);
+
+      // Dev mode fallback
+      if (isDevMode()) {
+        const savedDce = getDceAnalysis(id);
+        if (savedDce) {
+          setDetail(savedDce);
+          setDceAnalyzed(true);
+          setRfp(MOCK_RFPS.find((r) => r.id === id) || null);
+        } else {
+          setRfp(MOCK_RFPS.find((r) => r.id === id) || null);
+          setDetail(MOCK_AO_DETAILS[id] || null);
+        }
+      }
+
+      setWorkspace(getWorkspaceState(id));
+      setProfile(getCompanyProfile());
+      setLoading(false);
+    };
+
+    loadData();
   }, [id]);
 
   useEffect(() => {
@@ -62,6 +90,22 @@ export default function AoDetailPage() {
       setDetail(dce.result);
       setDceAnalyzed(true);
       saveDceAnalysis(id, dce.result);
+
+      // Sync score to user_rfps if imported
+      const email = getTokenPayload()?.email;
+      if (email && dce.result.scoreCriteria.length > 0) {
+        const avgScore = Math.round(
+          dce.result.scoreCriteria.reduce((a, c) => a + c.score, 0) / dce.result.scoreCriteria.length
+        );
+        const normalized = Math.round((avgScore / 20) * 100);
+        const scoreLabel = normalized >= 70 ? 'GO' : normalized >= 50 ? 'MAYBE' : 'PASS';
+
+        fetch('/api/rfps', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_email: email, notice_id: id, score: normalized, score_label: scoreLabel, status: 'analyzing' }),
+        }).catch(() => {});
+      }
     }
   }, [dce.state, dce.result, id]);
 
@@ -138,12 +182,72 @@ export default function AoDetailPage() {
     );
   }
 
-  if (!rfp || !detail || !profile) {
+  if (!rfp) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-slate-500 text-lg mb-4">Appel d&apos;offres non trouve</p>
           <Link href="/dashboard" className="btn-primary text-sm py-2 px-4">Retour au dashboard</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // RFP loaded but no DCE analysis yet — show header + upload prompt
+  if (!detail || !profile) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Header variant="dashboard" activePage="ao" backHref="/dashboard" />
+
+        {/* Hidden file input for DCE picker */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf"
+          className="hidden"
+          onChange={handleFileInputChange}
+          aria-label="Choisir un fichier DCE"
+        />
+
+        <DceDropZone
+          state={dce.state}
+          progress={dce.progress}
+          error={dce.error}
+          onDrop={dce.analyzeDce}
+          onReset={dce.reset}
+          onOpenFilePicker={handleOpenFilePicker}
+        />
+
+        <div className="max-w-7xl mx-auto p-6 space-y-6">
+          <AoHeroHeader
+            title={rfp.title}
+            issuer={rfp.issuer}
+            budget={rfp.budget}
+            deadline={rfp.deadline}
+            region={rfp.region}
+            score={rfp.score}
+            scoreLabel={rfp.scoreLabel}
+            recommendation={null}
+            dceAnalyzed={false}
+            onAnalyzeDce={handleOpenFilePicker}
+          />
+
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <ExternalLink className="w-7 h-7 text-indigo-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Analysez le DCE pour debloquer l&apos;analyse IA</h3>
+            <p className="text-slate-500 text-sm mb-6 max-w-md mx-auto">
+              Deposez le document de consultation (PDF) pour obtenir le scoring, les criteres de selection et le plan technique.
+            </p>
+            <button
+              onClick={handleOpenFilePicker}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Charger un DCE (PDF)
+            </button>
+          </div>
         </div>
       </div>
     );

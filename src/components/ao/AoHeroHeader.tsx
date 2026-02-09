@@ -12,7 +12,7 @@ interface AoHeroHeaderProps {
   region: string | null;
   score: number;
   scoreLabel: 'GO' | 'MAYBE' | 'PASS';
-  recommendation: Recommendation;
+  recommendation: Recommendation | null;
   dceAnalyzed?: boolean;
   onAnalyzeDce?: () => void;
 }
@@ -21,6 +21,7 @@ const VERDICT_STYLES = {
   go: { accent: 'from-emerald-400 to-emerald-500', badgeClass: 'badge-go glow-emerald', icon: Sparkles, iconColor: 'text-emerald-600' },
   maybe: { accent: 'from-amber-400 to-amber-500', badgeClass: 'badge-maybe glow-amber', icon: AlertTriangle, iconColor: 'text-amber-600' },
   pass: { accent: 'from-red-400 to-red-500', badgeClass: 'badge-pass', icon: XCircle, iconColor: 'text-red-500' },
+  neutral: { accent: 'from-indigo-400 to-indigo-500', badgeClass: 'px-3 py-1 rounded-full text-sm font-medium bg-indigo-50 text-indigo-700 border border-indigo-200', icon: Sparkles, iconColor: 'text-indigo-500' },
 } as const;
 
 export default function AoHeroHeader({
@@ -28,7 +29,7 @@ export default function AoHeroHeader({
   dceAnalyzed, onAnalyzeDce,
 }: AoHeroHeaderProps) {
   const daysLeft = daysUntil(deadline);
-  const config = VERDICT_STYLES[recommendation.verdict];
+  const config = recommendation ? VERDICT_STYLES[recommendation.verdict] : VERDICT_STYLES.neutral;
   const Icon = config.icon;
 
   return (
@@ -59,10 +60,17 @@ export default function AoHeroHeader({
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <Icon className={`w-4 h-4 ${config.iconColor}`} />
-          <span className="font-medium">{recommendation.headline}</span>
-        </div>
+        {recommendation ? (
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Icon className={`w-4 h-4 ${config.iconColor}`} />
+            <span className="font-medium">{recommendation.headline}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <Icon className={`w-4 h-4 ${config.iconColor}`} />
+            <span className="font-medium">Analysez le DCE pour obtenir une recommandation</span>
+          </div>
+        )}
         {!dceAnalyzed && onAnalyzeDce && (
           <button
             onClick={onAnalyzeDce}

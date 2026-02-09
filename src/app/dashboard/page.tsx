@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import Link from 'next/link';
-import { isAuthenticated, markOnboardingStep } from '@/lib/auth';
+import { isAuthenticated, getTokenPayload, markOnboardingStep } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { isDevMode, MOCK_RFPS } from '@/lib/dev';
 import { getCompanyProfile } from '@/lib/profile-storage';
@@ -50,12 +50,32 @@ export default function DashboardPage() {
 
     const fetchData = async () => {
       try {
-        const res = await api.dashboard();
-        if (!res.ok) throw new Error('API error');
-        const data = await res.json();
-        setRfps(data.rfps || []);
-        setTier(data.profile?.tier || 'free');
-        setRfpsThisMonth(data.rfps?.length || 0);
+        const email = getTokenPayload()?.email;
+
+        const [rfpRes, excaliburRes] = await Promise.allSettled([
+          email
+            ? fetch(`/api/rfps?email=${encodeURIComponent(email)}`).then((r) => r.ok ? r.json() : null)
+            : Promise.resolve(null),
+          api.dashboard().then((r) => r.ok ? r.json() : null),
+        ]);
+
+        const supabaseRfps: RFP[] = rfpRes.status === 'fulfilled' && rfpRes.value?.rfps ? rfpRes.value.rfps : [];
+        const excaliburData = excaliburRes.status === 'fulfilled' ? excaliburRes.value : null;
+        const excaliburRfps: RFP[] = excaliburData?.rfps ?? [];
+
+        const seenIds = new Set(supabaseRfps.map((r) => r.id));
+        const merged = [...supabaseRfps, ...excaliburRfps.filter((r) => !seenIds.has(r.id))];
+
+        if (merged.length > 0) {
+          setRfps(merged);
+        } else if (isDevMode()) {
+          setRfps(MOCK_RFPS);
+        } else {
+          setRfps([]);
+        }
+
+        setTier(excaliburData?.profile?.tier || 'free');
+        setRfpsThisMonth(merged.length || 0);
       } catch {
         if (isDevMode()) {
           setRfps(MOCK_RFPS);
