@@ -1,5 +1,19 @@
 // ─── Market Utilities ───
 
+/** True if the string looks like an unresolved SIRET (9-14 digit number) */
+export function isSiret(name: string): boolean {
+  return /^\d{9,14}$/.test(name.trim());
+}
+
+/** Format a raw SIRET into a readable form: "340 546 993 00668" */
+export function formatSiret(raw: string): string {
+  const s = raw.trim();
+  if (s.length === 14) {
+    return `${s.slice(0, 3)} ${s.slice(3, 6)} ${s.slice(6, 9)} ${s.slice(9)}`;
+  }
+  return s;
+}
+
 export function formatAmount(amount: number): string {
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M\u20ac`;
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}k\u20ac`;

@@ -45,11 +45,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const isSiret = (s: string) => /^\d{9,14}$/.test((s ?? '').trim());
+    const fmtSiret = (s: string) => {
+      const t = s.trim();
+      if (t.length === 14) return `SIRET ${t.slice(0, 3)} ${t.slice(3, 6)} ${t.slice(6, 9)} ${t.slice(9)}`;
+      return `SIRET ${t}`;
+    };
+
     const attributions = (data ?? []).map((r) => ({
       id: r.id,
       rfpTitle: r.title,
-      buyerName: r.buyer_name,
-      winnerName: r.winner_name,
+      buyerName: isSiret(r.buyer_name) ? fmtSiret(r.buyer_name) : r.buyer_name,
+      winnerName: isSiret(r.winner_name) ? fmtSiret(r.winner_name) : r.winner_name,
       amount: Number(r.amount) || 0,
       notificationDate: r.notification_date,
       cpvCode: r.cpv_code,

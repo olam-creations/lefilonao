@@ -23,8 +23,11 @@ export async function GET(req: NextRequest) {
       cpvCodes: Set<string>;
     }>();
 
+    const isSiret = (s: string) => /^\d{9,14}$/.test((s ?? '').trim());
+
     for (const row of data ?? []) {
       const name = row.winner_name as string;
+      if (isSiret(name)) continue;
       const entry = map.get(name) ?? { wins: 0, totalVolume: 0, cpvCodes: new Set<string>() };
       entry.wins += 1;
       entry.totalVolume += Number(row.amount) || 0;

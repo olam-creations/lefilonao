@@ -5,6 +5,8 @@ export async function GET(req: NextRequest) {
   const cpv = req.nextUrl.searchParams.get('cpv') ?? '72';
   const supabase = getSupabase();
 
+  const isSiret = (s: string) => /^\d{9,14}$/.test(s.trim());
+
   try {
     const [buyersRes, winnersRes] = await Promise.all([
       supabase
@@ -33,22 +35,26 @@ export async function GET(req: NextRequest) {
     const totalValue = amounts.reduce((s, a) => s + a, 0);
     const avgValue = amounts.length > 0 ? totalValue / amounts.length : 0;
 
-    // Top buyers
+    // Top buyers (skip unresolved SIRETs)
     const buyerCounts = new Map<string, number>();
     for (const r of buyersRes.data ?? []) {
       const name = r.buyer_name as string;
-      buyerCounts.set(name, (buyerCounts.get(name) ?? 0) + 1);
+      if (!isSiret(name)) {
+        buyerCounts.set(name, (buyerCounts.get(name) ?? 0) + 1);
+      }
     }
     const topBuyers = [...buyerCounts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([name, count]) => ({ name, count }));
 
-    // Top winners
+    // Top winners (skip unresolved SIRETs)
     const winnerCounts = new Map<string, number>();
     for (const r of winnersRes.data ?? []) {
       const name = r.winner_name as string;
-      winnerCounts.set(name, (winnerCounts.get(name) ?? 0) + 1);
+      if (!isSiret(name)) {
+        winnerCounts.set(name, (winnerCounts.get(name) ?? 0) + 1);
+      }
     }
     const topWinners = [...winnerCounts.entries()]
       .sort((a, b) => b[1] - a[1])
