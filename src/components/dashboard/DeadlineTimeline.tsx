@@ -52,16 +52,7 @@ export default function DeadlineTimeline({ rfps }: DeadlineTimelineProps) {
 
   if (dots.length === 0) return null;
 
-  const minDays = dots[0].days;
-  const maxDays = dots[dots.length - 1].days;
-  const range = Math.max(maxDays - minDays, 1);
-
-  function getPosition(days: number): number {
-    return ((days - minDays) / range) * 100;
-  }
-
-  const todayPos = getPosition(0);
-  const showTodayMarker = minDays <= 0 && maxDays >= 0;
+  const showTodayMarker = dots[0].days < 0 && dots[dots.length - 1].days >= 0;
 
   return (
     <motion.div
@@ -75,61 +66,66 @@ export default function DeadlineTimeline({ rfps }: DeadlineTimelineProps) {
         <h3 className="text-sm font-semibold text-slate-700">Timeline des deadlines</h3>
       </div>
 
-      <div className="relative overflow-x-auto pb-2">
-        <div className="relative min-w-[600px] h-20">
-          {/* Connecting line */}
-          <div className="absolute top-6 left-4 right-4 h-px bg-slate-200" />
+      <div className="overflow-x-auto pb-2">
+        <motion.div
+          variants={stagger}
+          initial="hidden"
+          animate="show"
+          className="flex items-start"
+          style={{ minWidth: `${Math.max(dots.length * 100, 400)}px` }}
+        >
+          {dots.map((dot, i) => {
+            const dotColor = DOT_COLORS[dot.scoreLabel];
+            const ringColor = DOT_RING_COLORS[dot.scoreLabel];
+            const isToday = showTodayMarker && i > 0 && dots[i - 1].days < 0 && dot.days >= 0;
 
-          {/* Today marker */}
-          {showTodayMarker && (
-            <div
-              className="absolute top-0 h-full flex flex-col items-center"
-              style={{ left: `${Math.max(2, Math.min(todayPos, 98))}%` }}
-            >
-              <span className="text-[10px] font-bold text-indigo-600 whitespace-nowrap mb-1">Aujourd&apos;hui</span>
-              <div className="w-px h-8 border-l border-dashed border-indigo-400" />
-              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse-dot" />
-            </div>
-          )}
-
-          {/* Dots */}
-          <motion.div variants={stagger} initial="hidden" animate="show" className="relative h-full">
-            {dots.map((dot) => {
-              const pos = getPosition(dot.days);
-              const dotColor = DOT_COLORS[dot.scoreLabel];
-              const ringColor = DOT_RING_COLORS[dot.scoreLabel];
-
-              return (
-                <motion.div
-                  key={dot.id}
-                  variants={fadeUp}
-                  className={`absolute flex flex-col items-center group ${
-                    dot.isPast ? 'opacity-40' : ''
-                  }`}
-                  style={{ left: `${Math.max(2, Math.min(pos, 98))}%`, top: '16px' }}
-                >
-                  <div className={`w-3 h-3 rounded-full ${dotColor} ring-2 ${ringColor} group-hover:scale-150 transition-transform`} />
-                  <div className="mt-2 text-center">
-                    <div className="text-[10px] text-slate-500 whitespace-nowrap">
-                      {formatDate(dot.deadline)}
-                    </div>
-                    <div className="text-[9px] text-slate-400 max-w-[80px] truncate">
-                      {dot.title.split(' ').slice(0, 3).join(' ')}
-                    </div>
+            return (
+              <motion.div
+                key={dot.id}
+                variants={fadeUp}
+                className={`flex-1 min-w-[90px] flex flex-col items-center group relative ${
+                  dot.isPast ? 'opacity-40' : ''
+                }`}
+              >
+                {/* Today separator */}
+                {isToday && (
+                  <div className="absolute -left-px top-0 h-full flex flex-col items-center z-10">
+                    <span className="text-[10px] font-bold text-indigo-600 whitespace-nowrap">Aujourd&apos;hui</span>
+                    <div className="flex-1 w-px border-l border-dashed border-indigo-400" />
                   </div>
+                )}
 
-                  {/* Hover tooltip */}
-                  <div className="hidden group-hover:block absolute bottom-full mb-2 z-10 bg-slate-900 text-white text-xs rounded-lg px-3 py-2 max-w-[200px] shadow-lg whitespace-normal">
-                    <div className="font-medium line-clamp-2 mb-1">{dot.title}</div>
-                    <div className="text-slate-300">
-                      {dot.days >= 0 ? `J-${dot.days}` : `Expire (J${dot.days})`} &middot; {dot.scoreLabel}
-                    </div>
+                {/* Dot + line */}
+                <div className="flex items-center w-full">
+                  {i > 0 && <div className="flex-1 h-px bg-slate-200" />}
+                  <div className={`w-3 h-3 rounded-full ${dotColor} ring-2 ${ringColor} flex-shrink-0 group-hover:scale-150 transition-transform`} />
+                  {i < dots.length - 1 && <div className="flex-1 h-px bg-slate-200" />}
+                </div>
+
+                {/* Label */}
+                <div className="mt-2 text-center px-1">
+                  <div className="text-[10px] text-slate-500 whitespace-nowrap">
+                    {dot.days >= 0 ? `J-${dot.days}` : `J${dot.days}`}
                   </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        </div>
+                  <div className="text-[10px] text-slate-500">
+                    {formatDate(dot.deadline)}
+                  </div>
+                  <div className="text-[9px] text-slate-400 max-w-[90px] truncate mx-auto">
+                    {dot.title.split(' ').slice(0, 3).join(' ')}
+                  </div>
+                </div>
+
+                {/* Hover tooltip */}
+                <div className="hidden group-hover:block absolute bottom-full mb-2 z-10 bg-slate-900 text-white text-xs rounded-lg px-3 py-2 max-w-[200px] shadow-lg whitespace-normal">
+                  <div className="font-medium line-clamp-2 mb-1">{dot.title}</div>
+                  <div className="text-slate-300">
+                    {dot.days >= 0 ? `J-${dot.days}` : `Expire (J${dot.days})`} &middot; {dot.scoreLabel}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
       </div>
     </motion.div>
   );
