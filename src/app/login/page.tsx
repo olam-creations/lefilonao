@@ -5,7 +5,7 @@ import { ArrowRight, Mail, AlertCircle, Code } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { setToken, isAuthenticated, getRedirectAfterLogin } from '@/lib/auth';
+import { setToken, getToken, isAuthenticated, getRedirectAfterLogin } from '@/lib/auth';
 import { isDevMode, createDevToken } from '@/lib/dev';
 import Header from '@/components/Header';
 
@@ -23,6 +23,9 @@ function LoginForm() {
 
   useEffect(() => {
     if (isAuthenticated()) {
+      // Re-set token to sync the cookie (fixes secure flag mismatch on HTTP)
+      const token = getToken();
+      if (token) setToken(token);
       window.location.href = '/dashboard';
     }
   }, []);

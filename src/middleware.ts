@@ -35,9 +35,10 @@ export default function middleware(request: NextRequest) {
   }
 
   // ─── Layer 2: Dashboard auth ───
-  // Protected routes require lefilonao_session cookie
+  // Protected routes require lefilonao_session cookie (production only)
+  const isDev = process.env.NODE_ENV === 'development';
   const needsAuth = AUTH_REQUIRED_PREFIXES.some(p => pathname.startsWith(p));
-  if (needsAuth) {
+  if (needsAuth && !isDev) {
     const sessionCookie = request.cookies.get('lefilonao_session')?.value;
     if (!sessionCookie) {
       // API routes get 401, pages get redirected to /login
