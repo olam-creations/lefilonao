@@ -1,22 +1,28 @@
 'use client';
 
-import { Check, ArrowRight, ChevronDown, Search, Zap, FileText, Pencil, TrendingUp, Mail, BarChart3, Download, Headphones } from 'lucide-react';
+import { Check, ArrowRight, ChevronDown, Search, Zap, FileText, Pencil, TrendingUp, Mail, Download, Headphones } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Header from '@/components/Header';
 
-const PRICE = 50;
+const PRICE = 30;
 
-const FEATURES = [
+const FREE_FEATURES = [
+  '5 appels d\'offres par mois',
+  'Digest hebdomadaire par email',
+  'Filtrage par secteur et région',
+];
+
+const PRO_FEATURES = [
   'Appels d\'offres illimités',
   'Alertes quotidiennes par email',
   'Score Go/No-Go pour chaque AO',
+  'Intelligence acheteur (DECP)',
   'Analyse du DCE par IA',
   'Aide à la préparation des réponses',
-  'Intelligence de marché & concurrence',
-  'Accès BOAMP complet',
   'Export Excel/CSV',
-  'Support par email',
+  'Support email prioritaire',
 ];
 
 const VALUE_BLOCKS = [
@@ -47,8 +53,8 @@ const VALUE_BLOCKS = [
   },
   {
     icon: TrendingUp,
-    title: 'Intelligence de marché',
-    desc: 'Qui gagne quoi, à quel prix. Analysez les attributions passées pour affiner votre stratégie.',
+    title: 'Intelligence acheteur',
+    desc: 'Historique des marchés, montants attribués, fournisseurs récurrents. Analysez l\'acheteur avant de répondre.',
   },
   {
     icon: Download,
@@ -57,15 +63,15 @@ const VALUE_BLOCKS = [
   },
   {
     icon: Headphones,
-    title: 'Support réactif',
+    title: 'Support prioritaire',
     desc: 'Une question ? On vous répond par email sous 24h. Pas de chatbot, de vraies réponses.',
   },
 ];
 
 const FAQ_ITEMS = [
   {
-    q: 'Comment fonctionne l\'essai gratuit\u00a0?',
-    a: 'Vous avez accès à toutes les fonctionnalités pendant 14 jours. Aucun prélèvement avant la fin de l\'essai. Annulez en un clic.',
+    q: 'Quelle est la différence entre Free et Pro\u00a0?',
+    a: 'Le plan gratuit vous donne 5 AO par mois avec un digest hebdomadaire. Pro débloque l\'accès illimité, les scores Go/No-Go par IA, l\'intelligence acheteur, et les alertes quotidiennes.',
   },
   {
     q: 'Quelles sources couvrez-vous\u00a0?',
@@ -126,22 +132,9 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function PricingPage() {
-  const yearlyPrice = PRICE * 12;
-
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="glass">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-lg font-semibold text-slate-900">
-            Le Filon <span className="gradient-text">AO</span>
-          </Link>
-          <Link href="/subscribe" className="btn-primary text-sm py-2 px-4">
-            Commencer
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </header>
+      <Header variant="public" />
 
       {/* Hero */}
       <section className="pt-20 pb-16 px-6 text-center relative overflow-hidden">
@@ -150,38 +143,77 @@ export default function PricingPage() {
         <div className="relative">
           <p className="text-indigo-600 text-sm font-semibold mb-3 tracking-wide uppercase">Tarification</p>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 tracking-tight mb-5">
-            Un prix. <span className="gradient-text">Zéro limite.</span>
+            Commencez gratuitement. <span className="gradient-text">Passez à Pro quand vous êtes prêt.</span>
           </h1>
           <p className="text-lg text-slate-500 max-w-xl mx-auto leading-relaxed">
             De la veille à la réponse : scoring, analyse du DCE, aide à la rédaction,
-            intelligence de marché. Tout pour gagner des marchés.
+            intelligence acheteur. Tout pour gagner des marchés.
           </p>
         </div>
       </section>
 
-      {/* Pricing Card */}
+      {/* Pricing Cards — Two columns */}
       <section className="pb-20 px-6">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
+          {/* Free Plan */}
+          <div className="bg-white rounded-2xl p-10 border border-slate-200">
+            <div className="text-center mb-8">
+              <div className="flex items-baseline justify-center gap-1">
+                <span className="text-5xl font-bold text-slate-900">0&euro;</span>
+                <span className="text-xl text-slate-400">/mois</span>
+              </div>
+              <p className="text-slate-900 font-semibold mt-3 text-lg">Gratuit</p>
+              <p className="text-slate-400 mt-1 text-sm">
+                Pour découvrir les marchés publics
+              </p>
+            </div>
+
+            <ul className="space-y-3.5 mb-10">
+              {FREE_FEATURES.map((feature, i) => (
+                <motion.li
+                  key={feature}
+                  className="flex items-center gap-3"
+                  initial={{ opacity: 0, x: -10 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05, ...ease }}
+                >
+                  <div className="w-5 h-5 bg-slate-200 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Check className="w-3 h-3 text-slate-500" />
+                  </div>
+                  <span className="text-slate-700">{feature}</span>
+                </motion.li>
+              ))}
+            </ul>
+
+            <Link
+              href="/subscribe"
+              className="btn-secondary w-full justify-center py-3.5 text-base"
+            >
+              S&apos;inscrire gratuitement
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Pro Plan */}
           <div className="gradient-border active">
             <div className="bg-white rounded-2xl p-10 glow-indigo-strong">
               <div className="text-center mb-8">
                 <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full mb-5 border border-indigo-100">
-                  Essai gratuit 14 jours
+                  Recommandé
                 </span>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-6xl font-bold gradient-text-price">{PRICE}&euro;</span>
+                  <span className="text-5xl font-bold gradient-text-price">{PRICE}&euro;</span>
                   <span className="text-xl text-slate-400">/mois</span>
                 </div>
-                <p className="text-slate-400 mt-2 text-sm">
-                  {yearlyPrice}&euro;/an &middot; Sans engagement
-                </p>
-                <p className="text-indigo-600 font-semibold mt-2 text-sm">
-                  De la veille à la réponse, tout est inclus
+                <p className="text-slate-900 font-semibold mt-3 text-lg">Pro</p>
+                <p className="text-slate-400 mt-1 text-sm">
+                  Sans engagement &middot; Annulation facile
                 </p>
               </div>
 
               <ul className="space-y-3.5 mb-10">
-                {FEATURES.map((feature, i) => (
+                {PRO_FEATURES.map((feature, i) => (
                   <motion.li
                     key={feature}
                     className="flex items-center gap-3"
@@ -199,26 +231,23 @@ export default function PricingPage() {
               </ul>
 
               <Link
-                href="/subscribe"
+                href="/subscribe?plan=pro"
                 className="btn-primary w-full justify-center py-3.5 text-base"
               >
-                Démarrer l&apos;essai gratuit
+                Commencer
                 <ArrowRight className="w-4 h-4" />
               </Link>
-              <p className="text-center text-slate-400 text-xs mt-4">
-                Carte bancaire requise &middot; Annulation facile
-              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* What you get */}
+      {/* What you get with Pro */}
       <section className="py-20 px-6 bg-slate-50">
         <div className="max-w-4xl mx-auto">
           <p className="text-indigo-600 text-sm font-semibold text-center mb-3 tracking-wide uppercase">Tout est inclus</p>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight text-center mb-4">
-            Ce que vous obtenez pour 50&euro;/mois
+            Ce que vous obtenez avec Pro
           </h2>
           <p className="text-slate-500 text-center mb-12 max-w-xl mx-auto">
             Pas d&apos;options cachées, pas de modules en supplément. Chaque fonctionnalité est accessible dès le premier jour.
@@ -275,15 +304,23 @@ export default function PricingPage() {
             Prêt à trouver votre prochain marché ?
           </h2>
           <p className="text-slate-400 mb-8">
-            Veille, scoring, analyse du DCE, aide à la réponse. Essai gratuit 14 jours.
+            Veille, scoring, analyse du DCE, aide à la réponse. Commencez gratuitement.
           </p>
-          <Link
-            href="/subscribe"
-            className="inline-flex items-center gap-2 text-base py-3.5 px-8 bg-white text-slate-900 font-semibold rounded-xl hover:bg-slate-100 hover:shadow-lg hover:shadow-white/10 transition-all"
-          >
-            Démarrer l&apos;essai gratuit
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/subscribe"
+              className="inline-flex items-center gap-2 text-base py-3.5 px-8 bg-white/10 text-white font-semibold rounded-xl border border-white/20 hover:bg-white/20 transition-all"
+            >
+              Plan gratuit
+            </Link>
+            <Link
+              href="/subscribe?plan=pro"
+              className="inline-flex items-center gap-2 text-base py-3.5 px-8 bg-white text-slate-900 font-semibold rounded-xl hover:bg-slate-100 hover:shadow-lg hover:shadow-white/10 transition-all"
+            >
+              Passer à Pro &mdash; {PRICE}&euro;/mois
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </section>
 

@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, ArrowRight, ArrowLeft, X } from 'lucide-react';
 import Link from 'next/link';
-import { setToken, setTrialStart, initOnboarding } from '@/lib/auth';
+import { setToken } from '@/lib/auth';
 import { api, API_URL } from '@/lib/api';
 
 const ease = { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] };
@@ -164,11 +164,7 @@ function SubscribeForm() {
         setToken(authToken);
       }
 
-      // Initialize trial and onboarding
-      setTrialStart();
-      initOnboarding();
-
-      if (plan && (plan === 'starter' || plan === 'pro')) {
+      if (plan === 'pro') {
         const checkoutRes = await fetch(`${API_URL}/api/excalibur/checkout`, {
           method: 'POST',
           headers: {
@@ -530,9 +526,9 @@ function SubscribeForm() {
                   >
                     {loading
                       ? 'Redirection...'
-                      : plan
-                        ? `Démarrer l'essai`
-                        : 'S\'inscrire gratuitement'}
+                      : plan === 'pro'
+                        ? 'Continuer vers le paiement'
+                        : 'Créer mon compte gratuit'}
                   </button>
                 </div>
               </motion.div>

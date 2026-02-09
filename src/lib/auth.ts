@@ -1,5 +1,4 @@
 const TOKEN_KEY = 'lefilonao_token';
-const TRIAL_KEY = 'lefilonao_trial_start';
 const ONBOARDING_KEY = 'lefilonao_onboarding';
 const REDIRECT_KEY = 'lefilonao_redirect';
 
@@ -56,17 +55,6 @@ export function isAuthenticated(): boolean {
     return false;
   }
   return true;
-}
-
-// ─── Trial Start ───
-
-export function setTrialStart(dateIso?: string): void {
-  localStorage.setItem(TRIAL_KEY, dateIso || new Date().toISOString());
-}
-
-export function getTrialStart(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TRIAL_KEY);
 }
 
 // ─── Onboarding ───

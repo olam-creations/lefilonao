@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { TrendingUp, Building2, Users, BarChart3, ArrowRight, Trophy, Landmark, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { isAuthenticated, markOnboardingStep } from '@/lib/auth';
+import Header from '@/components/Header';
 
 interface Attribution {
   id: string;
@@ -97,23 +98,7 @@ export default function MarketPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="glass">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="text-lg font-semibold text-slate-900">
-              Le Filon <span className="gradient-text">AO</span>
-            </Link>
-            <nav className="hidden md:flex gap-4 text-sm">
-              <Link href="/dashboard" className="text-slate-500 hover:text-slate-900 transition-colors">Dashboard</Link>
-              <Link href="/dashboard/market" className="text-indigo-600 font-medium">Intelligence</Link>
-            </nav>
-          </div>
-          <Link href="/dashboard" className="btn-secondary text-sm py-2 px-4">
-            Retour
-          </Link>
-        </div>
-      </header>
+      <Header variant="dashboard" activePage="intelligence" />
 
       <div className="max-w-7xl mx-auto p-6">
         {/* Page Title */}

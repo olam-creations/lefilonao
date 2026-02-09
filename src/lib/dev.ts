@@ -37,7 +37,111 @@ export interface RequiredDocumentDetailed {
   name: string;
   hint: string;
   isCritical: boolean;
+  category: 'profile' | 'ao-specific';
 }
+
+export interface ProfileDocument {
+  name: string;
+  status: 'valid' | 'expiring' | 'expired' | 'missing';
+  expiresAt: string | null;
+  fileId: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  uploadedAt: string | null;
+}
+
+export interface AoUploadedFile {
+  id: string;
+  documentName: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedAt: string;
+}
+
+export interface TeamMember {
+  name: string;
+  role: string;
+  certifications: string[];
+  experience: number;
+  cvFileId: string | null;
+  cvFileName: string | null;
+  cvFileSize: number | null;
+  cvMimeType: string | null;
+  cvUploadedAt: string | null;
+}
+
+export interface ProjectReference {
+  client: string;
+  title: string;
+  amount: string;
+  period: string;
+}
+
+export interface CompanyProfile {
+  companyName: string;
+  siret: string;
+  legalForm: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  phone: string;
+  email: string;
+  website: string;
+  naf: string;
+  tvaIntra: string;
+  capitalSocial: string;
+  effectifTotal: string;
+  caN1: string;
+  caN2: string;
+  caN3: string;
+  documents: ProfileDocument[];
+  team: TeamMember[];
+  references: ProjectReference[];
+  sectors: string[];
+  regions: string[];
+}
+
+export const MOCK_COMPANY_PROFILE: CompanyProfile = {
+  companyName: 'Olam Creations',
+  siret: '123 456 789 00012',
+  legalForm: 'SAS',
+  address: '42 rue de l\'Innovation',
+  city: 'Paris',
+  postalCode: '75011',
+  phone: '01 23 45 67 89',
+  email: 'contact@olam-creations.fr',
+  website: 'https://olam-creations.fr',
+  naf: '6201Z',
+  tvaIntra: 'FR 12 345678901',
+  capitalSocial: '50 000',
+  effectifTotal: '15',
+  caN1: '1 200 000',
+  caN2: '980 000',
+  caN3: '750 000',
+  documents: [
+    { name: 'Extrait KBIS', status: 'valid', expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), fileId: null, fileName: null, fileSize: null, mimeType: null, uploadedAt: null },
+    { name: 'Attestation URSSAF', status: 'valid', expiresAt: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(), fileId: null, fileName: null, fileSize: null, mimeType: null, uploadedAt: null },
+    { name: 'Attestation fiscale', status: 'expiring', expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(), fileId: null, fileName: null, fileSize: null, mimeType: null, uploadedAt: null },
+    { name: 'Assurance RC Pro', status: 'valid', expiresAt: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString(), fileId: null, fileName: null, fileSize: null, mimeType: null, uploadedAt: null },
+    { name: 'Certification ISO 9001', status: 'expired', expiresAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), fileId: null, fileName: null, fileSize: null, mimeType: null, uploadedAt: null },
+    { name: 'DC1 - Lettre de candidature', status: 'valid', expiresAt: null, fileId: null, fileName: null, fileSize: null, mimeType: null, uploadedAt: null },
+    { name: 'DC2 - Déclaration du candidat', status: 'valid', expiresAt: null, fileId: null, fileName: null, fileSize: null, mimeType: null, uploadedAt: null },
+  ],
+  team: [
+    { name: 'Marie Dupont', role: 'Directrice Technique', certifications: ['PMP', 'AWS Solutions Architect'], experience: 12, cvFileId: null, cvFileName: null, cvFileSize: null, cvMimeType: null, cvUploadedAt: null },
+    { name: 'Thomas Martin', role: 'Lead Développeur', certifications: ['Java OCA', 'Spring Professional'], experience: 8, cvFileId: null, cvFileName: null, cvFileSize: null, cvMimeType: null, cvUploadedAt: null },
+    { name: 'Sophie Bernard', role: 'Architecte Cloud', certifications: ['Kubernetes CKA', 'Azure Expert'], experience: 10, cvFileId: null, cvFileName: null, cvFileSize: null, cvMimeType: null, cvUploadedAt: null },
+  ],
+  references: [
+    { client: 'Région Île-de-France', title: 'Refonte SI Gestion des Aides', amount: '380 000€', period: '2023-2024' },
+    { client: 'Ville de Lyon', title: 'Portail Citoyen Numérique', amount: '220 000€', period: '2022-2023' },
+    { client: 'CNAF', title: 'Modernisation Applicative', amount: '450 000€', period: '2023-2024' },
+  ],
+  sectors: ['Développement logiciel', 'Cloud & Infrastructure', 'Cybersécurité', 'Data & IA'],
+  regions: ['Île-de-France', 'Auvergne-Rhône-Alpes', 'Nouvelle-Aquitaine', 'Occitanie'],
+};
 
 export interface AoDetail {
   scoreCriteria: ScoreCriteria[];
@@ -254,14 +358,14 @@ const DEFAULT_TECHNICAL_SECTIONS: TechnicalPlanSection[] = [
 ];
 
 const DEFAULT_DOCUMENTS_DETAILED: RequiredDocumentDetailed[] = [
-  { name: 'DC1 - Lettre de candidature', hint: 'Formulaire CERFA téléchargeable sur economie.gouv.fr', isCritical: true },
-  { name: 'DC2 - Déclaration du candidat', hint: 'Formulaire CERFA, renseigner CA des 3 dernières années', isCritical: true },
-  { name: 'Extrait KBIS < 3 mois', hint: 'Téléchargeable gratuitement sur monidenum.fr (dirigeant)', isCritical: true },
-  { name: 'Attestations fiscales et sociales', hint: 'URSSAF + impôts, demandables en ligne sur net-entreprises.fr', isCritical: true },
-  { name: 'Mémoire technique', hint: 'Document principal — utilisez le builder ci-dessus', isCritical: true },
-  { name: 'Bordereau des prix unitaires (BPU)', hint: 'Remplir le document fourni par l\'acheteur dans le DCE', isCritical: false },
-  { name: 'Acte d\'engagement (AE)', hint: 'Document fourni dans le DCE, à signer par le représentant légal', isCritical: true },
-  { name: 'Références clients (3 dernières années)', hint: 'Tableau avec client, objet, montant, période, contact', isCritical: false },
+  { name: 'DC1 - Lettre de candidature', hint: 'Formulaire CERFA téléchargeable sur economie.gouv.fr', isCritical: true, category: 'profile' },
+  { name: 'DC2 - Déclaration du candidat', hint: 'Formulaire CERFA, renseigner CA des 3 dernières années', isCritical: true, category: 'profile' },
+  { name: 'Extrait KBIS < 3 mois', hint: 'Téléchargeable gratuitement sur monidenum.fr (dirigeant)', isCritical: true, category: 'profile' },
+  { name: 'Attestations fiscales et sociales', hint: 'URSSAF + impôts, demandables en ligne sur net-entreprises.fr', isCritical: true, category: 'profile' },
+  { name: 'Mémoire technique', hint: 'Document principal — utilisez le builder ci-dessus', isCritical: true, category: 'ao-specific' },
+  { name: 'Bordereau des prix unitaires (BPU)', hint: 'Remplir le document fourni par l\'acheteur dans le DCE', isCritical: false, category: 'ao-specific' },
+  { name: 'Acte d\'engagement (AE)', hint: 'Document fourni dans le DCE, à signer par le représentant légal', isCritical: true, category: 'ao-specific' },
+  { name: 'Références clients (3 dernières années)', hint: 'Tableau avec client, objet, montant, période, contact', isCritical: false, category: 'profile' },
 ];
 
 function buildDetail(overrides: Partial<AoDetail> & Pick<AoDetail, 'scoreCriteria' | 'aiSummary'>): AoDetail {
