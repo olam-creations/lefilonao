@@ -156,7 +156,7 @@ export default function LandingPage() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
               </span>
               <span className="text-indigo-700 text-sm font-medium">
-                Commencez gratuitement &mdash; Pro à 30€/mois
+                Offre Fondateur &mdash; Pro à 25€/mois
               </span>
             </div>
 
@@ -216,7 +216,7 @@ export default function LandingPage() {
           {[
             { value: '500+', label: 'AO analysés / semaine' },
             { value: '0€', label: 'pour commencer' },
-            { value: '30€', label: 'Pro /mois, tout inclus' },
+            { value: '25€', label: 'Fondateur /mois' },
             { value: '5 min', label: 'pour s\'inscrire' },
           ].map((stat) => (
             <motion.div key={stat.label} variants={fadeUp}>
@@ -375,7 +375,7 @@ export default function LandingPage() {
                   'Alertes ciblées + score Go/No-Go automatique',
                   'L\'IA analyse le DCE et extrait l\'essentiel',
                   'Aide à la rédaction : plan, checklist, résumé',
-                  'Gratuit pour commencer, Pro à 30€/mois',
+                  'Gratuit pour commencer, Pro dès 25€/mois',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3 text-slate-600">
                     <span className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -490,9 +490,9 @@ export default function LandingPage() {
               </div>
               <div className="w-px h-12 bg-slate-200" />
               <div className="text-center">
-                <span className="text-4xl font-bold gradient-text-price">30€</span>
+                <span className="text-4xl font-bold gradient-text-price">25€</span>
                 <span className="text-lg text-slate-400">/mois</span>
-                <p className="text-slate-400 text-sm mt-1">Pro &middot; Sans engagement</p>
+                <p className="text-slate-400 text-sm mt-1">Fondateur &middot; puis 40€/mois</p>
               </div>
             </div>
             <div className="flex gap-2 justify-center mb-8">
@@ -530,7 +530,7 @@ export default function LandingPage() {
                   "name": "Combien coûte la veille marchés publics ?",
                   "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro à 30€/mois débloque un accès illimité, le score Go/No-Go par IA, l'intelligence acheteur et les alertes quotidiennes. C'est 3 à 5 fois moins cher que les solutions traditionnelles."
+                    "text": "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro est à 50€ TTC/mois (offre Fondateur à 25€/mois pendant 6 mois, puis 40€/mois). C'est 3 à 5 fois moins cher que les solutions traditionnelles."
                   }
                 },
                 {
@@ -579,7 +579,7 @@ export default function LandingPage() {
             {[
               {
                 q: "Combien coûte la veille marchés publics ?",
-                a: "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro à 30€/mois débloque un accès illimité, le score Go/No-Go par IA, l'intelligence acheteur et les alertes quotidiennes. C'est 3 à 5 fois moins cher que la concurrence."
+                a: "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro est à 50€ TTC/mois (offre Fondateur à 25€/mois pendant 6 mois, puis 40€/mois). C'est 3 à 5 fois moins cher que la concurrence."
               },
               {
                 q: "D'où viennent les appels d'offres ?",

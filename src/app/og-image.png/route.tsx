@@ -98,7 +98,7 @@ export async function GET() {
             fontSize: '16px',
           }}
         >
-          lefilonao.com — Gratuit pour commencer, Pro à 30€/mois
+          lefilonao.com — Gratuit pour commencer, Pro dès 25€/mois
         </div>
       </div>
     ),

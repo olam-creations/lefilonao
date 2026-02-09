@@ -6,7 +6,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from '@/components/Header';
 
-const PRICE = 30;
+const PRICE = 50;
+const FOUNDER_PRICE = 25;
+const FOUNDER_AFTER_PRICE = 40;
 
 const FREE_FEATURES = [
   '5 appels d\'offres par mois',
@@ -195,20 +197,24 @@ export default function PricingPage() {
             </Link>
           </div>
 
-          {/* Pro Plan */}
+          {/* Founder Offer */}
           <div className="gradient-border active">
             <div className="bg-white rounded-2xl p-10 glow-indigo-strong">
               <div className="text-center mb-8">
-                <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full mb-5 border border-indigo-100">
-                  Recommandé
+                <span className="inline-block px-3 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full mb-5 border border-amber-200">
+                  Offre Fondateur &mdash; Places limitées
                 </span>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-5xl font-bold gradient-text-price">{PRICE}&euro;</span>
+                  <span className="text-5xl font-bold gradient-text-price">{FOUNDER_PRICE}&euro;</span>
                   <span className="text-xl text-slate-400">/mois</span>
                 </div>
-                <p className="text-slate-900 font-semibold mt-3 text-lg">Pro</p>
+                <div className="flex items-center justify-center gap-2 mt-2">
+                  <span className="text-sm text-slate-400 line-through">{PRICE}&euro;/mois</span>
+                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">-50%</span>
+                </div>
+                <p className="text-slate-900 font-semibold mt-3 text-lg">Pro Fondateur</p>
                 <p className="text-slate-400 mt-1 text-sm">
-                  Sans engagement &middot; Annulation facile
+                  {FOUNDER_PRICE}&euro;/mois pendant 6 mois, puis {FOUNDER_AFTER_PRICE}&euro;/mois &agrave; vie
                 </p>
               </div>
 
@@ -317,7 +323,7 @@ export default function PricingPage() {
               href="/subscribe?plan=pro"
               className="inline-flex items-center gap-2 text-base py-3.5 px-8 bg-white text-slate-900 font-semibold rounded-xl hover:bg-slate-100 hover:shadow-lg hover:shadow-white/10 transition-all"
             >
-              Passer à Pro &mdash; {PRICE}&euro;/mois
+              Devenir Fondateur &mdash; {FOUNDER_PRICE}&euro;/mois
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import CookieBanner from '@/components/CookieBanner';
+import FeedbackWidget from '@/components/FeedbackWidget';
 import './globals.css';
 
 const inter = Inter({
@@ -25,14 +26,14 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://lefilonao.com'),
   title: 'Le Filon AO | Veille appels d\'offres & alertes marchés publics par IA',
-  description: 'Alertes appels d\'offres personnalisées par IA. Score Go/No-Go, BOAMP complet. Gratuit pour commencer, Pro à 30€/mois.',
+  description: 'Alertes appels d\'offres personnalisées par IA. Score Go/No-Go, BOAMP complet. Gratuit pour commencer, Pro dès 25€/mois.',
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     locale: 'fr_FR',
     siteName: 'Le Filon AO',
     title: 'Le Filon AO | Veille appels d\'offres & alertes marchés publics par IA',
-    description: 'Alertes appels d\'offres personnalisées par IA. Score Go/No-Go, BOAMP complet. Gratuit pour commencer, Pro à 30€/mois.',
+    description: 'Alertes appels d\'offres personnalisées par IA. Score Go/No-Go, BOAMP complet. Gratuit pour commencer, Pro dès 25€/mois.',
     url: 'https://lefilonao.com',
     images: [{
       url: 'https://lefilonao.com/og-image.png',
@@ -67,7 +68,7 @@ const jsonLd = {
     {
       '@type': 'Offer',
       name: 'Pro',
-      price: '30',
+      price: '50',
       priceCurrency: 'EUR',
       availability: 'https://schema.org/InStock',
       description: 'AO illimités, analyse DCE, aide rédaction, intelligence marché',
@@ -101,6 +102,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         {children}
+        <FeedbackWidget />
         <CookieBanner />
       </body>
     </html>

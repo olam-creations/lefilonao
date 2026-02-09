@@ -1,72 +1,74 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import LegalShell from '@/components/LegalShell';
 
 export const metadata: Metadata = {
-  title: 'Mentions l\u00e9gales | Le Filon AO',
-  description: 'Mentions l\u00e9gales du site lefilonao.com - Veille march\u00e9s publics par IA.',
+  title: 'Mentions légales | Le Filon AO',
+  description: 'Mentions légales du site lefilonao.com - Veille marchés publics par IA.',
   alternates: { canonical: '/mentions-legales' },
 };
 
 export default function MentionsLegalesPage() {
   return (
-    <main className="min-h-screen bg-white py-20 px-6">
-      <article className="max-w-4xl mx-auto">
-        <Link href="/" className="text-sm text-indigo-600 hover:text-indigo-700 transition-colors mb-8 inline-block">&larr; Retour &agrave; l&apos;accueil</Link>
+    <LegalShell title="Mentions légales" updatedAt="9 février 2026" currentPath="/mentions-legales">
+      <h2>Éditeur du site</h2>
+      <p>
+        Le site <strong>lefilonao.com</strong> est un <strong>projet personnel</strong> édité par :
+      </p>
+      <table>
+        <tbody>
+          <tr><td><strong>Raison sociale</strong></td><td>Olam Creations</td></tr>
+          <tr><td><strong>Responsable</strong></td><td>Jonas Kleinschmidt</td></tr>
+          <tr><td><strong>Statut</strong></td><td>Micro-entreprise (Entreprise Individuelle)</td></tr>
+          <tr><td><strong>SIRET</strong></td><td>909 935 892 000 10</td></tr>
+          <tr><td><strong>Code NAF</strong></td><td>6201Z — Programmation informatique</td></tr>
+          <tr><td><strong>Siège social</strong></td><td>60 rue François 1er, 75008 Paris (domiciliation LegalPlace)</td></tr>
+          <tr><td><strong>E-mail</strong></td><td><a href="mailto:contact@lefilonao.com">contact@lefilonao.com</a></td></tr>
+        </tbody>
+      </table>
 
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">Mentions l&eacute;gales</h1>
-        <p className="text-sm text-slate-400 mb-10">Derni&egrave;re mise &agrave; jour : 9 f&eacute;vrier 2026</p>
+      <h2>Nature du projet</h2>
+      <p>
+        Le Filon AO est un projet personnel conçu, développé et opéré par une seule personne.
+        Il ne s&apos;agit pas d&apos;une startup ni d&apos;une société financée. Le service est proposé en l&apos;état,
+        avec un objectif de qualité et de transparence.
+      </p>
 
-        <div className="prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-a:text-indigo-600">
-          <h2>&Eacute;diteur du site</h2>
-          <p>
-            Le site <strong>lefilonao.com</strong> est &eacute;dit&eacute; par :<br />
-            <strong>Olam Creations</strong><br />
-            Forme juridique : Micro-entreprise (Entreprise Individuelle)<br />
-            Si&egrave;ge social : 60 rue Fran&ccedil;ois 1er, 75008 Paris, France (domiciliation LegalPlace)<br />
-            SIRET : 909 935 892 000 10<br />
-            Code NAF : 6201Z &mdash; Programmation informatique
-          </p>
+      <h2>Directeur de la publication</h2>
+      <p>Jonas Kleinschmidt — <a href="mailto:contact@lefilonao.com">contact@lefilonao.com</a></p>
 
-          <h2>Directeur de la publication</h2>
-          <p>Jonas Kleinschmidt</p>
+      <h2>Hébergement</h2>
+      <div>
+        <p>
+          <strong>Application web</strong><br />
+          Vercel Inc. — 340 S Lemon Ave #4133, Walnut, CA 91789, États-Unis<br />
+          <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">vercel.com</a>
+        </p>
+        <p>
+          <strong>Base de données</strong><br />
+          Supabase Inc. — San Francisco, CA, États-Unis<br />
+          <a href="https://supabase.com" target="_blank" rel="noopener noreferrer">supabase.com</a>
+        </p>
+        <p>
+          <strong>Stockage de fichiers</strong><br />
+          Cloudflare, Inc. — 101 Townsend St, San Francisco, CA 94107, États-Unis<br />
+          <a href="https://cloudflare.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a>
+        </p>
+      </div>
 
-          <h2>Contact</h2>
-          <p>E-mail : <a href="mailto:contact@lefilonao.com">contact@lefilonao.com</a></p>
+      <h2>Protection des données personnelles</h2>
+      <p>
+        Conformément au RGPD et à la loi Informatique et Libertés, vous disposez de droits sur vos données personnelles.
+        Consultez notre <a href="/politique-confidentialite">politique de confidentialité</a> pour plus d&apos;informations.
+      </p>
 
-          <h2>H&eacute;bergement</h2>
-          <p>
-            Le site est h&eacute;berg&eacute; par :<br />
-            <strong>Vercel Inc.</strong><br />
-            340 S Lemon Ave #4133, Walnut, CA 91789, &Eacute;tats-Unis<br />
-            Site web : <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">vercel.com</a>
-          </p>
-          <p>
-            Stockage de fichiers :<br />
-            <strong>Cloudflare, Inc.</strong><br />
-            101 Townsend St, San Francisco, CA 94107, &Eacute;tats-Unis<br />
-            Site web : <a href="https://cloudflare.com" target="_blank" rel="noopener noreferrer">cloudflare.com</a>
-          </p>
+      <h2>Propriété intellectuelle</h2>
+      <p>
+        L&apos;ensemble des contenus du site (textes, logos, logiciels, algorithmes, interfaces) est protégé
+        par les lois françaises et internationales relatives à la propriété intellectuelle.
+        Toute reproduction sans autorisation écrite préalable est interdite.
+      </p>
 
-          <h2>Protection des donn&eacute;es personnelles</h2>
-          <p>
-            Conform&eacute;ment au R&egrave;glement G&eacute;n&eacute;ral sur la Protection des Donn&eacute;es (RGPD) et &agrave; la loi
-            Informatique et Libert&eacute;s du 6 janvier 1978 modifi&eacute;e, vous disposez de droits sur vos donn&eacute;es personnelles.
-            Consultez notre <Link href="/politique-confidentialite">politique de confidentialit&eacute;</Link> pour plus d&apos;informations.
-          </p>
-
-          <h2>Propri&eacute;t&eacute; intellectuelle</h2>
-          <p>
-            L&apos;ensemble des contenus pr&eacute;sents sur le site lefilonao.com (textes, images, logos, logiciels, base de donn&eacute;es,
-            algorithmes, interfaces) est prot&eacute;g&eacute; par les lois fran&ccedil;aises et internationales relatives &agrave; la
-            propri&eacute;t&eacute; intellectuelle. Toute reproduction, repr&eacute;sentation ou diffusion, totale ou partielle,
-            sans autorisation &eacute;crite pr&eacute;alable, est interdite et constitue une contrefa&ccedil;on sanctionn&eacute;e par les
-            articles L.335-2 et suivants du Code de la propri&eacute;t&eacute; intellectuelle.
-          </p>
-
-          <h2>Cr&eacute;dits</h2>
-          <p>&copy; 2026 Le Filon AO. Tous droits r&eacute;serv&eacute;s.</p>
-        </div>
-      </article>
-    </main>
+      <p className="text-sm text-slate-400 mt-8">© 2026 Le Filon AO — Tous droits réservés.</p>
+    </LegalShell>
   );
 }
