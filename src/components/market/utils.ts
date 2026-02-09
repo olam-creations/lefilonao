@@ -53,6 +53,44 @@ export function sanitizeCsvCell(value: string): string {
   return escaped;
 }
 
+export function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+export function estimateRenewalDate(notificationDate: string): string {
+  const d = new Date(notificationDate);
+  d.setFullYear(d.getFullYear() + 4);
+  return d.toISOString().slice(0, 10);
+}
+
+export function formatPercent(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
+export function hhiLabel(concentration: 'low' | 'moderate' | 'high'): string {
+  const labels = { low: 'Concurrence ouverte', moderate: 'Concentration modérée', high: 'Marché concentré' };
+  return labels[concentration];
+}
+
+export function hhiColor(concentration: 'low' | 'moderate' | 'high'): { bg: string; text: string } {
+  const colors = {
+    low: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
+    moderate: { bg: 'bg-amber-50', text: 'text-amber-700' },
+    high: { bg: 'bg-red-50', text: 'text-red-700' },
+  };
+  return colors[concentration];
+}
+
+export const CPV_NAMES: Record<string, string> = {
+  '72': 'IT', '48': 'Logiciels', '79': 'Services', '71': 'Ingénierie',
+  '80': 'Formation', '64': 'Télécoms', '50': 'Maintenance', '45': 'BTP',
+  '34': 'Transport', '33': 'Médical',
+};
+
 export function downloadCsv(filename: string, csvContent: string): void {
   const bom = '\uFEFF';
   const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });

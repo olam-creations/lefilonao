@@ -4,6 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 export async function GET(req: NextRequest) {
   const cpv = req.nextUrl.searchParams.get('cpv') ?? '72';
   const buyerName = req.nextUrl.searchParams.get('buyer') ?? '';
+  const summary = req.nextUrl.searchParams.get('summary') === 'true';
 
   try {
     const supabase = getSupabase();
@@ -73,6 +74,32 @@ export async function GET(req: NextRequest) {
     }
 
     pairs.sort((a, b) => b.contracts - a.contracts);
+
+    if (summary) {
+      const lockedPairs = pairs.filter((p) => p.isLocked).slice(0, 10);
+      const displacementOpportunities = pairs
+        .filter((p) => p.isLocked)
+        .sort((a, b) => b.totalVolume - a.totalVolume)
+        .slice(0, 5);
+
+      let loyal = 0;
+      let moderate = 0;
+      let switching = 0;
+      for (const p of pairs) {
+        if (p.loyaltyPct >= 60) loyal += 1;
+        else if (p.loyaltyPct >= 30) moderate += 1;
+        else switching += 1;
+      }
+
+      return NextResponse.json({
+        recurrence: pairs.slice(0, 50),
+        loyalty: {
+          lockedPairs,
+          displacementOpportunities,
+          distribution: { loyal, moderate, switching },
+        },
+      });
+    }
 
     return NextResponse.json({ recurrence: pairs.slice(0, 50) });
   } catch (err) {

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabase();
     let query = supabase
       .from('decp_attributions')
-      .select('id, title, buyer_name, winner_name, amount, notification_date, cpv_code, region')
+      .select('id, title, buyer_name, winner_name, amount, notification_date, cpv_code, region, offers_received')
       .eq('cpv_sector', cpv)
       .order('notification_date', { ascending: false })
       .limit(limit);
@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
       notificationDate: r.notification_date,
       cpvCode: r.cpv_code,
       region: r.region,
+      offersReceived: Number(r.offers_received) || undefined,
     }));
 
     return NextResponse.json({ attributions });

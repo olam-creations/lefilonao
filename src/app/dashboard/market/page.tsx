@@ -13,6 +13,7 @@ import {
   type MarketInsight, type Attribution, type VolumeDataPoint,
   type AmountRange, type CompetitorResult, type MarketFilters as Filters,
   type RenewalOpportunity, type RegionalData,
+  type CompetitionData, type PartnershipsData, type RseData, type LoyaltySummary,
 } from '@/components/market/types';
 import MarketStatCards from '@/components/market/MarketStatCards';
 import TopRankingChart from '@/components/market/TopRankingChart';
@@ -26,6 +27,10 @@ import RenewalAlerts from '@/components/market/RenewalAlerts';
 import MyPositioning from '@/components/market/MyPositioning';
 import RegionalHeatmap from '@/components/market/RegionalHeatmap';
 import RegionSheet from '@/components/market/RegionSheet';
+import CompetitiveIntensity, { CompetitiveIntensitySkeleton } from '@/components/market/CompetitiveIntensity';
+import Partnerships, { PartnershipsSkeleton } from '@/components/market/Partnerships';
+import RseIndicators, { RseIndicatorsSkeleton } from '@/components/market/RseIndicators';
+import BuyerLoyalty, { BuyerLoyaltySkeleton } from '@/components/market/BuyerLoyalty';
 import { MarketStatsSkeleton, RankingChartSkeleton, ChartSkeleton, AttributionsListSkeleton, PositioningSkeleton } from '@/components/market/MarketSkeletons';
 import { RenewalAlertsSkeleton } from '@/components/market/RenewalAlerts';
 import { RegionalHeatmapSkeleton } from '@/components/market/RegionalHeatmap';
@@ -38,6 +43,10 @@ interface MarketData {
   competitors: CompetitorResult[];
   renewals: RenewalOpportunity[];
   regional: RegionalData[];
+  competition: CompetitionData | null;
+  partnerships: PartnershipsData | null;
+  rse: RseData | null;
+  loyalty: LoyaltySummary | null;
 }
 
 const EMPTY_DATA: MarketData = {
@@ -48,6 +57,10 @@ const EMPTY_DATA: MarketData = {
   competitors: [],
   renewals: [],
   regional: [],
+  competition: null,
+  partnerships: null,
+  rse: null,
+  loyalty: null,
 };
 
 interface EntitySheetState {
@@ -100,13 +113,17 @@ export default function MarketPage() {
       setLoading(true);
       setError(null);
 
-      const [insightsRes, attrRes, trendRes, compRes, renewalsRes, regionalRes] = await Promise.all([
+      const [insightsRes, attrRes, trendRes, compRes, renewalsRes, regionalRes, competitionRes, partnershipsRes, rseRes, loyaltyRes] = await Promise.all([
         safeFetch(`/api/market/insights?cpv=${selectedSector}`),
         safeFetch(`/api/market/attributions?cpv=${selectedSector}&limit=15`),
         safeFetch(`/api/market/trends?cpv=${selectedSector}`),
         safeFetch(`/api/market/competitors?cpv=${selectedSector}`),
         safeFetch(`/api/market/renewals?cpv=${selectedSector}`),
         safeFetch(`/api/market/regional?cpv=${selectedSector}`),
+        safeFetch(`/api/market/competition?cpv=${selectedSector}`),
+        safeFetch(`/api/market/partnerships?cpv=${selectedSector}`),
+        safeFetch(`/api/market/rse?cpv=${selectedSector}`),
+        safeFetch(`/api/market/recurrence?cpv=${selectedSector}&summary=true`),
       ]);
 
       const next: MarketData = { ...EMPTY_DATA };
@@ -134,6 +151,22 @@ export default function MarketPage() {
       if (regionalRes?.ok) {
         const json = await regionalRes.json();
         next.regional = json.regions ?? [];
+      }
+      if (competitionRes?.ok) {
+        const json = await competitionRes.json();
+        next.competition = json.competition ?? null;
+      }
+      if (partnershipsRes?.ok) {
+        const json = await partnershipsRes.json();
+        next.partnerships = json.partnerships ?? null;
+      }
+      if (rseRes?.ok) {
+        const json = await rseRes.json();
+        next.rse = json.rse ?? null;
+      }
+      if (loyaltyRes?.ok) {
+        const json = await loyaltyRes.json();
+        next.loyalty = json.loyalty ?? null;
       }
 
       setData(next);
@@ -213,8 +246,16 @@ export default function MarketPage() {
               <RankingChartSkeleton />
             </div>
             <div className="grid md:grid-cols-2 gap-6">
+              <CompetitiveIntensitySkeleton />
+              <PartnershipsSkeleton />
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
               <ChartSkeleton height="h-72" />
               <ChartSkeleton height="h-40" />
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <RseIndicatorsSkeleton />
+              <BuyerLoyaltySkeleton />
             </div>
             <RegionalHeatmapSkeleton />
             <AttributionsListSkeleton />
@@ -248,8 +289,18 @@ export default function MarketPage() {
             )}
 
             <div className="grid md:grid-cols-2 gap-6">
+              <CompetitiveIntensity data={data.competition} />
+              <Partnerships data={data.partnerships} />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
               <VolumeTrend data={data.volumeTrend} />
               <AmountDistribution data={data.amountDistribution} />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <RseIndicators data={data.rse} />
+              <BuyerLoyalty data={data.loyalty} onBuyerClick={handleBuyerClick} onWinnerClick={handleWinnerClick} />
             </div>
 
             <RegionalHeatmap data={data.regional} onRegionClick={handleRegionClick} />

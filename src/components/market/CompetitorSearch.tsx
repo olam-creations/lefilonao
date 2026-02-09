@@ -9,9 +9,10 @@ import { formatAmount } from './utils';
 
 interface CompetitorSearchProps {
   competitors: CompetitorResult[];
+  onCompetitorClick?: (name: string) => void;
 }
 
-export default function CompetitorSearch({ competitors }: CompetitorSearchProps) {
+export default function CompetitorSearch({ competitors, onCompetitorClick }: CompetitorSearchProps) {
   const [query, setQuery] = useState('');
 
   if (competitors.length === 0) return null;
@@ -70,7 +71,13 @@ export default function CompetitorSearch({ competitors }: CompetitorSearchProps)
                 className="p-4 rounded-lg border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all"
               >
                 <div className="flex items-start justify-between gap-4 mb-2">
-                  <h3 className="text-sm font-semibold text-slate-900">{comp.name}</h3>
+                  {onCompetitorClick ? (
+                    <button type="button" onClick={() => onCompetitorClick(comp.name)} className="text-sm font-semibold text-slate-900 hover:text-indigo-600 hover:underline transition-colors text-left">
+                      {comp.name}
+                    </button>
+                  ) : (
+                    <h3 className="text-sm font-semibold text-slate-900">{comp.name}</h3>
+                  )}
                   <div className="flex items-center gap-1 text-emerald-600">
                     <Trophy className="w-3.5 h-3.5" />
                     <span className="text-sm font-bold">{comp.wins}</span>
@@ -79,6 +86,9 @@ export default function CompetitorSearch({ competitors }: CompetitorSearchProps)
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-slate-500 mb-2">
                   <span>Volume : <span className="font-semibold text-slate-700">{formatAmount(comp.totalVolume)}</span></span>
                   <span>Budget moyen : <span className="font-semibold text-slate-700">{formatAmount(comp.avgBudget)}</span></span>
+                  {comp.winRate != null && (
+                    <span>Taux victoire : <span className="font-semibold text-indigo-600">{comp.winRate.toFixed(1)}%</span></span>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {comp.sectors.map((s) => (

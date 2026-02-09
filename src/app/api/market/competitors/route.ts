@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabase
       .from('decp_attributions')
-      .select('winner_name, amount, cpv_code')
+      .select('winner_name, amount, cpv_code, offers_received')
       .eq('cpv_sector', cpv)
       .not('winner_name', 'eq', '');
 
@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
       wins: number;
       totalVolume: number;
       cpvCodes: Set<string>;
+      totalOffers: number;
+      offersCount: number;
     }>();
 
     const isSiret = (s: string) => /^\d{9,14}$/.test((s ?? '').trim());
@@ -28,10 +30,15 @@ export async function GET(req: NextRequest) {
     for (const row of data ?? []) {
       const name = row.winner_name as string;
       if (isSiret(name)) continue;
-      const entry = map.get(name) ?? { wins: 0, totalVolume: 0, cpvCodes: new Set<string>() };
+      const entry = map.get(name) ?? { wins: 0, totalVolume: 0, cpvCodes: new Set<string>(), totalOffers: 0, offersCount: 0 };
       entry.wins += 1;
       entry.totalVolume += Number(row.amount) || 0;
       if (row.cpv_code) entry.cpvCodes.add(String(row.cpv_code).substring(0, 2));
+      const offers = Number(row.offers_received);
+      if (offers > 0) {
+        entry.totalOffers += offers;
+        entry.offersCount += 1;
+      }
       map.set(name, entry);
     }
 
@@ -50,6 +57,9 @@ export async function GET(req: NextRequest) {
         totalVolume: Math.round(val.totalVolume),
         avgBudget: val.wins > 0 ? Math.round(val.totalVolume / val.wins) : 0,
         sectors: [...val.cpvCodes].slice(0, 3).map((c) => CPV_NAMES[c] ?? c),
+        winRate: val.offersCount > 0
+          ? Math.round((val.offersCount / val.totalOffers) * 1000) / 10
+          : undefined,
       }));
 
     return NextResponse.json({ competitors });

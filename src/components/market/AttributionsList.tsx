@@ -10,6 +10,8 @@ import { formatAmount, sanitizeCsvCell, downloadCsv } from './utils';
 interface AttributionsListProps {
   attributions: Attribution[];
   filters: MarketFilters;
+  onBuyerClick?: (name: string) => void;
+  onWinnerClick?: (name: string) => void;
 }
 
 function filterAttributions(items: Attribution[], filters: MarketFilters): Attribution[] {
@@ -42,7 +44,7 @@ function buildCsv(items: Attribution[]): string {
   return [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(';')).join('\n');
 }
 
-export default function AttributionsList({ attributions, filters }: AttributionsListProps) {
+export default function AttributionsList({ attributions, filters, onBuyerClick, onWinnerClick }: AttributionsListProps) {
   const filtered = useMemo(() => filterAttributions(attributions, filters), [attributions, filters]);
 
   const handleExport = () => {
@@ -84,21 +86,49 @@ export default function AttributionsList({ attributions, filters }: Attributions
                   : attr.rfpTitle}
               </h3>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-                <span className="flex items-center gap-1">
-                  <Landmark className="w-3 h-3" />
-                  {attr.buyerName || 'Acheteur non spécifié'}
-                </span>
+                {onBuyerClick ? (
+                  <button type="button" onClick={() => onBuyerClick(attr.buyerName)} className="flex items-center gap-1 hover:text-indigo-600 transition-colors">
+                    <Landmark className="w-3 h-3" />
+                    {attr.buyerName || 'Acheteur non spécifié'}
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <Landmark className="w-3 h-3" />
+                    {attr.buyerName || 'Acheteur non spécifié'}
+                  </span>
+                )}
                 <span>&middot;</span>
-                <span className="flex items-center gap-1">
-                  <Trophy className="w-3 h-3" />
-                  {attr.winnerName}
-                </span>
+                {onWinnerClick ? (
+                  <button type="button" onClick={() => onWinnerClick(attr.winnerName)} className="flex items-center gap-1 hover:text-emerald-600 transition-colors">
+                    <Trophy className="w-3 h-3" />
+                    {attr.winnerName}
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <Trophy className="w-3 h-3" />
+                    {attr.winnerName}
+                  </span>
+                )}
                 <span>&middot;</span>
                 <span>{new Date(attr.notificationDate).toLocaleDateString('fr-FR')}</span>
                 {attr.region && (
                   <>
                     <span>&middot;</span>
                     <span>{attr.region}</span>
+                  </>
+                )}
+                {attr.offersReceived != null && attr.offersReceived > 0 && (
+                  <>
+                    <span>&middot;</span>
+                    <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-full ${
+                      attr.offersReceived >= 5
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : attr.offersReceived >= 3
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-red-50 text-red-700'
+                    }`}>
+                      {attr.offersReceived} offre{attr.offersReceived > 1 ? 's' : ''}
+                    </span>
                   </>
                 )}
               </div>
