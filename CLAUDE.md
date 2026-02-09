@@ -26,6 +26,31 @@
 - **Auth**: JWT stored in localStorage, sent as Bearer token. No client-side crypto verification -- server validates.
 - **Storage**: localStorage for workspace state, profile, onboarding. Cloudflare R2 for file uploads.
 
+### Market Intelligence Backend (Cloudflare Workers)
+Le pipeline marche public est decoupe entre deux repos :
+
+**`lefilonao-workers`** (Cloudflare Workers — ecrit dans Supabase) :
+- Repo: `github.com/olam-creations/lefilonao-workers`
+- URL: `https://lefilonao-workers.olamcreations.workers.dev`
+- `syncDecp()` — cron `0 6 * * *` : DECP API → table `decp_attributions`
+- `resolveSirets()` — cron `30 6 * * *` : SIRET → nom via Sirene API → `decp_attributions`
+
+**`lefilonao`** (ce repo — lit depuis Supabase, read-only) :
+- `/api/market/insights` — KPIs marche (top buyers, winners, volumes)
+- `/api/market/attributions` — Liste des attributions avec filtres
+- `/api/market/trends` — Tendances volume par mois
+- `/api/market/competitors` — Recherche concurrents par nom/SIRET
+- `/api/market/sync` — LEGACY, remplace par Workers cron (peut etre supprime)
+- `/api/market/resolve-names` — LEGACY, remplace par Workers cron (peut etre supprime)
+
+```
+Cloudflare Worker (cron triggers)         Ce repo (Next.js, read-only)
+  ├── syncDecp()    → Supabase ←────────── /api/market/insights
+  └── resolveSirets() → Supabase ←──────── /api/market/attributions
+                                    ←──────── /api/market/trends
+                                    ←──────── /api/market/competitors
+```
+
 ### Security Headers
 Configured in `next.config.ts`: X-Frame-Options DENY, HSTS, CSP (Gemini + Anthropic + Sentry + Plausible), nosniff, strict referrer.
 
@@ -63,6 +88,13 @@ src/
   app/                    # Next.js App Router pages
     dashboard/            # Protected dashboard (main page, AO detail, market, profile)
     api/ai/               # AI endpoints (analyze-dce, generate-section, coach)
+    api/market/           # Market intelligence (read-only from Supabase)
+      insights/           # KPIs, top buyers/winners
+      attributions/       # Attribution list with filters
+      trends/             # Volume by month
+      competitors/        # Competitor search
+      sync/               # LEGACY (replaced by lefilonao-workers cron)
+      resolve-names/      # LEGACY (replaced by lefilonao-workers cron)
     api/documents/        # Document upload/management
     api/gate/             # Auth gate
     login/ pricing/ subscribe/ success/  # Public pages
