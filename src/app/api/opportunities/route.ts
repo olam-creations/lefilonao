@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
   const amountMax = Number(params.get('amount_max')) || 0;
   const deadlineDays = Number(params.get('deadline_days')) || 0;
   const search = params.get('search') ?? '';
+  const sort = params.get('sort') ?? 'deadline_asc';
   const limit = Math.min(Number(params.get('limit')) || 20, 100);
   const offset = Number(params.get('offset')) || 0;
 
@@ -17,8 +18,20 @@ export async function GET(req: NextRequest) {
     let query = supabase
       .from('boamp_notices')
       .select('id, title, buyer_name, buyer_siret, cpv_code, cpv_sector, deadline, publication_date, dce_url, region, departement, nature, procedure_type, lots_count, estimated_amount, description, source, is_open', { count: 'exact' })
-      .eq('is_open', true)
-      .order('deadline', { ascending: true });
+      .eq('is_open', true);
+
+    const sortMap: Record<string, { column: string; ascending: boolean; nullsFirst?: boolean }> = {
+      deadline_asc: { column: 'deadline', ascending: true },
+      deadline_desc: { column: 'deadline', ascending: false },
+      amount_desc: { column: 'estimated_amount', ascending: false, nullsFirst: false },
+      amount_asc: { column: 'estimated_amount', ascending: true },
+      date_desc: { column: 'publication_date', ascending: false },
+    };
+    const sortConfig = sortMap[sort] ?? sortMap.deadline_asc;
+    query = query.order(sortConfig.column, {
+      ascending: sortConfig.ascending,
+      ...(sortConfig.nullsFirst !== undefined ? { nullsFirst: sortConfig.nullsFirst } : {}),
+    });
 
     if (cpv) {
       query = query.eq('cpv_sector', cpv);

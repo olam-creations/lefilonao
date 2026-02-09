@@ -41,6 +41,20 @@ export function RankingChartSkeleton() {
   );
 }
 
+export function PositioningSkeleton() {
+  return (
+    <div className="bg-gradient-to-r from-slate-50 to-indigo-50 rounded-xl border border-slate-200 p-6">
+      <div className="flex items-center gap-3">
+        <div className="skeleton w-10 h-10 rounded-xl" />
+        <div className="flex-1">
+          <div className="skeleton w-36 h-4 mb-2 rounded" />
+          <div className="skeleton w-56 h-3 rounded" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AttributionsListSkeleton() {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6">

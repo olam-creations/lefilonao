@@ -17,6 +17,7 @@
     "@plausible-analytics/tracker": "^0.4.4",
     "@sentry/nextjs": "^10.38.0",
     "@supabase/supabase-js": "^2.95.3",
+    "@svg-maps/france.regions": "^2.0.0",
     "framer-motion": "^11.18.2",
     "jszip": "^3.10.1",
     "lucide-react": "^0.400.0",

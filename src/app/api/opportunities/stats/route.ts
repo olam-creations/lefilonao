@@ -6,7 +6,9 @@ export async function GET() {
     const supabase = getSupabase();
     const now = new Date().toISOString();
 
-    const [totalRes, urgentRes, sectorRes] = await Promise.all([
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+    const [totalRes, urgentRes, sectorRes, newRes, avgRes] = await Promise.all([
       supabase
         .from('boamp_notices')
         .select('*', { count: 'exact', head: true })
@@ -21,6 +23,16 @@ export async function GET() {
         .from('boamp_notices')
         .select('cpv_sector')
         .eq('is_open', true),
+      supabase
+        .from('boamp_notices')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_open', true)
+        .gte('publication_date', fortyEightHoursAgo),
+      supabase
+        .from('boamp_notices')
+        .select('estimated_amount')
+        .eq('is_open', true)
+        .gt('estimated_amount', 0),
     ]);
 
     const sectorCounts = new Map<string, number>();
@@ -40,10 +52,17 @@ export async function GET() {
       .slice(0, 10)
       .map(([code, count]) => ({ code, name: CPV_NAMES[code] ?? code, count }));
 
+    const amounts = (avgRes.data ?? []).map((r) => Number(r.estimated_amount) || 0);
+    const avgAmount = amounts.length > 0
+      ? Math.round(amounts.reduce((sum, a) => sum + a, 0) / amounts.length)
+      : 0;
+
     return NextResponse.json({
       stats: {
         totalOpen: totalRes.count ?? 0,
         urgentCount: urgentRes.count ?? 0,
+        newLast48h: newRes.count ?? 0,
+        avgAmount,
         bySector,
       },
     });

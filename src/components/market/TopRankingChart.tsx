@@ -10,6 +10,7 @@ interface TopRankingChartProps {
   items: RankedEntity[];
   color: 'indigo' | 'emerald';
   unit: string;
+  onNameClick?: (name: string) => void;
 }
 
 const colorConfig = {
@@ -25,7 +26,7 @@ const colorConfig = {
   },
 };
 
-export default function TopRankingChart({ title, icon, items, color, unit }: TopRankingChartProps) {
+export default function TopRankingChart({ title, icon, items, color, unit, onNameClick }: TopRankingChartProps) {
   const maxCount = Math.max(...items.map((item) => item.count), 1);
   const cfg = colorConfig[color];
 
@@ -43,9 +44,20 @@ export default function TopRankingChart({ title, icon, items, color, unit }: Top
               <span className={`w-6 h-6 rounded-full ${cfg.badge} flex items-center justify-center text-xs font-bold flex-shrink-0`}>
                 {i + 1}
               </span>
-              <span className="text-sm text-slate-700 truncate w-36 flex-shrink-0" title={item.name}>
-                {item.name || 'Non spécifié'}
-              </span>
+              {onNameClick ? (
+                <button
+                  type="button"
+                  onClick={() => onNameClick(item.name)}
+                  className="text-sm text-slate-700 truncate w-36 flex-shrink-0 text-left hover:text-indigo-600 hover:underline transition-colors"
+                  title={item.name}
+                >
+                  {item.name || 'Non spécifié'}
+                </button>
+              ) : (
+                <span className="text-sm text-slate-700 truncate w-36 flex-shrink-0" title={item.name}>
+                  {item.name || 'Non spécifié'}
+                </span>
+              )}
               <div className="flex-1 h-6 bg-slate-50 rounded-full overflow-hidden relative">
                 <motion.div
                   className={`h-full ${cfg.bar} rounded-full`}
