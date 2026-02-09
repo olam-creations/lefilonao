@@ -21,7 +21,7 @@ export default function PolitiqueConfidentialitePage() {
           <p>
             <strong>Olam Creations</strong> &mdash; Jonas Kleinschmidt<br />
             Micro-entreprise (EI) &mdash; SIRET 909 935 892 000 10<br />
-            Si&egrave;ge social : [ADRESSE DE DOMICILIATION &mdash; LegalPlace en cours]<br />
+            Si&egrave;ge social : 60 rue Fran&ccedil;ois 1er, 75008 Paris, France (domiciliation LegalPlace)<br />
             E-mail : <a href="mailto:contact@lefilonao.com">contact@lefilonao.com</a>
           </p>
 

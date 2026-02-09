@@ -23,7 +23,7 @@ export default function CgvPage() {
             les conditions de souscription et d&apos;utilisation des offres payantes du service Le Filon AO,
             &eacute;dit&eacute; par <strong>Olam Creations</strong> (Jonas Kleinschmidt),
             micro-entreprise (EI),
-            si&egrave;ge social : [ADRESSE DE DOMICILIATION &mdash; LegalPlace en cours],
+            si&egrave;ge social : 60 rue Fran&ccedil;ois 1er, 75008 Paris, France (domiciliation LegalPlace),
             SIRET : 909 935 892 000 10.
           </p>
 

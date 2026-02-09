@@ -22,7 +22,7 @@ export default function MentionsLegalesPage() {
             Le site <strong>lefilonao.com</strong> est &eacute;dit&eacute; par :<br />
             <strong>Olam Creations</strong><br />
             Forme juridique : Micro-entreprise (Entreprise Individuelle)<br />
-            Si&egrave;ge social : [ADRESSE DE DOMICILIATION &mdash; LegalPlace en cours]<br />
+            Si&egrave;ge social : 60 rue Fran&ccedil;ois 1er, 75008 Paris, France (domiciliation LegalPlace)<br />
             SIRET : 909 935 892 000 10<br />
             Code NAF : 6201Z &mdash; Programmation informatique
           </p>
