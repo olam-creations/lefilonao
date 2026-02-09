@@ -14,7 +14,8 @@ export function setToken(token: string): void {
   // Mirror to cookie so middleware can check auth
   const payload = decodePayload(token);
   const maxAge = payload?.exp ? payload.exp - Math.floor(Date.now() / 1000) : 60 * 60 * 24 * 7;
-  document.cookie = `lefilonao_session=1; path=/; max-age=${maxAge}; secure; samesite=lax`;
+  const isSecure = window.location.protocol === 'https:';
+  document.cookie = `lefilonao_session=1; path=/; max-age=${maxAge}; samesite=lax${isSecure ? '; secure' : ''}`;
 }
 
 export function clearToken(): void {
