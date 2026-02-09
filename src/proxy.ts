@@ -1,41 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const COOKIE_NAME = 'lefilonao_access';
-const LOGIN_PATH = '/gate';
+const GATE_PATH = '/gate';
+const LOGIN_PATH = '/login';
+const GATE_PUBLIC = ['/gate', '/api/gate'];
+const AUTH_PUBLIC = ['/', '/login', '/subscribe', '/pricing', '/success'];
+const SKIP_PATHS = ['/_next/', '/favicon.ico', '/favicon.svg', '/robots.txt', '/sitemap.xml', '/icon', '/monitoring'];
+const AUTH_REQUIRED_PREFIXES = ['/dashboard', '/api/ai', '/api/documents'];
+
+function shouldSkip(pathname: string): boolean {
+  return SKIP_PATHS.some(p => pathname === p || pathname.startsWith(p));
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip gate page, API routes, static files, and SEO files
-  if (
-    pathname === LOGIN_PATH ||
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/_next/') ||
-    pathname === '/favicon.ico' ||
-    pathname === '/favicon.svg' ||
-    pathname === '/robots.txt' ||
-    pathname === '/sitemap.xml' ||
-    pathname === '/icon'
-  ) {
+  // Skip static assets and SEO files
+  if (shouldSkip(pathname)) {
     return NextResponse.next();
   }
 
-  // If no SITE_PASSWORD set, site is open (production mode)
-  if (!process.env.SITE_PASSWORD) {
-    return NextResponse.next();
+  // ─── Layer 1: Staging gate ───
+  // When SITE_PASSWORD is configured, require lefilonao_access cookie
+  if (process.env.SITE_PASSWORD) {
+    // Allow gate page and gate API
+    if (!GATE_PUBLIC.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+      const accessCookie = request.cookies.get('lefilonao_access')?.value;
+      if (accessCookie !== 'granted') {
+        const url = request.nextUrl.clone();
+        url.pathname = GATE_PATH;
+        url.searchParams.set('redirect', pathname);
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
-  // Check access cookie
-  const accessCookie = request.cookies.get(COOKIE_NAME)?.value;
-  if (accessCookie === 'granted') {
-    return NextResponse.next();
+  // ─── Layer 2: Dashboard auth ───
+  // Protected routes require lefilonao_session cookie
+  const needsAuth = AUTH_REQUIRED_PREFIXES.some(p => pathname.startsWith(p));
+  if (needsAuth) {
+    const sessionCookie = request.cookies.get('lefilonao_session')?.value;
+    if (!sessionCookie) {
+      // API routes get 401, pages get redirected to /login
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      }
+      const url = request.nextUrl.clone();
+      url.pathname = LOGIN_PATH;
+      url.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(url);
+    }
   }
 
-  // Redirect to gate
-  const url = request.nextUrl.clone();
-  url.pathname = LOGIN_PATH;
-  url.searchParams.set('redirect', pathname);
-  return NextResponse.redirect(url);
+  // ─── Layer 3: Redirect authenticated users away from login/subscribe ───
+  if (pathname === '/login' || pathname === '/subscribe') {
+    const sessionCookie = request.cookies.get('lefilonao_session')?.value;
+    if (sessionCookie) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {

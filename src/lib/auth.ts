@@ -11,10 +11,15 @@ export function getToken(): string | null {
 
 export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
+  // Mirror to cookie so middleware can check auth
+  const payload = decodePayload(token);
+  const maxAge = payload?.exp ? payload.exp - Math.floor(Date.now() / 1000) : 60 * 60 * 24 * 7;
+  document.cookie = `lefilonao_session=1; path=/; max-age=${maxAge}; secure; samesite=lax`;
 }
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+  document.cookie = 'lefilonao_session=; path=/; max-age=0';
 }
 
 // ─── JWT Decode (no crypto verification) ───
@@ -27,18 +32,20 @@ interface TokenPayload {
   [key: string]: unknown;
 }
 
-export function getTokenPayload(): TokenPayload | null {
-  const token = getToken();
-  if (!token) return null;
-
+function decodePayload(token: string): TokenPayload | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
-    return payload as TokenPayload;
+    return JSON.parse(atob(parts[1])) as TokenPayload;
   } catch {
     return null;
   }
+}
+
+export function getTokenPayload(): TokenPayload | null {
+  const token = getToken();
+  if (!token) return null;
+  return decodePayload(token);
 }
 
 export function isTokenExpired(): boolean {
