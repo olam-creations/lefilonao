@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowRight, Download, TrendingUp, Clock, Building2, LogOut, Activity, Target, BarChart3, Search } from 'lucide-react';
+import { ArrowRight, Download, TrendingUp, Clock, Building2, Activity, Target, BarChart3, Search } from 'lucide-react';
 import Link from 'next/link';
-import { clearToken, isAuthenticated, markOnboardingStep } from '@/lib/auth';
+import { isAuthenticated, markOnboardingStep } from '@/lib/auth';
 import { api } from '@/lib/api';
-import { computeTrialStatus, type TrialInfo } from '@/lib/trial';
 import { isDevMode, MOCK_RFPS } from '@/lib/dev';
-import TrialBanner from '@/components/TrialBanner';
+import FreeBanner from '@/components/FreeBanner';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
+import Header from '@/components/Header';
 
 interface RFP {
   id: string;
@@ -105,7 +105,8 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<'all' | 'go' | 'maybe'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [trial, setTrial] = useState<TrialInfo | null>(null);
+  const [tier, setTier] = useState<'free' | 'pro'>('free');
+  const [rfpsThisMonth, setRfpsThisMonth] = useState(0);
   const [onboardingKey, setOnboardingKey] = useState(0);
 
   useEffect(() => {
@@ -120,12 +121,12 @@ export default function DashboardPage() {
         if (!res.ok) throw new Error('API error');
         const data = await res.json();
         setRfps(data.rfps || []);
-        setTrial(computeTrialStatus(data.trial));
+        setTier(data.profile?.tier || 'free');
+        setRfpsThisMonth(data.rfps?.length || 0);
       } catch {
         // In dev mode, use mock data instead of showing error
         if (isDevMode()) {
           setRfps(MOCK_RFPS);
-          setTrial(computeTrialStatus());
         } else {
           setError('Impossible de charger les données. Réessayez plus tard.');
         }
@@ -134,11 +135,6 @@ export default function DashboardPage() {
       }
     };
     fetchData();
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    clearToken();
-    window.location.href = '/';
   }, []);
 
   const handleExploreRfp = useCallback(() => {
@@ -185,13 +181,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <header className="glass">
-          <div className="max-w-7xl mx-auto px-6 h-16 flex items-center">
-            <span className="text-lg font-semibold text-slate-900">
-              Le Filon <span className="gradient-text">AO</span>
-            </span>
-          </div>
-        </header>
+        <Header variant="dashboard" activePage="dashboard" />
         <div className="max-w-7xl mx-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             {[0, 1, 2].map((i) => (
@@ -224,33 +214,11 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="glass">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-lg font-semibold text-slate-900">
-            Le Filon <span className="gradient-text">AO</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dashboard/market"
-              className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden md:block"
-            >
-              Intelligence
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg hover:bg-slate-100 transition-colors group"
-              title="Se déconnecter"
-            >
-              <LogOut className="w-4 h-4 text-slate-400 group-hover:text-red-500 transition-colors" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <Header variant="dashboard" activePage="dashboard" />
 
       <div className="max-w-7xl mx-auto p-6">
-        {/* Trial Banner */}
-        <TrialBanner trial={trial} />
+        {/* Free Plan Banner */}
+        <FreeBanner tier={tier} rfpsThisMonth={rfpsThisMonth} />
 
         {/* Onboarding Checklist */}
         <OnboardingChecklist key={onboardingKey} />

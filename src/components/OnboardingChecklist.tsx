@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Check, ChevronDown, Search, TrendingUp, Download, Mail, UserCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 import { getOnboarding, dismissOnboarding, type OnboardingState } from '@/lib/auth';
 
 interface OnboardingChecklistProps {
@@ -113,13 +114,8 @@ export default function OnboardingChecklist({ onRefresh }: OnboardingChecklistPr
               {STEPS.map((step) => {
                 const Icon = step.icon;
                 const done = state.steps[step.key];
-                return (
-                  <div
-                    key={step.key}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                      done ? 'bg-white/60' : 'bg-white/40'
-                    }`}
-                  >
+                const content = (
+                  <>
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
                       done
                         ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-sm shadow-emerald-500/20'
@@ -133,6 +129,18 @@ export default function OnboardingChecklist({ onRefresh }: OnboardingChecklistPr
                     <span className={`text-sm ${done ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                       {step.label}
                     </span>
+                  </>
+                );
+                const cls = `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                  done ? 'bg-white/60' : 'bg-white/40'
+                }`;
+                return step.key === 'profile' ? (
+                  <Link key={step.key} href="/dashboard/profile" className={cls}>
+                    {content}
+                  </Link>
+                ) : (
+                  <div key={step.key} className={cls}>
+                    {content}
                   </div>
                 );
               })}

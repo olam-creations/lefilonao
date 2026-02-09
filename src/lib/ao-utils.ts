@@ -31,10 +31,13 @@ export function computeTimeline(publishedAt: string, deadline: string): Timeline
   });
 }
 
+import type { AoUploadedFile } from './dev';
+
 export interface WorkspaceState {
   decisionMade: boolean;
   documentsReady: Record<string, boolean>;
   sectionsReviewed: Record<string, boolean>;
+  aoFiles: AoUploadedFile[];
 }
 
 export function computeProgress(
@@ -42,12 +45,11 @@ export function computeProgress(
   totalDocuments: number,
   totalSections: number,
 ): number {
-  const decisionScore = workspace.decisionMade ? 25 : 0;
   const docsReady = Object.values(workspace.documentsReady).filter(Boolean).length;
-  const docsScore = totalDocuments > 0 ? 25 * (docsReady / totalDocuments) : 0;
+  const docsScore = totalDocuments > 0 ? 40 * (docsReady / totalDocuments) : 0;
   const sectionsReviewed = Object.values(workspace.sectionsReviewed).filter(Boolean).length;
-  const sectionsScore = totalSections > 0 ? 50 * (sectionsReviewed / totalSections) : 0;
-  return Math.round(decisionScore + docsScore + sectionsScore);
+  const sectionsScore = totalSections > 0 ? 60 * (sectionsReviewed / totalSections) : 0;
+  return Math.round(docsScore + sectionsScore);
 }
 
 export function formatDate(dateStr: string | null): string {

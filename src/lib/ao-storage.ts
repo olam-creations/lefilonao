@@ -7,6 +7,7 @@ function defaultState(): WorkspaceState {
     decisionMade: false,
     documentsReady: {},
     sectionsReviewed: {},
+    aoFiles: [],
   };
 }
 

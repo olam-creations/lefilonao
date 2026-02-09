@@ -23,14 +23,14 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://lefilonao.com'),
   title: 'Le Filon AO | Veille appels d\'offres & alertes marchés publics par IA',
-  description: 'Alertes appels d\'offres personnalisées par IA. Score Go/No-Go, BOAMP complet, 50€/mois tout inclus. Essai gratuit 14 jours.',
+  description: 'Alertes appels d\'offres personnalisées par IA. Score Go/No-Go, BOAMP complet. Gratuit pour commencer, Pro à 30€/mois.',
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     locale: 'fr_FR',
     siteName: 'Le Filon AO',
     title: 'Le Filon AO | Veille appels d\'offres & alertes marchés publics par IA',
-    description: 'Alertes appels d\'offres personnalisées par IA. Score Go/No-Go, BOAMP complet, 50€/mois tout inclus. Essai gratuit 14 jours.',
+    description: 'Alertes appels d\'offres personnalisées par IA. Score Go/No-Go, BOAMP complet. Gratuit pour commencer, Pro à 30€/mois.',
     url: 'https://lefilonao.com',
   },
   twitter: {
@@ -48,7 +48,7 @@ const jsonLd = {
   description: 'Alertes appels d\'offres personnalisées par IA avec score Go/No-Go',
   offers: {
     '@type': 'Offer',
-    price: '50',
+    price: '0',
     priceCurrency: 'EUR',
   },
   provider: {

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { ArrowRight, Mail, AlertCircle, Code } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { setToken, setTrialStart, initOnboarding, isAuthenticated, getRedirectAfterLogin } from '@/lib/auth';
+import { setToken, isAuthenticated, getRedirectAfterLogin } from '@/lib/auth';
 import { isDevMode, createDevToken } from '@/lib/dev';
+import Header from '@/components/Header';
 
 type Status = 'idle' | 'loading' | 'success' | 'not-found' | 'unavailable' | 'error';
 
@@ -84,18 +85,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="glass">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-lg font-semibold text-slate-900">
-            Le Filon <span className="gradient-text">AO</span>
-          </Link>
-          <Link href="/subscribe" className="btn-primary text-sm py-2 px-4">
-            S&apos;inscrire
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </header>
+      <Header variant="public" />
 
       {/* Login Card */}
       <div className="flex items-center justify-center px-6 pt-24 pb-16">
@@ -162,8 +152,6 @@ export default function LoginPage() {
                 onClick={() => {
                   const token = createDevToken();
                   setToken(token);
-                  setTrialStart();
-                  initOnboarding();
                   window.location.href = '/dashboard';
                 }}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-slate-800 transition-colors"

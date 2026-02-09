@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import {
   ArrowRight, Search, Zap, TrendingUp, Check, X,
-  Menu, BarChart3, Mail, Shield, Sparkles, FileText, Pencil,
+  BarChart3, Mail, Shield, Sparkles, FileText, Pencil,
 } from 'lucide-react';
+import Header from '@/components/Header';
 
 const ease = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] };
 
@@ -30,53 +31,6 @@ function useSpotlight() {
     el.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
   }, []);
   return { ref, handleMouse };
-}
-
-/* ─── Mobile Nav ─── */
-function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-50 bg-white"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100">
-            <span className="text-lg font-semibold text-slate-900">
-              Le Filon <span className="gradient-text">AO</span>
-            </span>
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100">
-              <X className="w-5 h-5 text-slate-500" />
-            </button>
-          </div>
-          <nav className="p-6 space-y-1">
-            {[
-              { href: '/#features', label: 'Fonctionnalités' },
-              { href: '/#how', label: 'Comment ça marche' },
-              { href: '/pricing', label: 'Prix' },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={onClose}
-                className="block py-3 px-4 text-slate-700 hover:bg-slate-50 rounded-lg text-lg"
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="pt-4">
-              <Link href="/subscribe" onClick={onClose} className="btn-primary w-full justify-center py-3">
-                Essai gratuit <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </nav>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
 }
 
 /* ─── Dashboard Preview Mockup ─── */
@@ -173,61 +127,14 @@ function FeatureCard({
 }
 
 export default function LandingPage() {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
   return (
     <div className="min-h-screen">
-      <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-
-      {/* ─── Nav ─── */}
-      <header className={`sticky top-0 z-40 transition-all duration-300 ${scrolled ? 'glass-scrolled' : 'glass'}`}>
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-lg font-semibold text-slate-900 hover:opacity-80 transition-opacity">
-            Le Filon <span className="gradient-text">AO</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-8">
-            {[
-              { href: '/#features', label: 'Fonctionnalités' },
-              { href: '/#how', label: 'Comment ça marche' },
-              { href: '/pricing', label: 'Prix' },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm text-slate-500 hover:text-slate-900 transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
-              Connexion
-            </Link>
-            <Link href="/subscribe" className="btn-primary text-sm py-2 px-4">
-              Essai gratuit <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          <button
-            className="md:hidden p-2 rounded-lg hover:bg-slate-100"
-            onClick={() => setMobileNavOpen(true)}
-            aria-label="Ouvrir le menu"
-          >
-            <Menu className="w-5 h-5 text-slate-700" />
-          </button>
-        </div>
-      </header>
+      <Header variant="public" />
 
       {/* ─── Hero ─── */}
       <section ref={heroRef} className="relative pt-20 pb-8 px-6 overflow-hidden">
@@ -248,7 +155,7 @@ export default function LandingPage() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
               </span>
               <span className="text-indigo-700 text-sm font-medium">
-                De la veille à la réponse, 50€/mois
+                Commencez gratuitement &mdash; Pro à 30€/mois
               </span>
             </div>
 
@@ -259,12 +166,12 @@ export default function LandingPage() {
 
             <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10">
               De la détection à la réponse : trouvez les bons appels d&apos;offres,
-              analysez le DCE et préparez vos réponses avec l&apos;IA. 50&euro;/mois tout inclus.
+              analysez le DCE et préparez vos réponses avec l&apos;IA. Gratuit pour commencer.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/subscribe" className="btn-primary text-base py-3.5 px-7">
-                Démarrer l&apos;essai gratuit
+                S&apos;inscrire gratuitement
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="/pricing" className="btn-secondary text-base py-3.5 px-7">
@@ -281,7 +188,7 @@ export default function LandingPage() {
             transition={{ ...ease, delay: 0.4 }}
           >
             <span className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-indigo-400" /> Essai 14 jours
+              <Shield className="w-4 h-4 text-indigo-400" /> Gratuit, sans carte
             </span>
             <span className="flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-400" /> Sans engagement
@@ -307,8 +214,8 @@ export default function LandingPage() {
         >
           {[
             { value: '500+', label: 'AO analysés / semaine' },
-            { value: '50€', label: 'par mois, tout inclus' },
-            { value: '14j', label: 'd\'essai gratuit' },
+            { value: '0€', label: 'pour commencer' },
+            { value: '30€', label: 'Pro /mois, tout inclus' },
             { value: '5 min', label: 'pour s\'inscrire' },
           ].map((stat) => (
             <motion.div key={stat.label} variants={fadeUp}>
@@ -467,7 +374,7 @@ export default function LandingPage() {
                   'Alertes ciblées + score Go/No-Go automatique',
                   'L\'IA analyse le DCE et extrait l\'essentiel',
                   'Aide à la rédaction : plan, checklist, résumé',
-                  '50€/mois tout inclus (3x moins cher)',
+                  'Gratuit pour commencer, Pro à 30€/mois',
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3 text-slate-600">
                     <span className="w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -568,29 +475,36 @@ export default function LandingPage() {
         >
           <p className="text-indigo-600 text-sm font-semibold mb-3 tracking-wide uppercase">Prix</p>
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight mb-4">
-            Un prix. Zéro limite.
+            Commencez gratuitement
           </h2>
           <p className="text-slate-500 mb-10">
-            Veille, scoring, analyse du DCE, aide à la réponse. Tout pour 50€/mois.
+            5 AO/mois gratuits. Passez à Pro pour tout débloquer.
           </p>
 
           <div className="bg-white rounded-2xl p-10 border border-slate-200 glow-indigo relative">
-            <div className="flex items-baseline justify-center gap-1 mb-1">
-              <span className="text-6xl font-bold gradient-text-price">50€</span>
-              <span className="text-xl text-slate-400">/mois</span>
+            <div className="flex items-center justify-center gap-6 mb-6">
+              <div className="text-center">
+                <span className="text-4xl font-bold text-slate-900">0€</span>
+                <p className="text-slate-400 text-sm mt-1">Gratuit</p>
+              </div>
+              <div className="w-px h-12 bg-slate-200" />
+              <div className="text-center">
+                <span className="text-4xl font-bold gradient-text-price">30€</span>
+                <span className="text-lg text-slate-400">/mois</span>
+                <p className="text-slate-400 text-sm mt-1">Pro &middot; Sans engagement</p>
+              </div>
             </div>
-            <p className="text-slate-400 text-sm mb-6">600€/an &middot; Sans engagement</p>
             <div className="flex gap-2 justify-center mb-8">
               <span className="badge-go">GO</span>
               <span className="badge-maybe">MAYBE</span>
               <span className="badge-pass">PASS</span>
             </div>
             <Link href="/subscribe" className="btn-primary w-full justify-center py-3.5">
-              Démarrer l&apos;essai gratuit
+              S&apos;inscrire gratuitement
               <ArrowRight className="w-4 h-4" />
             </Link>
             <p className="text-slate-400 text-xs mt-4">
-              Carte bancaire requise &middot; Annulation facile
+              Sans carte bancaire &middot; Accès immédiat
             </p>
           </div>
 
@@ -615,7 +529,7 @@ export default function LandingPage() {
                   "name": "Combien coûte la veille marchés publics ?",
                   "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Le Filon AO propose une veille complète à partir de 29€/mois pour les indépendants, 79€/mois pour les TPE/PME et 199€/mois pour les entreprises avec volume illimité. C'est 3 à 5 fois moins cher que les solutions traditionnelles comme France Marchés ou Wanao."
+                    "text": "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro à 30€/mois débloque un accès illimité, le score Go/No-Go par IA, l'intelligence acheteur et les alertes quotidiennes. C'est 3 à 5 fois moins cher que les solutions traditionnelles."
                   }
                 },
                 {
@@ -664,7 +578,7 @@ export default function LandingPage() {
             {[
               {
                 q: "Combien coûte la veille marchés publics ?",
-                a: "Le Filon AO propose une veille complète à partir de 29€/mois pour les indépendants, 79€/mois pour les TPE/PME et 199€/mois pour les entreprises avec volume illimité. C'est 3 à 5 fois moins cher que les solutions traditionnelles."
+                a: "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro à 30€/mois débloque un accès illimité, le score Go/No-Go par IA, l'intelligence acheteur et les alertes quotidiennes. C'est 3 à 5 fois moins cher que la concurrence."
               },
               {
                 q: "D'où viennent les appels d'offres ?",
@@ -711,7 +625,7 @@ export default function LandingPage() {
             Prêt à trouver votre prochain marché ?
           </h2>
           <p className="text-lg text-slate-400 mb-10">
-            Essai gratuit 14 jours. Sans engagement. Annulation en un clic.
+            Commencez gratuitement. Sans engagement. Annulation en un clic.
           </p>
           <Link
             href="/subscribe"
