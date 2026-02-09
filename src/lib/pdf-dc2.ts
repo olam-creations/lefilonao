@@ -1,16 +1,18 @@
-import { PDFDocument, rgb } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 import type { CompanyProfile } from './dev';
 import {
   loadFonts,
-  addHeader,
-  addSection,
-  addLabeledField,
-  addLabel,
-  addParagraph,
-  MARGINS,
-  CONTENT_WIDTH,
-  PAGE_WIDTH,
-  PAGE_HEIGHT,
+  drawDocHeader,
+  drawSection,
+  drawField,
+  drawFieldBlock,
+  drawEditableField,
+  drawTable,
+  drawParagraph,
+  drawFooter,
+  drawCheckbox,
+  C,
+  M, CW, PAGE_W, PAGE_H,
 } from './pdf-utils';
 
 interface Dc2Input {
@@ -24,124 +26,183 @@ export async function generateDC2({ profile, issuer, title }: Dc2Input): Promise
   const fonts = await loadFonts(doc);
   const form = doc.getForm();
 
-  // Page 1 — Identity + Financials
-  const page1 = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  let y = addHeader(page1, fonts, 'DC2 \u2013 D\u00e9claration du candidat');
+  // ═══════════════════════════════════════
+  // PAGE 1 — Identification + Financials
+  // ═══════════════════════════════════════
+  const page1 = doc.addPage([PAGE_W, PAGE_H]);
 
-  // Section A — Identification
-  y = addSection(page1, fonts, 'A \u2013 IDENTIFICATION DU CANDIDAT', y);
+  let y = drawDocHeader(page1, fonts, {
+    docType: 'DC2',
+    docTitle: 'Declaration du candidat',
+    issuer,
+    title,
+  });
 
-  y = addLabeledField(page1, form, fonts, 'Acheteur public', 'dc2_acheteur', issuer, MARGINS.left, y, CONTENT_WIDTH);
-  y = addLabeledField(page1, form, fonts, 'Objet du march\u00e9', 'dc2_objet', title, MARGINS.left, y, CONTENT_WIDTH, 30);
+  // ─── Section A — Identification ───
+  y = drawSection(page1, fonts, 'A \u2013 IDENTIFICATION DU CANDIDAT', y);
 
-  const halfWidth = (CONTENT_WIDTH - 16) / 2;
+  const blockW = (CW - 12) / 2;
 
-  y = addLabeledField(page1, form, fonts, 'D\u00e9nomination / Raison sociale', 'dc2_denomination', profile.companyName, MARGINS.left, y, CONTENT_WIDTH);
-  y = addLabeledField(page1, form, fonts, 'N\u00b0 SIRET', 'dc2_siret', profile.siret, MARGINS.left, y, halfWidth);
+  y = drawField(page1, fonts, 'Denomination / Raison sociale', profile.companyName, M.left, y);
 
-  const formeY = y + 30;
-  addLabeledField(page1, form, fonts, 'Forme juridique', 'dc2_forme', profile.legalForm, MARGINS.left + halfWidth + 16, formeY, halfWidth);
+  // SIRET + Legal form
+  const row1Y = y;
+  drawFieldBlock(page1, fonts, 'N\u00b0 SIRET', profile.siret, M.left, row1Y, blockW);
+  drawFieldBlock(page1, fonts, 'Forme juridique', profile.legalForm, M.left + blockW + 12, row1Y, blockW);
+  y = row1Y - 36;
 
-  y = addLabeledField(page1, form, fonts, 'Adresse', 'dc2_adresse', profile.address, MARGINS.left, y, CONTENT_WIDTH);
+  // Address
+  y = drawField(page1, fonts, 'Adresse', profile.address, M.left, y);
 
-  y = addLabeledField(page1, form, fonts, 'Code postal', 'dc2_cp', profile.postalCode, MARGINS.left, y, 120);
-  const villeY = y + 30;
-  addLabeledField(page1, form, fonts, 'Ville', 'dc2_ville', profile.city, MARGINS.left + 136, villeY, halfWidth);
+  // Postal + City
+  const row3Y = y;
+  drawFieldBlock(page1, fonts, 'Code postal', profile.postalCode, M.left, row3Y, 120);
+  drawFieldBlock(page1, fonts, 'Ville', profile.city, M.left + 132, row3Y, blockW);
+  y = row3Y - 36;
 
-  y -= 6;
+  // NAF + TVA
+  const row4Y = y;
+  drawFieldBlock(page1, fonts, 'Code NAF/APE', profile.naf, M.left, row4Y, blockW);
+  drawFieldBlock(page1, fonts, 'N\u00b0 TVA intracommunautaire', profile.tvaIntra, M.left + blockW + 12, row4Y, blockW);
+  y = row4Y - 36;
 
-  // Section B — Renseignements \u00e9conomiques et financiers
-  y = addSection(page1, fonts, 'B \u2013 RENSEIGNEMENTS \u00c9CONOMIQUES ET FINANCIERS', y);
+  y -= 2;
 
-  const thirdWidth = (CONTENT_WIDTH - 32) / 3;
+  // ─── Section B — Renseignements economiques ───
+  y = drawSection(page1, fonts, 'B \u2013 RENSEIGNEMENTS ECONOMIQUES ET FINANCIERS', y);
+
   const currentYear = new Date().getFullYear();
+  const fmtEuro = (v: string) => v ? `${v} \u20ac` : '';
 
-  const caN1 = profile.caN1 ? `${profile.caN1} \u20ac` : '';
-  const caN2 = profile.caN2 ? `${profile.caN2} \u20ac` : '';
-  const caN3 = profile.caN3 ? `${profile.caN3} \u20ac` : '';
-  y = addLabeledField(page1, form, fonts, `Chiffre d'affaires ${currentYear - 1}`, 'ca_n1', caN1, MARGINS.left, y, thirdWidth);
-  const ca2Y = y + 30;
-  addLabeledField(page1, form, fonts, `Chiffre d'affaires ${currentYear - 2}`, 'ca_n2', caN2, MARGINS.left + thirdWidth + 16, ca2Y, thirdWidth);
-  addLabeledField(page1, form, fonts, `Chiffre d'affaires ${currentYear - 3}`, 'ca_n3', caN3, MARGINS.left + (thirdWidth + 16) * 2, ca2Y, thirdWidth);
+  // CA table — 3 columns
+  y = drawTable(
+    page1, fonts,
+    [
+      { header: `CA ${currentYear - 1}`, width: CW / 3, align: 'right' },
+      { header: `CA ${currentYear - 2}`, width: CW / 3, align: 'right' },
+      { header: `CA ${currentYear - 3}`, width: CW / 3, align: 'right' },
+    ],
+    [[fmtEuro(profile.caN1), fmtEuro(profile.caN2), fmtEuro(profile.caN3)]],
+    M.left,
+    y,
+  );
 
-  y = addLabeledField(page1, form, fonts, 'CA part. li\u00e9e \u00e0 l\u2019objet du march\u00e9', 'ca_objet', '', MARGINS.left, y, CONTENT_WIDTH);
+  y -= 4;
+  y = drawEditableField(page1, form, fonts, 'CA part. liee a l\u2019objet du marche', 'ca_objet', M.left, y, CW);
+  y -= 2;
 
-  y -= 6;
+  // ─── Section C — Effectifs et moyens ───
+  y = drawSection(page1, fonts, 'C \u2013 EFFECTIFS ET MOYENS TECHNIQUES', y);
 
-  // Section C — Effectifs
-  y = addSection(page1, fonts, 'C \u2013 EFFECTIFS ET MOYENS', y);
-
+  const thirdW = (CW - 24) / 3;
   const teamCount = profile.team.length.toString();
-  const effectifGlobal = profile.effectifTotal || '';
-  y = addLabeledField(page1, form, fonts, 'Effectif global de l\u2019entreprise', 'effectif_global', effectifGlobal, MARGINS.left, y, halfWidth);
-  const effCadreY = y + 30;
-  addLabeledField(page1, form, fonts, 'Dont cadres et ing\u00e9nieurs', 'effectif_cadres', teamCount, MARGINS.left + halfWidth + 16, effCadreY, halfWidth);
+  const effY = y;
+  drawFieldBlock(page1, fonts, 'Effectif global', profile.effectifTotal, M.left, effY, thirdW);
+  drawFieldBlock(page1, fonts, 'Cadres / ingenieurs', teamCount, M.left + thirdW + 12, effY, thirdW);
+  drawFieldBlock(page1, fonts, 'Capital social', profile.capitalSocial ? `${profile.capitalSocial} \u20ac` : '', M.left + (thirdW + 12) * 2, effY, thirdW);
+  y = effY - 36;
 
-  y = addLabeledField(page1, form, fonts, 'Moyens techniques et mat\u00e9riels', 'moyens_techniques', '', MARGINS.left, y, CONTENT_WIDTH, 40);
+  y = drawEditableField(page1, form, fonts, 'Moyens techniques et materiels', 'moyens_techniques', M.left, y, CW, 50);
 
-  // Page 2 — References + Attestation
-  const page2 = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  y = PAGE_HEIGHT - MARGINS.top;
+  drawFooter(page1, fonts, 1, 2);
 
-  // Section D — R\u00e9f\u00e9rences
-  y = addSection(page2, fonts, 'D \u2013 R\u00c9F\u00c9RENCES PROFESSIONNELLES', y);
+  // ═══════════════════════════════════════
+  // PAGE 2 — References + Attestation
+  // ═══════════════════════════════════════
+  const page2 = doc.addPage([PAGE_W, PAGE_H]);
+  y = PAGE_H - M.top - 6;
 
-  if (profile.references.length > 0) {
-    for (const ref of profile.references) {
-      y = addLabel(page2, fonts, 'Client', ref.client, MARGINS.left, y);
-      y = addLabel(page2, fonts, 'Projet', ref.title, MARGINS.left, y);
-
-      const refDetailY = y;
-      addLabel(page2, fonts, 'Montant', ref.amount, MARGINS.left, refDetailY);
-      y = addLabel(page2, fonts, 'P\u00e9riode', ref.period, MARGINS.left + halfWidth + 16, refDetailY);
-
-      y -= 6;
-      page2.drawLine({
-        start: { x: MARGINS.left, y: y + 4 },
-        end: { x: PAGE_WIDTH - MARGINS.right, y: y + 4 },
-        thickness: 0.5,
-        color: rgb(0.9, 0.9, 0.9),
-      });
-      y -= 4;
-    }
-  } else {
-    y = addParagraph(page2, fonts, 'Aucune r\u00e9f\u00e9rence renseign\u00e9e dans le profil.', MARGINS.left, y, CONTENT_WIDTH);
-  }
-
-  y -= 10;
-
-  // Additional reference fields (editable)
-  y = addLabeledField(page2, form, fonts, 'R\u00e9f\u00e9rence suppl\u00e9mentaire (client, objet, montant)', 'ref_supplementaire', '', MARGINS.left, y, CONTENT_WIDTH, 40);
+  // Mini header — page 2 continuation
+  page2.drawRectangle({ x: 0, y: PAGE_H - 4, width: PAGE_W, height: 4, color: C.navy });
+  page2.drawText('DC2 \u2013 Declaration du candidat (suite)', {
+    x: M.left,
+    y,
+    size: 9,
+    font: fonts.bold,
+    color: C.navy,
+  });
   y -= 6;
-
-  // Section E — Qualifications
-  y = addSection(page2, fonts, 'E \u2013 CERTIFICATIONS ET QUALIFICATIONS', y);
-
-  const certs = profile.team.flatMap((m) => m.certifications);
-  const certsText = certs.length > 0
-    ? `Certifications d\u00e9tenues par l'\u00e9quipe : ${certs.join(', ')}`
-    : 'Aucune certification renseign\u00e9e.';
-  y = addParagraph(page2, fonts, certsText, MARGINS.left, y, CONTENT_WIDTH);
-
-  y = addLabeledField(page2, form, fonts, 'Autres certifications / qualifications', 'certifications_autres', '', MARGINS.left, y, CONTENT_WIDTH, 30);
-  y -= 6;
-
-  // Section F — Attestation
-  y = addSection(page2, fonts, 'F \u2013 ATTESTATION SUR L\u2019HONNEUR', y);
-
-  const attestationText = 'Je d\u00e9clare sur l\u2019honneur que les renseignements et documents fournis sont exacts '
-    + 'et que le candidat a satisfait \u00e0 l\u2019ensemble de ses obligations fiscales et sociales.';
-
-  y = addParagraph(page2, fonts, attestationText, MARGINS.left, y, CONTENT_WIDTH);
+  page2.drawLine({
+    start: { x: M.left, y },
+    end: { x: PAGE_W - M.right, y },
+    thickness: 0.5,
+    color: C.indigo,
+  });
   y -= 16;
 
-  y = addLabeledField(page2, form, fonts, 'Fait \u00e0', 'dc2_fait_a', '', MARGINS.left, y, 200);
-  const dateY = y + 30;
-  addLabeledField(page2, form, fonts, 'Le (date)', 'dc2_date', '', MARGINS.left + 216, dateY, 200);
+  // ─── Section D — References professionnelles ───
+  y = drawSection(page2, fonts, 'D \u2013 REFERENCES PROFESSIONNELLES', y);
 
-  y -= 10;
-  y = addLabeledField(page2, form, fonts, 'Nom et qualit\u00e9 du signataire', 'dc2_signataire', '', MARGINS.left, y, CONTENT_WIDTH);
-  y = addLabeledField(page2, form, fonts, 'Signature', 'dc2_signature', '', MARGINS.left, y, CONTENT_WIDTH, 50);
+  if (profile.references.length > 0) {
+    const refRows = profile.references.map((r) => [
+      r.client,
+      r.title,
+      r.amount ? `${r.amount} \u20ac` : '',
+      r.period,
+    ]);
+
+    y = drawTable(
+      page2, fonts,
+      [
+        { header: 'Client', width: CW * 0.25 },
+        { header: 'Projet', width: CW * 0.35 },
+        { header: 'Montant', width: CW * 0.2, align: 'right' },
+        { header: 'Periode', width: CW * 0.2 },
+      ],
+      refRows,
+      M.left,
+      y,
+    );
+  } else {
+    y = drawParagraph(page2, fonts, 'Aucune reference renseignee dans le profil.', M.left, y, CW);
+  }
+
+  y -= 4;
+  y = drawEditableField(page2, form, fonts, 'Reference supplementaire (client, objet, montant)', 'ref_supplementaire', M.left, y, CW, 40);
+  y -= 2;
+
+  // ─── Section E — Certifications ───
+  y = drawSection(page2, fonts, 'E \u2013 CERTIFICATIONS ET QUALIFICATIONS', y);
+
+  const allCerts = profile.team.flatMap((m) => m.certifications).filter(Boolean);
+  if (allCerts.length > 0) {
+    y = drawParagraph(page2, fonts, `Certifications detenues par l'equipe :`, M.left, y, CW, {
+      size: 8,
+      font: fonts.bold,
+      color: C.mediumText,
+    });
+    for (const cert of allCerts) {
+      y = drawCheckbox(page2, fonts, cert, true, M.left + 8, y);
+    }
+  } else {
+    y = drawParagraph(page2, fonts, 'Aucune certification renseignee.', M.left, y, CW);
+  }
+
+  y -= 4;
+  y = drawEditableField(page2, form, fonts, 'Autres certifications / qualifications', 'certifications_autres', M.left, y, CW, 30);
+  y -= 2;
+
+  // ─── Section F — Attestation ───
+  y = drawSection(page2, fonts, 'F \u2013 ATTESTATION SUR L\u2019HONNEUR', y);
+
+  const attestation = 'Je declare sur l\u2019honneur que les renseignements et documents fournis '
+    + 'dans le present formulaire sont exacts et que le candidat a satisfait '
+    + 'a l\u2019ensemble de ses obligations fiscales et sociales.';
+
+  y = drawParagraph(page2, fonts, attestation, M.left, y, CW, { size: 8.5 });
+  y -= 14;
+
+  // ─── Signature block ───
+  const sigBlockW = (CW - 12) / 2;
+  const sigY = y;
+  drawEditableField(page2, form, fonts, 'Fait a', 'dc2_fait_a', M.left, sigY, sigBlockW);
+  drawEditableField(page2, form, fonts, 'Le (date)', 'dc2_date', M.left + sigBlockW + 12, sigY, sigBlockW);
+  y = sigY - 38;
+
+  y = drawEditableField(page2, form, fonts, 'Nom et qualite du signataire', 'dc2_signataire', M.left, y, CW);
+  y = drawEditableField(page2, form, fonts, 'Signature', 'dc2_signature', M.left, y, CW, 50);
+
+  drawFooter(page2, fonts, 2, 2);
 
   return doc.save();
 }
