@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/dashboard', '/dashboard/', '/success'],
+        disallow: ['/dashboard', '/dashboard/', '/success', '/gate'],
       },
     ],
     sitemap: 'https://lefilonao.com/sitemap.xml',

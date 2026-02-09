@@ -33,9 +33,16 @@ export const metadata: Metadata = {
     title: 'Le Filon AO | Veille appels d\'offres & alertes marchés publics par IA',
     description: 'Alertes appels d\'offres personnalisées par IA. Score Go/No-Go, BOAMP complet. Gratuit pour commencer, Pro à 30€/mois.',
     url: 'https://lefilonao.com',
+    images: [{
+      url: 'https://lefilonao.com/og-image.png',
+      width: 1200,
+      height: 630,
+      alt: 'Le Filon AO - Veille appels d\'offres par IA',
+    }],
   },
   twitter: {
     card: 'summary_large_image',
+    images: ['https://lefilonao.com/og-image.png'],
   },
 };
 
@@ -47,11 +54,24 @@ const jsonLd = {
   operatingSystem: 'Web',
   url: 'https://lefilonao.com',
   description: 'Alertes appels d\'offres personnalisées par IA avec score Go/No-Go',
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'EUR',
-  },
+  offers: [
+    {
+      '@type': 'Offer',
+      name: 'Gratuit',
+      price: '0',
+      priceCurrency: 'EUR',
+      availability: 'https://schema.org/InStock',
+      description: '5 appels d\'offres par mois, score Go/No-Go',
+    },
+    {
+      '@type': 'Offer',
+      name: 'Pro',
+      price: '30',
+      priceCurrency: 'EUR',
+      availability: 'https://schema.org/InStock',
+      description: 'AO illimités, analyse DCE, aide rédaction, intelligence marché',
+    },
+  ],
   provider: {
     '@type': 'Organization',
     name: 'Le Filon AO',
