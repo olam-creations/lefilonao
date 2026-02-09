@@ -8,7 +8,10 @@ import {
   drawFieldBlock,
   drawEditableField,
   drawCheckbox,
-  drawParagraph,
+  drawAttestationBox,
+  drawSignatureBlock,
+  drawPageBorder,
+  drawDivider,
   drawFooter,
   M, CW, PAGE_W, PAGE_H,
 } from './pdf-utils';
@@ -24,6 +27,8 @@ export async function generateDC1({ profile, issuer, title }: Dc1Input): Promise
   const fonts = await loadFonts(doc);
   const page = doc.addPage([PAGE_W, PAGE_H]);
   const form = doc.getForm();
+
+  drawPageBorder(page);
 
   // ─── Header ───
   let y = drawDocHeader(page, fonts, {
@@ -44,26 +49,29 @@ export async function generateDC1({ profile, issuer, title }: Dc1Input): Promise
   // ─── Section B — Identification du candidat ───
   y = drawSection(page, fonts, 'B \u2013 IDENTIFICATION DU CANDIDAT', y);
 
-  // Row 1: Company name (full width)
   const blockW = (CW - 12) / 2;
   y = drawField(page, fonts, 'Denomination / Raison sociale', profile.companyName, M.left, y);
 
-  // Row 2: SIRET + Legal form (2 columns)
+  // SIRET + Legal form
   const row2Y = y;
   drawFieldBlock(page, fonts, 'N\u00b0 SIRET', profile.siret, M.left, row2Y, blockW);
   drawFieldBlock(page, fonts, 'Forme juridique', profile.legalForm, M.left + blockW + 12, row2Y, blockW);
   y = row2Y - 36;
 
-  // Row 3: Address (full width)
+  y = drawDivider(page, y);
+
+  // Address
   y = drawField(page, fonts, 'Adresse', profile.address, M.left, y);
 
-  // Row 4: Postal + City (2 columns)
+  // Postal + City
   const row4Y = y;
   drawFieldBlock(page, fonts, 'Code postal', profile.postalCode, M.left, row4Y, 120);
   drawFieldBlock(page, fonts, 'Ville', profile.city, M.left + 132, row4Y, blockW);
   y = row4Y - 36;
 
-  // Row 5: Phone + Email (2 columns)
+  y = drawDivider(page, y);
+
+  // Phone + Email
   const row5Y = y;
   drawFieldBlock(page, fonts, 'Telephone', profile.phone, M.left, row5Y, blockW);
   drawFieldBlock(page, fonts, 'Courriel', profile.email, M.left + blockW + 12, row5Y, blockW);
@@ -88,21 +96,14 @@ export async function generateDC1({ profile, issuer, title }: Dc1Input): Promise
     + '(b) etre en regle au regard des articles L.5212-1 a L.5212-11 du Code du travail '
     + 'concernant l\u2019emploi des travailleurs handicapes.';
 
-  y = drawParagraph(page, fonts, engagementText, M.left, y, CW, { size: 8 });
-  y -= 14;
+  y = drawAttestationBox(page, fonts, engagementText, M.left, y, CW);
+  y -= 8;
 
   // ─── Signature block ───
-  const sigBlockW = (CW - 12) / 2;
-  const sigY = y;
-  drawEditableField(page, form, fonts, 'Fait a', 'fait_a', M.left, sigY, sigBlockW);
-  drawEditableField(page, form, fonts, 'Le (date)', 'date_signature', M.left + sigBlockW + 12, sigY, sigBlockW);
-  y = sigY - 38;
-
-  y = drawEditableField(page, form, fonts, 'Nom et qualite du signataire', 'signataire', M.left, y, CW);
-  y = drawEditableField(page, form, fonts, 'Signature', 'signature', M.left, y, CW, 50);
+  y = drawSignatureBlock(page, form, fonts, y, 'dc1');
 
   // ─── Footer ───
-  drawFooter(page, fonts, 1, 1);
+  drawFooter(page, fonts, 'DC1', 1, 1);
 
   return doc.save();
 }

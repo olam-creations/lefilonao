@@ -11,6 +11,11 @@ import {
   drawParagraph,
   drawFooter,
   drawCheckbox,
+  drawContinuationHeader,
+  drawAttestationBox,
+  drawSignatureBlock,
+  drawPageBorder,
+  drawDivider,
   C,
   M, CW, PAGE_W, PAGE_H,
 } from './pdf-utils';
@@ -30,6 +35,7 @@ export async function generateDC2({ profile, issuer, title }: Dc2Input): Promise
   // PAGE 1 — Identification + Financials
   // ═══════════════════════════════════════
   const page1 = doc.addPage([PAGE_W, PAGE_H]);
+  drawPageBorder(page1);
 
   let y = drawDocHeader(page1, fonts, {
     docType: 'DC2',
@@ -51,6 +57,8 @@ export async function generateDC2({ profile, issuer, title }: Dc2Input): Promise
   drawFieldBlock(page1, fonts, 'Forme juridique', profile.legalForm, M.left + blockW + 12, row1Y, blockW);
   y = row1Y - 36;
 
+  y = drawDivider(page1, y);
+
   // Address
   y = drawField(page1, fonts, 'Adresse', profile.address, M.left, y);
 
@@ -59,6 +67,8 @@ export async function generateDC2({ profile, issuer, title }: Dc2Input): Promise
   drawFieldBlock(page1, fonts, 'Code postal', profile.postalCode, M.left, row3Y, 120);
   drawFieldBlock(page1, fonts, 'Ville', profile.city, M.left + 132, row3Y, blockW);
   y = row3Y - 36;
+
+  y = drawDivider(page1, y);
 
   // NAF + TVA
   const row4Y = y;
@@ -104,31 +114,15 @@ export async function generateDC2({ profile, issuer, title }: Dc2Input): Promise
 
   y = drawEditableField(page1, form, fonts, 'Moyens techniques et materiels', 'moyens_techniques', M.left, y, CW, 50);
 
-  drawFooter(page1, fonts, 1, 2);
+  drawFooter(page1, fonts, 'DC2', 1, 2);
 
   // ═══════════════════════════════════════
   // PAGE 2 — References + Attestation
   // ═══════════════════════════════════════
   const page2 = doc.addPage([PAGE_W, PAGE_H]);
-  y = PAGE_H - M.top - 6;
+  drawPageBorder(page2);
 
-  // Mini header — page 2 continuation
-  page2.drawRectangle({ x: 0, y: PAGE_H - 4, width: PAGE_W, height: 4, color: C.navy });
-  page2.drawText('DC2 \u2013 Declaration du candidat (suite)', {
-    x: M.left,
-    y,
-    size: 9,
-    font: fonts.bold,
-    color: C.navy,
-  });
-  y -= 6;
-  page2.drawLine({
-    start: { x: M.left, y },
-    end: { x: PAGE_W - M.right, y },
-    thickness: 0.5,
-    color: C.indigo,
-  });
-  y -= 16;
+  y = drawContinuationHeader(page2, fonts, 'DC2 \u2013 Declaration du candidat (suite)');
 
   // ─── Section D — References professionnelles ───
   y = drawSection(page2, fonts, 'D \u2013 REFERENCES PROFESSIONNELLES', y);
@@ -189,20 +183,13 @@ export async function generateDC2({ profile, issuer, title }: Dc2Input): Promise
     + 'dans le present formulaire sont exacts et que le candidat a satisfait '
     + 'a l\u2019ensemble de ses obligations fiscales et sociales.';
 
-  y = drawParagraph(page2, fonts, attestation, M.left, y, CW, { size: 8.5 });
-  y -= 14;
+  y = drawAttestationBox(page2, fonts, attestation, M.left, y, CW);
+  y -= 8;
 
   // ─── Signature block ───
-  const sigBlockW = (CW - 12) / 2;
-  const sigY = y;
-  drawEditableField(page2, form, fonts, 'Fait a', 'dc2_fait_a', M.left, sigY, sigBlockW);
-  drawEditableField(page2, form, fonts, 'Le (date)', 'dc2_date', M.left + sigBlockW + 12, sigY, sigBlockW);
-  y = sigY - 38;
+  y = drawSignatureBlock(page2, form, fonts, y, 'dc2');
 
-  y = drawEditableField(page2, form, fonts, 'Nom et qualite du signataire', 'dc2_signataire', M.left, y, CW);
-  y = drawEditableField(page2, form, fonts, 'Signature', 'dc2_signature', M.left, y, CW, 50);
-
-  drawFooter(page2, fonts, 2, 2);
+  drawFooter(page2, fonts, 'DC2', 2, 2);
 
   return doc.save();
 }
