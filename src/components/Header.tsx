@@ -8,7 +8,7 @@ import { ArrowLeft, ArrowRight, LogOut, Menu, X } from 'lucide-react';
 import { isAuthenticated, clearToken } from '@/lib/auth';
 
 type Variant = 'public' | 'dashboard';
-type ActivePage = 'dashboard' | 'intelligence' | 'opportunities' | 'alerts' | 'profile' | 'ao';
+type ActivePage = 'dashboard' | 'intelligence' | 'opportunities' | 'alerts' | 'profile' | 'settings' | 'ao';
 
 interface HeaderProps {
   variant?: Variant;
@@ -24,10 +24,11 @@ const PUBLIC_NAV = [
 
 const DASHBOARD_NAV: { href: string; label: string; page: ActivePage }[] = [
   { href: '/dashboard', label: 'Dashboard', page: 'dashboard' },
-  { href: '/dashboard/market', label: 'Marché', page: 'intelligence' },
   { href: '/dashboard/opportunities', label: 'Opportunités', page: 'opportunities' },
   { href: '/dashboard/alerts', label: 'Alertes', page: 'alerts' },
+  { href: '/dashboard/market', label: 'Marché', page: 'intelligence' },
   { href: '/dashboard/profile', label: 'Profil', page: 'profile' },
+  { href: '/dashboard/settings', label: 'Paramètres', page: 'settings' },
 ];
 
 export default function Header({ variant = 'public', activePage, backHref, rightSlot }: HeaderProps) {

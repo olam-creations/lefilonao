@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Clock, ExternalLink, AlertCircle, ChevronLeft, ChevronRight, Zap, Sparkles } from 'lucide-react';
 import { isAuthenticated } from '@/lib/auth';
@@ -8,6 +8,7 @@ import Header from '@/components/Header';
 import { stagger, fadeUp } from '@/lib/motion-variants';
 import { CPV_SECTORS, REGIONS } from '@/components/market/types';
 import { formatAmount, formatDate } from '@/components/market/utils';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 interface Opportunity {
   id: string;
@@ -52,11 +53,27 @@ export default function OpportunitiesPage() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 20;
 
+  const { settings } = useUserSettings();
+  const filtersInitialized = useRef(false);
+
   useEffect(() => {
     if (!isAuthenticated()) {
       window.location.href = '/login';
     }
   }, []);
+
+  // Initialize filters from user settings (once)
+  useEffect(() => {
+    if (!settings || filtersInitialized.current) return;
+    filtersInitialized.current = true;
+
+    if (!cpv && settings.default_cpv.length > 0) {
+      setCpv(settings.default_cpv[0]);
+    }
+    if (!region && settings.default_regions.length > 0) {
+      setRegion(settings.default_regions[0]);
+    }
+  }, [settings, cpv, region]);
 
   // Fetch stats once
   useEffect(() => {

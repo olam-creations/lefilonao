@@ -8,6 +8,7 @@ import Header from '@/components/Header';
 import { stagger, fadeUp } from '@/lib/motion-variants';
 import { CPV_SECTORS, REGIONS } from '@/components/market/types';
 import { formatAmount, formatDate } from '@/components/market/utils';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 interface UserAlert {
   id: string;
@@ -64,7 +65,26 @@ export default function AlertsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'alerts' | 'matches'>('alerts');
 
+  const { settings: userSettings } = useUserSettings();
   const email = getTokenPayload()?.email ?? '';
+
+  const openNewAlertForm = useCallback(() => {
+    if (userSettings) {
+      setForm({
+        label: '',
+        cpv_sectors: userSettings.default_cpv,
+        regions: userSettings.default_regions,
+        keywords: userSettings.default_keywords.join(', '),
+        amount_min: userSettings.amount_min,
+        amount_max: userSettings.amount_max,
+        notify_email: true,
+        notify_inapp: true,
+      });
+    } else {
+      setForm({ ...EMPTY_FORM });
+    }
+    setShowForm(true);
+  }, [userSettings]);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -187,7 +207,7 @@ export default function AlertsPage() {
             <p className="text-slate-500">Recevez une notification quand un marché correspond à vos critères.</p>
           </div>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={openNewAlertForm}
             className="btn-primary text-sm py-2.5 px-4"
           >
             <Plus className="w-4 h-4" /> Créer une alerte
@@ -443,7 +463,7 @@ export default function AlertsPage() {
                 <Bell className="w-8 h-8 mx-auto mb-3 opacity-50" />
                 <p>Aucune alerte configurée.</p>
                 <button
-                  onClick={() => setShowForm(true)}
+                  onClick={openNewAlertForm}
                   className="mt-3 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
                 >
                   Créer votre première alerte
