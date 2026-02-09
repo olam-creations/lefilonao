@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Calendar } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, Clock, ChevronDown } from 'lucide-react';
 import { fadeUp, stagger } from '@/lib/motion-variants';
 import { daysUntil, formatDate } from '@/lib/ao-utils';
 import type { RFP } from '@/hooks/useDashboardFilters';
@@ -17,22 +17,26 @@ interface TimelineDot {
   deadline: string;
   days: number;
   scoreLabel: 'GO' | 'MAYBE' | 'PASS';
-  isPast: boolean;
+  budget: string | null;
 }
 
-const DOT_COLORS: Record<string, string> = {
-  GO: 'bg-emerald-500',
-  MAYBE: 'bg-amber-400',
-  PASS: 'bg-slate-400',
+const COLLAPSED_COUNT = 3;
+
+const LABEL_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
+  GO: { dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  MAYBE: { dot: 'bg-amber-400', bg: 'bg-amber-50', text: 'text-amber-700' },
+  PASS: { dot: 'bg-slate-400', bg: 'bg-slate-50', text: 'text-slate-500' },
 };
 
-const DOT_RING_COLORS: Record<string, string> = {
-  GO: 'ring-emerald-200',
-  MAYBE: 'ring-amber-200',
-  PASS: 'ring-slate-200',
-};
+function urgencyColor(days: number): string {
+  if (days <= 5) return 'text-red-600 font-bold';
+  if (days <= 15) return 'text-amber-600 font-semibold';
+  return 'text-slate-500';
+}
 
 export default function DeadlineTimeline({ rfps }: DeadlineTimelineProps) {
+  const [expanded, setExpanded] = useState(false);
+
   const dots = useMemo((): TimelineDot[] => {
     return rfps
       .filter((r) => r.deadline !== null)
@@ -44,15 +48,18 @@ export default function DeadlineTimeline({ rfps }: DeadlineTimelineProps) {
           deadline: r.deadline!,
           days,
           scoreLabel: r.scoreLabel,
-          isPast: days < 0,
+          budget: r.budget,
         };
       })
+      .filter((d) => d.days >= 0)
       .sort((a, b) => a.days - b.days);
   }, [rfps]);
 
   if (dots.length === 0) return null;
 
-  const showTodayMarker = dots[0].days < 0 && dots[dots.length - 1].days >= 0;
+  const canExpand = dots.length > COLLAPSED_COUNT;
+  const visibleDots = expanded ? dots : dots.slice(0, COLLAPSED_COUNT);
+  const hiddenCount = dots.length - COLLAPSED_COUNT;
 
   return (
     <motion.div
@@ -61,72 +68,83 @@ export default function DeadlineTimeline({ rfps }: DeadlineTimelineProps) {
       animate="show"
       className="glass rounded-xl p-6 mb-6"
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Calendar className="w-4 h-4 text-indigo-500" />
-        <h3 className="text-sm font-semibold text-slate-700">Timeline des deadlines</h3>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-indigo-500" />
+          <h3 className="text-sm font-semibold text-slate-700">Prochaines deadlines</h3>
+          <span className="text-xs text-slate-400">({dots.length})</span>
+        </div>
+        <div className="flex items-center gap-3 text-[10px]">
+          {(['GO', 'MAYBE', 'PASS'] as const).map((label) => (
+            <span key={label} className="flex items-center gap-1">
+              <span className={`w-2 h-2 rounded-full ${LABEL_COLORS[label].dot}`} />
+              <span className="text-slate-400">{label}</span>
+            </span>
+          ))}
+        </div>
       </div>
 
-      <div className="overflow-x-auto pb-2">
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate="show"
-          className="flex items-start"
-          style={{ minWidth: `${Math.max(dots.length * 100, 400)}px` }}
-        >
-          {dots.map((dot, i) => {
-            const dotColor = DOT_COLORS[dot.scoreLabel];
-            const ringColor = DOT_RING_COLORS[dot.scoreLabel];
-            const isToday = showTodayMarker && i > 0 && dots[i - 1].days < 0 && dot.days >= 0;
+      {/* Rows */}
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-1">
+        <AnimatePresence initial={false}>
+          {visibleDots.map((dot) => {
+            const colors = LABEL_COLORS[dot.scoreLabel];
 
             return (
               <motion.div
                 key={dot.id}
                 variants={fadeUp}
-                className={`flex-1 min-w-[90px] flex flex-col items-center group relative ${
-                  dot.isPast ? 'opacity-40' : ''
-                }`}
+                initial="hidden"
+                animate="show"
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-3"
               >
-                {/* Today separator */}
-                {isToday && (
-                  <div className="absolute -left-px top-0 h-full flex flex-col items-center z-10">
-                    <span className="text-[10px] font-bold text-indigo-600 whitespace-nowrap">Aujourd&apos;hui</span>
-                    <div className="flex-1 w-px border-l border-dashed border-indigo-400" />
-                  </div>
-                )}
-
-                {/* Dot + line */}
-                <div className="flex items-center w-full">
-                  {i > 0 && <div className="flex-1 h-px bg-slate-200" />}
-                  <div className={`w-3 h-3 rounded-full ${dotColor} ring-2 ${ringColor} flex-shrink-0 group-hover:scale-150 transition-transform`} />
-                  {i < dots.length - 1 && <div className="flex-1 h-px bg-slate-200" />}
+                {/* J-X */}
+                <div className={`w-10 text-right text-xs tabular-nums ${urgencyColor(dot.days)}`}>
+                  J-{dot.days}
                 </div>
 
-                {/* Label */}
-                <div className="mt-2 text-center px-1">
-                  <div className="text-[10px] text-slate-500 whitespace-nowrap">
-                    {dot.days >= 0 ? `J-${dot.days}` : `J${dot.days}`}
-                  </div>
-                  <div className="text-[10px] text-slate-500">
+                {/* Dot */}
+                <div className={`w-2 h-2 rounded-full ${colors.dot} flex-shrink-0`} />
+
+                {/* Content row */}
+                <div className="flex-1 flex items-center gap-2 py-1.5 min-w-0">
+                  <span className="text-sm text-slate-800 truncate flex-1 min-w-0">
+                    {dot.title}
+                  </span>
+                  <span className="text-[11px] text-slate-400 whitespace-nowrap hidden sm:block">
+                    <Clock className="w-3 h-3 inline mr-0.5" />
                     {formatDate(dot.deadline)}
-                  </div>
-                  <div className="text-[9px] text-slate-400 max-w-[90px] truncate mx-auto">
-                    {dot.title.split(' ').slice(0, 3).join(' ')}
-                  </div>
-                </div>
-
-                {/* Hover tooltip */}
-                <div className="hidden group-hover:block absolute bottom-full mb-2 z-10 bg-slate-900 text-white text-xs rounded-lg px-3 py-2 max-w-[200px] shadow-lg whitespace-normal">
-                  <div className="font-medium line-clamp-2 mb-1">{dot.title}</div>
-                  <div className="text-slate-300">
-                    {dot.days >= 0 ? `J-${dot.days}` : `Expire (J${dot.days})`} &middot; {dot.scoreLabel}
-                  </div>
+                  </span>
+                  {dot.budget && (
+                    <span className="text-[11px] text-slate-400 whitespace-nowrap hidden md:block">
+                      {dot.budget}
+                    </span>
+                  )}
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${colors.bg} ${colors.text} flex-shrink-0`}>
+                    {dot.scoreLabel}
+                  </span>
                 </div>
               </motion.div>
             );
           })}
-        </motion.div>
-      </div>
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Expand/collapse */}
+      {canExpand && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-1 mx-auto mt-3 text-xs text-indigo-500 hover:text-indigo-700 transition-colors"
+        >
+          <span>{expanded ? 'Voir moins' : `+${hiddenCount} autre${hiddenCount > 1 ? 's' : ''}`}</span>
+          <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronDown className="w-3.5 h-3.5" />
+          </motion.div>
+        </button>
+      )}
     </motion.div>
   );
 }

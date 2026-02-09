@@ -18,21 +18,23 @@ function CriteriaBar({ label, score, icon, description }: ScoreCriteria) {
 
   return (
     <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-      <div className="flex items-center gap-2 mb-2.5">
-        <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center border border-slate-100">
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center border border-slate-100 flex-shrink-0">
           <Icon className="w-3.5 h-3.5 text-slate-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-semibold text-slate-900">{label}</div>
+          <div className="text-xs font-semibold text-slate-900 truncate">{label}</div>
           <div className="text-[10px] text-slate-400 truncate">{description}</div>
         </div>
-        <span className="text-base font-bold text-slate-900">{score}<span className="text-xs text-slate-400">/20</span></span>
       </div>
-      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full bg-gradient-to-r ${color} transition-all duration-700`}
-          style={{ width: `${pct}%` }}
-        />
+      <div className="flex items-center gap-2 mt-2">
+        <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full bg-gradient-to-r ${color} transition-all duration-700`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className="text-sm font-bold text-slate-900 flex-shrink-0">{score}<span className="text-[10px] text-slate-400">/20</span></span>
       </div>
     </div>
   );
@@ -64,7 +66,7 @@ export default function ScoreDetails({ criteria, defaultOpen = false }: ScoreDet
       <AnimatePresence>
         {isOpen && (
           <motion.div {...expandCollapse}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
               {criteria.map((c) => (
                 <CriteriaBar key={c.label} {...c} />
               ))}
