@@ -40,8 +40,6 @@ Le pipeline marche public est decoupe entre deux repos :
 - `/api/market/attributions` — Liste des attributions avec filtres
 - `/api/market/trends` — Tendances volume par mois
 - `/api/market/competitors` — Recherche concurrents par nom/SIRET
-- `/api/market/sync` — LEGACY, remplace par Workers cron (peut etre supprime)
-- `/api/market/resolve-names` — LEGACY, remplace par Workers cron (peut etre supprime)
 
 ```
 Cloudflare Worker (cron triggers)         Ce repo (Next.js, read-only)
@@ -93,8 +91,6 @@ src/
       attributions/       # Attribution list with filters
       trends/             # Volume by month
       competitors/        # Competitor search
-      sync/               # LEGACY (replaced by lefilonao-workers cron)
-      resolve-names/      # LEGACY (replaced by lefilonao-workers cron)
     api/documents/        # Document upload/management
     api/gate/             # Auth gate
     login/ pricing/ subscribe/ success/  # Public pages
