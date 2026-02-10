@@ -1,13 +1,23 @@
 /**
  * Moteur d'extraction PDF haute fidelite.
  * Remplace pdf-parse par une extraction spatiale via pdfjs-dist.
+ *
+ * Uses lazy dynamic import to avoid crashing the module at load time
+ * in Vercel's serverless environment where pdfjs-dist .mjs bundle
+ * may not be resolved correctly at top-level.
  */
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 
-// Configurer le worker (necessaire pour pdfjs-dist dans Node)
-if (typeof window === 'undefined') {
-  // @ts-ignore
-  pdfjs.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _pdfjs: any = null;
+
+async function getPdfjs() {
+  if (!_pdfjs) {
+    _pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    if (typeof window === 'undefined') {
+      _pdfjs.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+    }
+  }
+  return _pdfjs;
 }
 
 export interface PdfContent {
@@ -33,10 +43,11 @@ interface PdfTextItem {
  * Cela aide l'IA a comprendre les tableaux et les structures de listes.
  */
 export async function extractHighFidelityText(buffer: Buffer): Promise<PdfContent> {
+  const pdfjs = await getPdfjs();
   const data = new Uint8Array(buffer);
   const loadingTask = pdfjs.getDocument({ data });
   const doc = await loadingTask.promise;
-  
+
   let fullText = '';
   const numPages = doc.numPages;
   const Y_THRESHOLD = 3; // Marge de tolerance en pixels pour considerer deux items sur la meme ligne
@@ -44,10 +55,10 @@ export async function extractHighFidelityText(buffer: Buffer): Promise<PdfConten
   for (let i = 1; i <= numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    
+
     // Sort items by vertical position (Y descending) then horizontal (X ascending)
     const items = (content.items as Array<{ str: string; transform: number[] }>)
-      .filter((item) => 'transform' in item && 'str' in item) 
+      .filter((item) => 'transform' in item && 'str' in item)
       .sort((a, b) => {
         const yDiff = b.transform[5] - a.transform[5];
         if (Math.abs(yDiff) > Y_THRESHOLD) return yDiff;
@@ -59,7 +70,7 @@ export async function extractHighFidelityText(buffer: Buffer): Promise<PdfConten
 
     for (const item of items) {
       const currentY = item.transform[5];
-      if (lastY !== -1 && Math.abs(lastY - currentY) > Y_THRESHOLD) {      
+      if (lastY !== -1 && Math.abs(lastY - currentY) > Y_THRESHOLD) {
         pageText += '\n';
       } else if (lastY !== -1) {
         pageText += '   '; // Simule des colonnes de tableau
@@ -87,6 +98,7 @@ ${pageText}
  * Groups items by Y position into rows, detects consistent column counts across 3+ rows.
  */
 export async function extractTablesFromPdf(buffer: Buffer): Promise<ExtractedTable[]> {
+  const pdfjs = await getPdfjs();
   const data = new Uint8Array(buffer);
   const loadingTask = pdfjs.getDocument({ data });
   const doc = await loadingTask.promise;
