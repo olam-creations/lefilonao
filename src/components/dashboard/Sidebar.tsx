@@ -65,9 +65,9 @@ export default function Sidebar() {
       className="fixed left-0 top-0 h-screen bg-white border-r border-slate-200 z-50 flex flex-col transition-all duration-300 ease-in-out shadow-sm"
     >
       {/* Header / Logo */}
-      <div className="h-28 flex items-center px-6 mb-2">
+      <div className="h-16 flex items-center px-6 mb-2">
         <Link href="/">
-          <Logo collapsed={isCollapsed} />
+          <Logo collapsed={isCollapsed} size="xs" />
         </Link>
       </div>
 

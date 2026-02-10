@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 interface LogoProps {
   collapsed?: boolean;
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
 }
 
 export default function Logo({ collapsed = false, className = '', size = 'md' }: LogoProps) {
@@ -14,6 +14,7 @@ export default function Logo({ collapsed = false, className = '', size = 'md' }:
   useEffect(() => setMounted(true), []);
 
   const sizes = {
+    xs: { icon: 'w-7 h-7', text: 'text-sm' },
     sm: { icon: 'w-10 h-10', text: 'text-base' },
     md: { icon: 'w-14 h-14', text: 'text-2xl' },
     lg: { icon: 'w-20 h-20', text: 'text-4xl' }
