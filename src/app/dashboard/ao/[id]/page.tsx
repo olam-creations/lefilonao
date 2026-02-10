@@ -25,6 +25,8 @@ import WorkspaceLeftPane from '@/components/ao/workspace/WorkspaceLeftPane';
 import WorkspaceRightPane from '@/components/ao/workspace/WorkspaceRightPane';
 import WorkspaceCoachBar from '@/components/ao/workspace/WorkspaceCoachBar';
 import ProBadge from '@/components/shared/ProBadge';
+import UpgradeModal from '@/components/shared/UpgradeModal';
+import { usePlan } from '@/hooks/usePlan';
 import DceDropZone from '@/components/ao/DceDropZone';
 import MultiAgentProgress from '@/components/ao/MultiAgentProgress';
 import { useDceAnalysis } from '@/hooks/useDceAnalysis';
@@ -48,8 +50,10 @@ export default function AoDetailPage() {
   const { settings } = useUserSettings();
   const dce = useDceAnalysis();
   const multiAgent = useMultiAgentAnalysis();
+  const { can } = usePlan();
   const [analysisMode, setAnalysisMode] = useState<'quick' | 'complete'>('quick');
   const [prefilledCoachData, setPrefilledCoachData] = useState<CoachResponse | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -238,10 +242,18 @@ export default function AoDetailPage() {
   }, [updateWorkspace]);
 
   const handleOpenFilePicker = useCallback(() => {
+    if (!can('dce-analysis')) {
+      setShowUpgradeModal(true);
+      return;
+    }
     fileInputRef.current?.click();
-  }, []);
+  }, [can]);
 
   const handleFileDrop = useCallback((file: File) => {
+    if (!can('dce-analysis')) {
+      setShowUpgradeModal(true);
+      return;
+    }
     if (analysisMode === 'complete' && profile) {
       multiAgent.execute({
         file,
@@ -259,7 +271,7 @@ export default function AoDetailPage() {
     } else {
       dce.analyzeDce(file);
     }
-  }, [analysisMode, profile, multiAgent, dce]);
+  }, [analysisMode, profile, multiAgent, dce, can]);
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -383,7 +395,13 @@ export default function AoDetailPage() {
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
-                onClick={() => dce.analyzeFromUrl(id)}
+                onClick={() => {
+                  if (!can('dce-analysis')) {
+                    setShowUpgradeModal(true);
+                    return;
+                  }
+                  dce.analyzeFromUrl(id);
+                }}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg"
               >
                 <Search className="w-4 h-4" />
@@ -400,6 +418,11 @@ export default function AoDetailPage() {
             <p className="text-slate-400 text-xs mt-3">
               L&apos;analyse automatique récupère le DCE depuis le profil acheteur. Si indisponible, chargez le PDF manuellement.
             </p>
+            <UpgradeModal
+              open={showUpgradeModal}
+              onClose={() => setShowUpgradeModal(false)}
+              featureLabel="Analyse DCE par IA"
+            />
           </div>
         </div>
       </div>

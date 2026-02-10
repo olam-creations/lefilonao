@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 import Logo from '@/components/shared/Logo';
+import { usePlan } from '@/hooks/usePlan';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, id: 'dashboard' },
@@ -39,6 +40,7 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const { isPro } = usePlan();
 
   useEffect(() => {
     setMounted(true);
@@ -64,11 +66,27 @@ export default function Sidebar() {
       animate={{ width: isCollapsed ? 80 : 280 }}
       className="fixed left-0 top-0 h-screen bg-white border-r border-slate-200 z-50 flex flex-col transition-all duration-300 ease-in-out shadow-sm"
     >
-      {/* Header / Logo */}
+      {/* Header / Logo + Plan badge */}
       <div className="h-16 flex items-center px-6 mb-2">
-        <Link href="/">
+        <Link href="/" className="flex items-center gap-2">
           <Logo collapsed={isCollapsed} size="xs" />
         </Link>
+        <AnimatePresence>
+          {!isCollapsed && (
+            <motion.span
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className={`ml-1 inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded ${
+                isPro
+                  ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200'
+              }`}
+            >
+              {isPro ? 'Pro' : 'Free'}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Main Nav */}
