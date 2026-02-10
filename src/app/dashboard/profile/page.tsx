@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Shield } from 'lucide-react';
 import { isAuthenticated, markOnboardingStep } from '@/lib/auth';
-import Header from '@/components/Header';
+import TopBar from '@/components/dashboard/TopBar';
 import { isDevMode, MOCK_COMPANY_PROFILE, type CompanyProfile, type ProfileDocument, type TeamMember, type ProjectReference } from '@/lib/dev';
 import { getCompanyProfile, saveCompanyProfile } from '@/lib/profile-storage';
 import { uploadFile, downloadFile, deleteFile, triggerDownload } from '@/lib/file-storage';
@@ -181,11 +181,10 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Header variant="dashboard" activePage="profile" />
-        <div className="max-w-7xl mx-auto p-6 space-y-4">
-          <div className="skeleton w-1/2 h-8 rounded" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="animate-fade-in">
+        <TopBar title="Profil Entreprise" description="Coffre-fort de vos documents récurrents" />
+        <div className="max-w-7xl mx-auto py-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="skeleton h-64 rounded-2xl" />
             <div className="skeleton h-64 rounded-2xl" />
           </div>
@@ -195,21 +194,14 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Header variant="dashboard" activePage="profile" />
+    <div className="animate-fade-in">
+      <TopBar 
+        title="Profil Entreprise" 
+        description="Coffre-fort de vos documents récurrents" 
+        icon={<Shield className="w-6 h-6 text-indigo-600" />}
+      />
 
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Page title */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Profil Entreprise</h1>
-            <p className="text-sm text-slate-400">Coffre-fort de vos documents recurrents</p>
-          </div>
-        </div>
-
+      <div className="max-w-7xl mx-auto py-10">
         {/* Summary bar */}
         <div className={`rounded-xl px-4 py-3 mb-8 flex items-center gap-3 ${
           pct === 100 ? 'bg-emerald-50 border border-emerald-200' : 'bg-indigo-50 border border-indigo-200'

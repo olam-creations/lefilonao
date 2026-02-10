@@ -15,7 +15,7 @@
 - **Styling**: Tailwind CSS v4 (CSS-based config, no tailwind.config)
 - **Animation**: framer-motion 11
 - **Icons**: lucide-react
-- **AI**: Dual-provider (Gemini + Anthropic), voir section IA ci-dessous
+- **AI**: Tri-provider (Gemini + Anthropic + NVIDIA) avec resilience (cockatiel), voir section IA ci-dessous
 - **PDF**: pdf-lib (generation, e-signature, cachet embedding) + pdf-parse v2 (extraction texte)
 - **Testing**: Vitest + Testing Library
 - **Monitoring**: Sentry (errors) + Plausible (analytics)
@@ -34,6 +34,9 @@ Le pipeline marche public est decoupe entre deux repos :
 - URL: `https://lefilonao-workers.olamcreations.workers.dev`
 - `syncDecp()` — cron `0 6 * * *` : DECP API → table `decp_attributions`
 - `resolveSirets()` — cron `30 6 * * *` : SIRET → nom via Sirene API → `decp_attributions`
+- `enrichCompanies()` — cron `0 7 * * *` : Pappers enrichment → `companies`
+- `syncBoamp()` + `matchAlerts()` + `sendAlertEmails()` — cron `0 8,14 * * *`
+- `POST /scrape-dce` — Scraping DCE headless (Browser Rendering + Puppeteer)
 
 **`lefilonao`** (ce repo — lit depuis Supabase, read-only) :
 - `/api/market/insights` — KPIs marche (top buyers, winners, volumes)
@@ -44,20 +47,38 @@ Le pipeline marche public est decoupe entre deux repos :
 Note: Les routes legacy `/api/market/sync` et `/api/market/resolve-names` ont ete supprimees (remplacees par les Workers cron ci-dessus). Le cron Vercel a aussi ete supprime.
 
 ```
-Cloudflare Worker (cron triggers)         Ce repo (Next.js, read-only)
+Cloudflare Worker (cron triggers)         Ce repo (Next.js)
   ├── syncDecp()    → Supabase ←────────── /api/market/insights
-  └── resolveSirets() → Supabase ←──────── /api/market/attributions
-                                    ←──────── /api/market/trends
-                                    ←──────── /api/market/competitors
+  ├── resolveSirets()                ←──── /api/market/attributions
+  ├── enrichCompanies()              ←──── /api/market/trends
+  ├── syncBoamp() + alerts           ←──── /api/market/competitors
+  └── POST /scrape-dce  ←───────────────── /api/ai/fetch-dce (fallback)
+       (Browser Rendering)
+                                     ───── /api/settings/credentials (CRUD)
+                                            → Supabase platform_credentials
 ```
 
+### DCE Fetch Chain
+`/api/ai/fetch-dce` utilise une chaine de fallback pour recuperer les PDF DCE :
+1. **Fetch HTTP simple** — requete directe, suit les redirections, extrait PDF depuis HTML
+2. **Scraping headless anonyme** — Worker `/scrape-dce` via Puppeteer (Browser Rendering)
+3. **Scraping headless authentifie** — meme Worker, avec credentials chiffres depuis Supabase
+4. **Upload manuel** — retourne `fallback_url` pour que l'utilisateur uploade le PDF
+
+### Platform Credentials
+- Table Supabase `platform_credentials` (chiffrement AES-256-GCM)
+- API CRUD : `/api/settings/credentials` (GET/POST/DELETE)
+- UI : `PlatformCredentialsCard` dans la page Settings
+- Mots de passe jamais retournes en clair par l'API
+- Meme `ENCRYPTION_MASTER_KEY` partagee entre Vercel et Workers
+
 ### Security Headers
-Configured in `next.config.ts`: X-Frame-Options DENY, HSTS, CSP (Gemini + Anthropic + Sentry + Plausible), nosniff, strict referrer.
+Configured in `next.config.ts`: X-Frame-Options DENY, HSTS, CSP (Gemini + Anthropic + Sentry + Plausible + Workers), nosniff, strict referrer.
 
 ## AI Integration
 
-### Tri-Provider Routing
-Le systeme utilise trois fournisseurs IA avec un routing intelligent et cascade :
+### Tri-Provider Routing (DIF — Deterministic Intent Folding)
+Le systeme utilise trois fournisseurs IA avec `resilientCascade()` — circuit breakers, retry + exponential backoff, timeout (via `cockatiel`) :
 
 | Route | Priorite 1 | Priorite 2 | Priorite 3 |
 |-------|-----------|-----------|-----------|
@@ -65,17 +86,47 @@ Le systeme utilise trois fournisseurs IA avec un routing intelligent et cascade 
 | `/api/ai/generate-section` | **Gemini** (2.0 Flash) | Anthropic | NVIDIA |
 | `/api/ai/coach` | **Gemini** (2.0 Flash) | Anthropic | NVIDIA |
 
+Comportement resilience par provider :
+- **Retry**: 2 tentatives max, backoff exponentiel (500ms → 5s)
+- **Circuit breaker**: ouvert apres 3 echecs consecutifs, cooldown 60s
+- **Timeout**: 90s par appel (aggressive — annule l'appel)
+- **Cascade**: si un provider echoue (ou circuit ouvert), passe au suivant automatiquement
+
+### Audit Logging
+Tous les appels IA sont traces via `measureAiCall()` (`src/lib/ai-audit.ts`) :
+- Intent, provider, model, latence, succes/erreur, tokens (quand dispo)
+- Stockage in-memory (200 entries max, dev uniquement)
+- `getRecentLogs(limit)` pour consultation
+
+### Plan Executor
+Orchestration multi-step via `executePlan()` (`src/lib/ai-plan.ts`) :
+- Steps sequentiels avec injection de variables `{{step[N].result.path}}`
+- Callback `onStepChange` pour mise a jour UI en temps reel
+- Support `AbortSignal` pour annulation
+- Templates pre-construits : `createBatchGeneratePlan()`, `createFullAnalysisPlan()`
+- Hook React `useAiPlan()` pour state management (progress, currentStep, abort)
+
 ### Env vars IA
 - `GEMINI_API_KEY` — Google AI Studio (free tier: 15 RPM, 1M tokens/min)
 - `ANTHROPIC_API_KEY` — Console Anthropic ($600 credits)
 - `NVIDIA_API_KEY` — NVIDIA NIM (Llama 3.3 70B, free tier)
 - Si aucune cle: erreur 503 explicite (pas de mock/fallback)
 
+### TOON Encoding
+- Prompts IA utilisent TOON (Token-Oriented Object Notation) pour les donnees structurees (profil, references, equipe, sections, criteres) — ~40% de tokens en moins
+- Source: `src/lib/toon.ts` (jsonToToon)
+
 ### Fichiers cles
-- `src/lib/ai-client.ts` — Client dual-provider (Gemini + Anthropic), singletons
+- `src/lib/toon.ts` — TOON encoder (`jsonToToon`) — compact tabular format pour prompts IA
+- `src/lib/ai-client.ts` — Client tri-provider (Gemini + Anthropic + NVIDIA), singletons
+- `src/lib/ai-resilience.ts` — Circuit breakers, retry, timeout, `resilientCascade()` (cockatiel)
+- `src/lib/ai-audit.ts` — Audit logging pour tous les appels IA (`measureAiCall()`)
+- `src/lib/ai-plan.ts` — Plan executor sequentiel avec variable injection
+- `src/lib/ai-plan-templates.ts` — Templates de plans (batch generate, full analysis)
 - `src/app/api/ai/analyze-dce/route.ts` — Upload PDF, extraction texte, analyse DCE
 - `src/app/api/ai/generate-section/route.ts` — Generation memoire technique (SSE streaming)
 - `src/app/api/ai/coach/route.ts` — Coach IA avec scoring de completude
+- `src/hooks/useAiPlan.ts` — Hook React pour execution de plans IA (state, progress, abort)
 - `src/hooks/useDceAnalysis.ts` — Hook analyse DCE (states: idle/uploading/analyzing/done/error)
 - `src/hooks/useStreamingGeneration.ts` — Hook SSE streaming avec AbortController
 
@@ -105,13 +156,21 @@ Pas de donnees fictives. Si l'IA est indisponible (cle manquante, API down, repo
 ```
 src/
   app/                    # Next.js App Router pages
-    dashboard/            # Protected dashboard (main page, AO detail, market, profile)
+    dashboard/            # Protected dashboard (main page, AO detail, market, profile, watchlist)
     api/ai/               # AI endpoints (analyze-dce, generate-section, coach)
     api/market/           # Market intelligence (read-only from Supabase)
       insights/           # KPIs, top buyers/winners
       attributions/       # Attribution list with filters
       trends/             # Volume by month
       competitors/        # Competitor search
+    api/watchlist/        # Watchlist acheteurs (CRUD + alerts)
+      route.ts            # GET list, POST add buyer
+      [id]/route.ts       # DELETE remove buyer
+      check/route.ts      # GET check if buyer is watched
+      alerts/route.ts     # GET recent AO from watched buyers (30d)
+    api/settings/
+      route.ts            # GET/PATCH user settings
+      credentials/route.ts # GET/POST/DELETE platform credentials (AES-256-GCM)
     api/documents/        # Document upload/management
     api/gate/             # Auth gate
     login/ pricing/ subscribe/ success/  # Public pages
@@ -123,13 +182,25 @@ src/
       AiCoachPanel.tsx    # Panneau coach (score ring + suggestions)
       InlineSuggestion.tsx # Suggestion inline par section
     dashboard/            # Dashboard cockpit components (10 files)
+    watchlist/            # Watchlist acheteurs (3 files)
+      WatchButton.tsx     # Heart toggle (optimistic UI, used in EntitySheet)
+      WatchlistPage.tsx   # Full page: stats, buyer list, alert feed
+      WatchlistAlertsFeed.tsx # Recent AO cards from watched buyers
+    settings/             # Settings page components
+      PlatformCredentialsCard.tsx # CRUD identifiants plateformes (AES-256-GCM)
     profile/              # Profile management cards (5 files)
       CachetUploadCard.tsx  # Upload cachet entreprise (PNG/JPG, base64 → PDF)
-    shared/               # Reusable file upload components
+    shared/               # Reusable file upload components (Logo, etc.)
     Header.tsx FreeBanner.tsx OnboardingChecklist.tsx
-  hooks/                  # Custom hooks (filters, completeness, DCE analysis, streaming)
-  lib/                    # Utilities (auth, api, storage, KPI, PDF, AI clients, motion)
-    ai-client.ts          # Dual-provider IA (Gemini + Anthropic)
+  hooks/                  # Custom hooks (filters, completeness, DCE analysis, streaming, AI plans)
+    useAiPlan.ts          # Hook execution plans IA (state, progress, abort)
+  lib/                    # Utilities (auth, api, storage, KPI, PDF, AI clients, motion, crypto)
+    ai-client.ts          # Tri-provider IA (Gemini + Anthropic + NVIDIA), singletons
+    ai-resilience.ts      # Circuit breakers, retry, timeout, resilientCascade() (cockatiel)
+    ai-audit.ts           # Audit logging appels IA (measureAiCall, getRecentLogs)
+    ai-plan.ts            # Plan executor sequentiel avec variable injection
+    ai-plan-templates.ts  # Templates de plans (batch generate, full analysis)
+    crypto-utils.ts       # AES-256-GCM encrypt/decrypt (node:crypto, interop avec Workers)
     dev.ts                # Types du domaine (AoDetail, CompanyProfile w/ cachetBase64, etc.)
     ao-storage.ts         # Persistance localStorage (DCE, sections, workspace)
     __tests__/            # Unit tests (dashboard-kpi, csv sanitization)
@@ -186,7 +257,26 @@ interface RFP {
 - `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN` — Error tracking
 - `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` — Analytics (lefilonao.com)
 - `ALLOWED_EMAILS`, `SITE_PASSWORD` — Access control
+- `WORKER_URL` — Cloudflare Worker URL (`https://lefilonao-workers.olamcreations.workers.dev`)
+- `WORKER_AUTH_TOKEN` — Secret partage avec Worker pour auth `/scrape-dce`
+- `ENCRYPTION_MASTER_KEY` — Cle 32 octets hex pour AES-256-GCM (meme que Worker)
+- `SUPABASE_ACCESS_TOKEN` — Management API (for migrations via `api.supabase.com`)
 - `POSTGRES_*` — Database (via Supabase)
+
+## Supabase Migrations
+
+Migrations are in `supabase/migrations/`. Run via the Management API:
+
+```bash
+node scripts/run-migration.mjs $(npx vercel env run --environment production -- node -e "process.stdout.write(process.env.SUPABASE_ACCESS_TOKEN)")
+```
+
+Or let Vercel inject the token automatically:
+```bash
+npx vercel env run --environment production -- node scripts/run-migration.mjs supabase/migrations/XXX.sql
+```
+
+Project ref: `vdatbrdkwwedetdlbqxx`
 
 ## Conventions
 - French UI text throughout (accents required)

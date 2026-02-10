@@ -1,0 +1,52 @@
+[ai-stack:lefilonao]
+(updated)2026-02-10
+---
+[providers:3]
+{name:gemini model:gemini-2.0-flash key:GEMINI_API_KEY tier:free}
+{name:anthropic model:claude-sonnet-4-5 key:ANTHROPIC_API_KEY tier:paid}
+{name:nvidia model:llama-3.3-70b key:NVIDIA_API_KEY tier:free}
+---
+[routing:3]
+{route:/api/ai/analyze-dce pri:anthropic,gemini,nvidia}
+{route:/api/ai/generate-section pri:gemini,anthropic,nvidia}
+{route:/api/ai/coach pri:gemini,anthropic,nvidia}
+---
+[resilience:cockatiel]
+(retry)max:2 backoff:exp(500ms,5s)
+(breaker)consecutive:3 cooldown:60s
+(timeout)90s aggressive
+(cascade)resilientCascade() — skip open breakers, try next
+---
+[audit:ai-audit.ts]
+(store)in-memory cap:200
+(fields)intent,provider,model,latencyMs,success,error,tokens
+(helper)measureAiCall(intent,provider,model) -> {finish(result)}
+(read)getRecentLogs(limit)
+---
+[plan:ai-plan.ts]
+(executor)executePlan(plan,handlers,{signal,onStepChange})
+(steps)sequential — respects rate limits
+(vars){{step[N].result.path}} injection
+(status)pending|running|done|failed|skipped
+(hook)useAiPlan() -> {plan,currentStepIndex,progress,error,isRunning,execute,abort,reset}
+---
+[templates:ai-plan-templates.ts]
+{name:createBatchGeneratePlan input:sections+profile+dceContext}
+{name:createFullAnalysisPlan input:file+profile+dceContext+criteria steps:analyze->generate->coach}
+---
+[files:10]
+^lib/ai-client.ts — tri-provider singletons
+^lib/ai-resilience.ts — circuit breakers, retry, timeout, resilientCascade
+^lib/ai-audit.ts — audit logging measureAiCall
+^lib/ai-plan.ts — plan executor + variable injection
+^lib/ai-plan-templates.ts — batch generate, full analysis templates
+^hooks/useAiPlan.ts — React hook state management
+^api/ai/analyze-dce/route.ts — PDF upload + DCE analysis
+^api/ai/generate-section/route.ts — SSE streaming memoire
+^api/ai/coach/route.ts — coach scoring completude
+^lib/dce-analyzer.ts — PDF text extraction + AI parse
+---
+[policy]
+(fallback)no-mock — errors are errors
+(503)if no API key configured
+(cascade)try all available providers before failing

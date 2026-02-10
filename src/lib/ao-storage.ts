@@ -27,7 +27,9 @@ export function getWorkspaceState(aoId: string): WorkspaceState {
 
 export function saveWorkspaceState(aoId: string, state: WorkspaceState): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(`${STORAGE_PREFIX}${aoId}`, JSON.stringify(state));
+  try {
+    localStorage.setItem(`${STORAGE_PREFIX}${aoId}`, JSON.stringify(state));
+  } catch { /* QuotaExceededError — ignore silently */ }
 }
 
 export function getDceAnalysis(aoId: string): AoDetail | null {
@@ -43,7 +45,9 @@ export function getDceAnalysis(aoId: string): AoDetail | null {
 
 export function saveDceAnalysis(aoId: string, detail: AoDetail): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(`${DCE_PREFIX}${aoId}`, JSON.stringify(detail));
+  try {
+    localStorage.setItem(`${DCE_PREFIX}${aoId}`, JSON.stringify(detail));
+  } catch { /* QuotaExceededError — ignore silently */ }
 }
 
 export function getGeneratedSections(aoId: string): Record<string, TechnicalPlanSection> | null {
@@ -59,5 +63,7 @@ export function getGeneratedSections(aoId: string): Record<string, TechnicalPlan
 
 export function saveGeneratedSections(aoId: string, sections: Record<string, TechnicalPlanSection>): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(`${SECTIONS_PREFIX}${aoId}`, JSON.stringify(sections));
+  try {
+    localStorage.setItem(`${SECTIONS_PREFIX}${aoId}`, JSON.stringify(sections));
+  } catch { /* QuotaExceededError — ignore silently */ }
 }

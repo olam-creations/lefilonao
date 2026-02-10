@@ -37,7 +37,7 @@ export function getAnthropicClient(): Anthropic {
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const NVIDIA_MODEL = 'meta/llama-3.3-70b-instruct';
 
-export async function nvidiaGenerate(prompt: string): Promise<string> {
+export async function nvidiaGenerate(prompt: string, signal?: AbortSignal): Promise<string> {
   const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -50,6 +50,7 @@ export async function nvidiaGenerate(prompt: string): Promise<string> {
       temperature: 0.3,
       max_tokens: 8000,
     }),
+    signal,
   });
 
   if (!response.ok) {
@@ -60,7 +61,7 @@ export async function nvidiaGenerate(prompt: string): Promise<string> {
   return data.choices?.[0]?.message?.content ?? '';
 }
 
-export async function nvidiaStream(prompt: string): Promise<ReadableStream<Uint8Array>> {
+export async function nvidiaStream(prompt: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
   const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -74,11 +75,16 @@ export async function nvidiaStream(prompt: string): Promise<ReadableStream<Uint8
       max_tokens: 4000,
       stream: true,
     }),
+    signal,
   });
 
   if (!response.ok) {
     throw new Error(`NVIDIA API error: ${response.status}`);
   }
 
-  return response.body!;
+  if (!response.body) {
+    throw new Error('NVIDIA stream body is null');
+  }
+
+  return response.body;
 }

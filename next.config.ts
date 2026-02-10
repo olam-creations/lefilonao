@@ -15,16 +15,16 @@ const nextConfig: NextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://plausible.io",
+              "script-src 'self' 'unsafe-inline' 'strict-dynamic' https://plausible.io",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data:",
-              "connect-src 'self' https://meragel.vercel.app https://*.ingest.sentry.io https://plausible.io https://generativelanguage.googleapis.com https://api.anthropic.com https://integrate.api.nvidia.com https://data.economie.gouv.fr https://*.supabase.co",
+              "connect-src 'self' https://meragel.vercel.app https://*.ingest.sentry.io https://plausible.io https://generativelanguage.googleapis.com https://api.anthropic.com https://integrate.api.nvidia.com https://data.economie.gouv.fr https://*.supabase.co https://lefilonao-workers.olamcreations.workers.dev",
               "font-src 'self'",
             ].join('; ') + ';',
           },
@@ -39,6 +39,4 @@ export default withSentryConfig(nextConfig, {
   project: process.env.SENTRY_PROJECT,
   silent: !process.env.CI,
   widenClientFileUpload: true,
-  disableLogger: true,
-  tunnelRoute: '/monitoring',
 });

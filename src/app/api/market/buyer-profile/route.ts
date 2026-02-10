@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 import { CPV_NAMES } from '@/components/market/utils';
 
 export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, STANDARD_LIMIT);
+  if (limited) return limited;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
   const name = req.nextUrl.searchParams.get('name');
   const cpv = req.nextUrl.searchParams.get('cpv');
 
@@ -19,8 +27,8 @@ export async function GET(req: NextRequest) {
 
     if (cpv) query = query.eq('cpv_sector', cpv);
 
-    const { data, error } = await query;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const { data, error } = await query.limit(5000);
+    if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
 
     const rows = data ?? [];
     const totalVolume = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
@@ -79,7 +87,7 @@ export async function GET(req: NextRequest) {
         date: r.notification_date as string,
       }));
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       buyer: {
         name,
         totalContracts: rows.length,
@@ -91,8 +99,9 @@ export async function GET(req: NextRequest) {
         trend,
       },
     });
+    res.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
+    return res;
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

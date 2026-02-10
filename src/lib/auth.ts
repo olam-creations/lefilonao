@@ -11,16 +11,10 @@ export function getToken(): string | null {
 
 export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
-  // Mirror to cookie so middleware can check auth
-  const payload = decodePayload(token);
-  const maxAge = payload?.exp ? payload.exp - Math.floor(Date.now() / 1000) : 60 * 60 * 24 * 7;
-  const isSecure = window.location.protocol === 'https:';
-  document.cookie = `lefilonao_session=1; path=/; max-age=${maxAge}; samesite=lax${isSecure ? '; secure' : ''}`;
 }
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
-  document.cookie = 'lefilonao_session=; path=/; max-age=0';
 }
 
 // ─── JWT Decode (no crypto verification) ───

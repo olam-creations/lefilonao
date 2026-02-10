@@ -10,12 +10,17 @@ interface AoCardListProps {
   rfps: RFP[];
   workspaces: Record<string, WorkspaceState>;
   onExplore?: () => void;
+  totalDocuments?: number;
+  totalSections?: number;
 }
 
-const TOTAL_DOCUMENTS = 8;
-const TOTAL_SECTIONS = 7;
-
-export default function AoCardList({ rfps, workspaces, onExplore }: AoCardListProps) {
+export default function AoCardList({ 
+  rfps, 
+  workspaces, 
+  onExplore,
+  totalDocuments = 8,
+  totalSections = 7
+}: AoCardListProps) {
   return (
     <motion.div
       variants={stagger}
@@ -29,8 +34,8 @@ export default function AoCardList({ rfps, workspaces, onExplore }: AoCardListPr
             key={rfp.id}
             rfp={rfp}
             workspace={workspaces[rfp.id] ?? null}
-            totalDocuments={TOTAL_DOCUMENTS}
-            totalSections={TOTAL_SECTIONS}
+            totalDocuments={totalDocuments}
+            totalSections={totalSections}
             onExplore={onExplore}
           />
         ))}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 type GenerationState = 'idle' | 'generating' | 'done' | 'error';
 
@@ -31,6 +31,8 @@ export function useStreamingGeneration() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
 
     setState('generating');
     setStreamedText('');
@@ -92,25 +94,36 @@ export function useStreamingGeneration() {
       setState('done');
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        setState('idle');
+        // Preserve partial text — show as done if we have content
+        setState((prev) => prev === 'generating' ? 'done' : 'idle');
         return;
       }
       const message = err instanceof Error ? err.message : 'Erreur inconnue';
       setError(message);
       setState('error');
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, []);
 
   const abort = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    setState('idle');
+    // Keep partial text visible — show as done so user can accept/discard
+    setState('done');
   }, []);
 
   const reset = useCallback(() => {
     setState('idle');
     setStreamedText('');
     setError(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
   }, []);
 
   return { state, streamedText, error, generate, abort, reset };

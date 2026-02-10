@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, STANDARD_LIMIT);
+  if (limited) return limited;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
   const params = req.nextUrl.searchParams;
   const cpv = params.get('cpv') ?? '72';
   const limit = Math.min(Number(params.get('limit')) || 15, 100);
@@ -42,7 +50,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
     }
 
     const isSiret = (s: string) => /^\d{9,14}$/.test((s ?? '').trim());
@@ -64,9 +72,10 @@ export async function GET(req: NextRequest) {
       offersReceived: Number(r.offers_received) || undefined,
     }));
 
-    return NextResponse.json({ attributions });
+    const res = NextResponse.json({ attributions });
+    res.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
+    return res;
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

@@ -6,9 +6,10 @@ import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, LogOut, Menu, X } from 'lucide-react';
 import { isAuthenticated, clearToken } from '@/lib/auth';
+import Logo from '@/components/shared/Logo';
 
 type Variant = 'public' | 'dashboard';
-type ActivePage = 'dashboard' | 'intelligence' | 'opportunities' | 'alerts' | 'profile' | 'settings' | 'ao';
+type ActivePage = 'dashboard' | 'intelligence' | 'opportunities' | 'alerts' | 'watchlist' | 'profile' | 'settings' | 'ao';
 
 interface HeaderProps {
   variant?: Variant;
@@ -26,6 +27,7 @@ const DASHBOARD_NAV: { href: string; label: string; page: ActivePage }[] = [
   { href: '/dashboard', label: 'Dashboard', page: 'dashboard' },
   { href: '/dashboard/opportunities', label: 'Opportunités', page: 'opportunities' },
   { href: '/dashboard/alerts', label: 'Alertes', page: 'alerts' },
+  { href: '/dashboard/watchlist', label: 'Watchlist', page: 'watchlist' },
   { href: '/dashboard/market', label: 'Marché', page: 'intelligence' },
   { href: '/dashboard/profile', label: 'Profil', page: 'profile' },
   { href: '/dashboard/settings', label: 'Paramètres', page: 'settings' },
@@ -129,8 +131,8 @@ export default function Header({ variant = 'public', activePage, backHref, right
                 <ArrowLeft className="w-4 h-4 text-slate-500" />
               </Link>
             )}
-            <Link href="/" className="text-lg font-semibold text-slate-900 hover:opacity-80 transition-opacity">
-              Le Filon <span className="gradient-text">AO</span>
+            <Link href="/">
+              <Logo size="sm" />
             </Link>
           </div>
 
@@ -227,9 +229,7 @@ export default function Header({ variant = 'public', activePage, backHref, right
             transition={{ duration: 0.2 }}
           >
             <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100">
-              <span className="text-lg font-semibold text-slate-900">
-                Le Filon <span className="gradient-text">AO</span>
-              </span>
+              <Link href="/" onClick={closeMobile}><Logo size="sm" /></Link>
               <button onClick={closeMobile} className="p-2 rounded-lg hover:bg-slate-100" aria-label="Fermer le menu">
                 <X className="w-5 h-5 text-slate-500" />
               </button>

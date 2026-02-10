@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
+import { sanitizeSearch } from '@/lib/sanitize-search';
 
 export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, STANDARD_LIMIT);
+  if (limited) return limited;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
   const params = req.nextUrl.searchParams;
   const cpv = params.get('cpv') ?? '';
   const region = params.get('region') ?? '';
@@ -51,7 +60,8 @@ export async function GET(req: NextRequest) {
       query = query.lte('deadline', maxDate.toISOString());
     }
     if (search) {
-      query = query.ilike('title', `%${search}%`);
+      const safeSearch = sanitizeSearch(search);
+      query = query.ilike('title', `%${safeSearch}%`);
     }
 
     query = query.range(offset, offset + limit - 1);
@@ -59,7 +69,7 @@ export async function GET(req: NextRequest) {
     const { data, error, count } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
     }
 
     const now = new Date();
@@ -100,7 +110,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ opportunities, total: count ?? 0 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

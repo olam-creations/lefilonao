@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Plus, Trash2, ToggleLeft, ToggleRight, Clock, ExternalLink, AlertCircle, X, Eye } from 'lucide-react';
 import { isAuthenticated, getTokenPayload } from '@/lib/auth';
-import Header from '@/components/Header';
+import TopBar from '@/components/dashboard/TopBar';
 import { stagger, fadeUp } from '@/lib/motion-variants';
 import { CPV_SECTORS, REGIONS } from '@/components/market/types';
 import { formatAmount, formatDate } from '@/components/market/utils';
@@ -197,23 +197,22 @@ export default function AlertsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Header variant="dashboard" activePage="alerts" />
-
-      <div className="max-w-5xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Alertes</h1>
-            <p className="text-slate-500">Recevez une notification quand un marché correspond à vos critères.</p>
-          </div>
+    <div className="animate-fade-in">
+      <TopBar 
+        title="Alertes" 
+        description="Recevez une notification quand un marché correspond à vos critères."
+        icon={<Bell className="w-6 h-6 text-indigo-600" />}
+        rightSlot={
           <button
             onClick={openNewAlertForm}
             className="btn-primary text-sm py-2.5 px-4"
           >
             <Plus className="w-4 h-4" /> Créer une alerte
           </button>
-        </div>
+        }
+      />
 
+      <div className="max-w-5xl mx-auto py-10">
         {/* Tabs */}
         <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-6 w-fit">
           <button

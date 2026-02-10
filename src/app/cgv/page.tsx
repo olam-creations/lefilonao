@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function CgvPage() {
   return (
-    <LegalShell title="Conditions générales de vente" updatedAt="9 février 2026" currentPath="/cgv">
+    <LegalShell title="Conditions générales de vente" updatedAt="10 février 2026" currentPath="/cgv">
       <h2>1. Objet</h2>
       <p>
         Les présentes CGV régissent les conditions de souscription et d&apos;utilisation des offres
@@ -36,6 +36,7 @@ export default function CgvPage() {
         <li>Aide à la rédaction de mémoires techniques</li>
         <li>Intelligence de marché</li>
         <li>Alertes quotidiennes personnalisées</li>
+        <li>Watchlist acheteurs — surveillance des comptes clés</li>
         <li>Coach IA</li>
       </ul>
 

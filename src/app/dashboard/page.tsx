@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Activity, Target } from 'lucide-react';
 import Link from 'next/link';
 import { isAuthenticated, getTokenPayload, markOnboardingStep } from '@/lib/auth';
 import { api } from '@/lib/api';
@@ -12,9 +12,9 @@ import { computePipelineKpi, computeDeadlineKpi, computeProfileKpi, computeRespo
 import { useDashboardFilters, type RFP } from '@/hooks/useDashboardFilters';
 import type { WorkspaceState } from '@/lib/ao-utils';
 import type { CompanyProfile } from '@/lib/dev';
-import Header from '@/components/Header';
 import FreeBanner from '@/components/FreeBanner';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
+import TopBar from '@/components/dashboard/TopBar';
 import KpiStatsSection from '@/components/dashboard/KpiStatsSection';
 import DeadlineTimeline from '@/components/dashboard/DeadlineTimeline';
 import QuickActionsBar from '@/components/dashboard/QuickActionsBar';
@@ -39,8 +39,20 @@ export default function DashboardPage() {
   const [onboardingKey, setOnboardingKey] = useState(0);
   const [workspaces, setWorkspaces] = useState<Record<string, WorkspaceState>>({});
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
 
   const filters = useDashboardFilters(rfps);
+
+  const initials = useMemo(() => {
+    if (userName) {
+      const parts = userName.split(' ').filter(Boolean);
+      if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+      return userName.substring(0, 2).toUpperCase();
+    }
+    const payload = getTokenPayload();
+    if (!payload?.email) return '??';
+    return payload.email.substring(0, 2).toUpperCase();
+  }, [userName]);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -75,6 +87,7 @@ export default function DashboardPage() {
         }
 
         setTier(excaliburData?.profile?.tier || 'free');
+        setUserName(excaliburData?.profile?.name || null);
         setRfpsThisMonth(merged.length || 0);
       } catch {
         if (isDevMode()) {
@@ -135,13 +148,11 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Header variant="dashboard" activePage="dashboard" />
-        <div className="max-w-7xl mx-auto p-6">
-          <KpiGridSkeleton />
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => <SkeletonCard key={i} />)}
-          </div>
+      <div className="p-6 md:p-8">
+        <div className="h-8 w-48 bg-slate-200 rounded-lg mb-8 skeleton" />
+        <KpiGridSkeleton />
+        <div className="space-y-3 mt-8">
+          {[0, 1, 2].map((i) => <SkeletonCard key={i} />)}
         </div>
       </div>
     );
@@ -149,7 +160,7 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
+      <div className="flex items-center justify-center min-h-[60vh] p-6">
         <div className="text-center">
           <p className="text-red-600 text-lg mb-6">{error}</p>
           <button onClick={() => window.location.reload()} className="btn-primary">
@@ -161,29 +172,54 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Header variant="dashboard" activePage="dashboard" />
+    <div>
+      <TopBar 
+        title="Tableau de bord" 
+        description="Gérez vos appels d'offres et suivez vos performances." 
+        search={filters.search}
+        onSearchChange={filters.setSearch}
+        userInitials={initials}
+      />
 
-      <div className="max-w-7xl mx-auto p-6">
-        <FreeBanner tier={tier} rfpsThisMonth={rfpsThisMonth} />
+      <FreeBanner tier={tier} rfpsThisMonth={rfpsThisMonth} />
+      
+      <div className="mt-8">
         <OnboardingChecklist key={onboardingKey} />
+      </div>
 
+      <div className="mt-8">
         <KpiStatsSection
           pipeline={pipelineKpi}
           deadline={deadlineKpi}
           profile={profileKpi}
           responseRate={responseRateKpi}
         />
+      </div>
 
+      <div className="mt-8">
         <DeadlineTimeline rfps={rfps} />
+      </div>
 
-        {profile && (
+      {profile && (
+        <div className="mt-8">
           <QuickActionsBar
             rfps={rfps}
             profile={profile}
             profileCompleteness={profileKpi.completenessPercent}
           />
-        )}
+        </div>
+      )}
+
+      <div className="mt-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <Target className="w-5 h-5 text-indigo-500" />
+            Appels d&apos;offres détectés
+          </h2>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium">{filters.resultCount} résultats</span>
+          </div>
+        </div>
 
         <FiltersToolbar
           search={filters.search}
@@ -202,20 +238,24 @@ export default function DashboardPage() {
           onExportCsv={exportCSV}
         />
 
-        <ActiveFilterChips
-          filters={filters.activeFilters}
-          onClear={filters.clearFilter}
-          onClearAll={filters.clearAllFilters}
-        />
+        <div className="mt-4">
+          <ActiveFilterChips
+            filters={filters.activeFilters}
+            onClear={filters.clearFilter}
+            onClearAll={filters.clearAllFilters}
+          />
+        </div>
 
-        <AoCardList
-          rfps={filters.filteredRfps}
-          workspaces={workspaces}
-          onExplore={handleExploreRfp}
-        />
+        <div className="mt-6">
+          <AoCardList
+            rfps={filters.filteredRfps}
+            workspaces={workspaces}
+            onExplore={handleExploreRfp}
+          />
+        </div>
 
         {rfps.length === 0 && (
-          <div className="text-center py-20">
+          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200 mt-6">
             <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <Search className="w-7 h-7 text-indigo-400" />
             </div>
@@ -223,17 +263,14 @@ export default function DashboardPage() {
             <p className="text-slate-400 mb-6 max-w-sm mx-auto">
               Nos algorithmes scannent le BOAMP en continu. Vos premiers résultats apparaîtront sous peu.
             </p>
-            <div className="space-y-3 max-w-lg mx-auto mb-8">
-              {[0, 1, 2].map((i) => <SkeletonCard key={i} />)}
-            </div>
-            <Link href="/subscribe" className="btn-secondary text-sm py-2 px-4">
+            <Link href="/dashboard/settings" className="btn-secondary text-sm py-2 px-4">
               Affiner mes critères
             </Link>
           </div>
         )}
 
         {rfps.length > 0 && filters.filteredRfps.length === 0 && (
-          <div className="text-center py-20">
+          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200 mt-6">
             <p className="text-slate-400 mb-4">Aucun appel d&apos;offres ne correspond à ces filtres.</p>
             <button
               onClick={filters.clearAllFilters}

@@ -63,7 +63,8 @@ export default function MemoireSection({
       },
       options: { tone: option.tone, length: option.length },
     });
-  }, [profile, currentDraft, dceContext, section.title, section.buyerExpectation, streaming]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, currentDraft, dceContext, section.title, section.buyerExpectation, streaming.generate]);
 
   const handleGenerateDefault = useCallback(() => {
     handleGenerate({ label: 'Standard', tone: 'standard', length: 'medium' });
@@ -159,6 +160,7 @@ export default function MemoireSection({
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       onClick={streaming.abort}
+                      aria-label="Arreter la generation IA"
                       className="flex items-center gap-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
                     >
                       <Square className="w-3 h-3" /> Arreter
@@ -212,6 +214,8 @@ export default function MemoireSection({
                     <div className="relative">
                       <button
                         onClick={() => setShowOptions((o) => !o)}
+                        aria-expanded={showOptions}
+                        aria-haspopup="menu"
                         className="flex items-center gap-1.5 text-xs font-medium py-1.5 px-3 rounded-lg bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 border border-indigo-200 hover:from-indigo-100 hover:to-violet-100 transition-all"
                       >
                         <Wand2 className="w-3.5 h-3.5" /> Regenerer avec IA
@@ -223,11 +227,13 @@ export default function MemoireSection({
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -4, scale: 0.95 }}
                             transition={{ duration: 0.15 }}
+                            role="menu"
                             className="absolute bottom-full mb-2 right-0 bg-white rounded-xl shadow-lg border border-slate-200 p-2 min-w-[160px] z-10"
                           >
                             {QUICK_OPTIONS.map((opt) => (
                               <button
                                 key={opt.label}
+                                role="menuitem"
                                 onClick={() => handleGenerate(opt)}
                                 className="w-full text-left text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 px-3 py-2 rounded-lg transition-colors"
                               >
@@ -245,6 +251,8 @@ export default function MemoireSection({
                       e.stopPropagation();
                       onToggleReviewed();
                     }}
+                    aria-pressed={isReviewed}
+                    aria-label={isReviewed ? 'Marquer comme non relu' : 'Marquer comme relu'}
                     className={`flex items-center gap-1.5 text-xs font-medium py-1.5 px-3 rounded-lg transition-all ${
                       isReviewed
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'

@@ -66,8 +66,10 @@ export default function DeadlineTimeline({ rfps }: DeadlineTimelineProps) {
       variants={fadeUp}
       initial="hidden"
       animate="show"
-      className="glass rounded-xl p-6 mb-6"
+      className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-slate-300 hover:shadow-xl hover:shadow-indigo-500/5 transition-all"
     >
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-400 to-violet-500 opacity-20 group-hover:opacity-100 transition-opacity" />
+      
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

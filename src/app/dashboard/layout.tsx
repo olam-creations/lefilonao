@@ -1,10 +1,18 @@
-import type { Metadata } from 'next'
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Dashboard | Le Filon AO',
-  robots: { index: false, follow: false },
-}
+import dynamic from 'next/dynamic';
+import type { ReactNode } from 'react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return children
+const DashboardShell = dynamic(
+  () => import('@/components/shared/DashboardShell'),
+  { ssr: false }
+);
+
+export default function DashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <DashboardShell>
+      <ErrorBoundary>{children}</ErrorBoundary>
+    </DashboardShell>
+  );
 }

@@ -454,7 +454,7 @@ export function drawESignatureBlock(
 
   // Transaction ID (auto-generated if absent)
   const txId = esign.transactionId
-    ?? `LFAO-${yyyy}${mm}${dd}-${Math.floor(Math.random() * 0xFFFF).toString(16).toUpperCase().padStart(4, '0')}`;
+    ?? `LFAO-${yyyy}${mm}${dd}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
   // Layout
   const sigW = Math.floor(CW * 0.6);

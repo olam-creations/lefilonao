@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { signSession, COOKIE_NAME } from '@/lib/session';
+import { rateLimit, AUTH_LIMIT } from '@/lib/rate-limit';
 
 const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
 const SITE_PASSWORD = (process.env.SITE_PASSWORD || '').trim();
 
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(request, AUTH_LIMIT);
+  if (limited) return limited;
+
   try {
     const { email, password } = await request.json();
 
@@ -21,10 +26,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Mot de passe incorrect' }, { status: 403 });
     }
 
+    const sessionValue = signSession(normalizedEmail);
+
     const response = NextResponse.json({ success: true });
-    response.cookies.set('lefilonao_access', 'granted', {
+    response.cookies.set(COOKIE_NAME, sessionValue, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',

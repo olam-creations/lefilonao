@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Landmark, Trophy, TrendingUp, MapPin, FileText } from 'lucide-react';
 import type { BuyerProfile, WinnerProfile, RankedEntity, EntityTrend } from './types';
+import WatchButton from '@/components/dashboard/watchlist/WatchButton';
 import { formatAmount, formatDate } from './utils';
 
 interface EntitySheetProps {
@@ -90,9 +91,12 @@ export default function EntitySheet({ open, entityName, entityType, cpv, onClose
                   <span className={`text-xs font-medium ${isBuyer ? 'text-indigo-600' : 'text-emerald-600'}`}>{label}</span>
                 </div>
               </div>
-              <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                <X className="w-4 h-4 text-slate-400" />
-              </button>
+              <div className="flex items-center gap-1">
+                {isBuyer && <WatchButton buyerName={entityName} />}
+                <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                  <X className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 space-y-6">

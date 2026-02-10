@@ -1,21 +1,32 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID ?? '';
-const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY ?? '';
-const R2_SECRET_KEY = process.env.R2_SECRET_KEY ?? '';
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
+const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY;
+const R2_SECRET_KEY = process.env.R2_SECRET_KEY;
 const R2_BUCKET = process.env.R2_BUCKET ?? 'lefilonao-documents';
 
-const client = new S3Client({
-  region: 'auto',
-  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: R2_ACCESS_KEY,
-    secretAccessKey: R2_SECRET_KEY,
-  },
-});
+function getR2Client(): S3Client {
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY || !R2_SECRET_KEY) {
+    throw new Error('R2_ACCOUNT_ID, R2_ACCESS_KEY, and R2_SECRET_KEY must be set');
+  }
+  return new S3Client({
+    region: 'auto',
+    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY,
+      secretAccessKey: R2_SECRET_KEY,
+    },
+  });
+}
+
+let _client: S3Client | null = null;
+function client(): S3Client {
+  if (!_client) _client = getR2Client();
+  return _client;
+}
 
 export async function r2Upload(key: string, body: Buffer | Uint8Array, contentType: string): Promise<void> {
-  await client.send(new PutObjectCommand({
+  await client().send(new PutObjectCommand({
     Bucket: R2_BUCKET,
     Key: key,
     Body: body,
@@ -25,7 +36,7 @@ export async function r2Upload(key: string, body: Buffer | Uint8Array, contentTy
 
 export async function r2Download(key: string): Promise<{ body: ReadableStream; contentType: string } | null> {
   try {
-    const response = await client.send(new GetObjectCommand({
+    const response = await client().send(new GetObjectCommand({
       Bucket: R2_BUCKET,
       Key: key,
     }));
@@ -40,7 +51,7 @@ export async function r2Download(key: string): Promise<{ body: ReadableStream; c
 }
 
 export async function r2Delete(key: string): Promise<void> {
-  await client.send(new DeleteObjectCommand({
+  await client().send(new DeleteObjectCommand({
     Bucket: R2_BUCKET,
     Key: key,
   }));

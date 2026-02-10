@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, STANDARD_LIMIT);
+  if (limited) return limited;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
   const cpv = req.nextUrl.searchParams.get('cpv') ?? '72';
 
   try {
@@ -10,10 +18,11 @@ export async function GET(req: NextRequest) {
       .from('decp_attributions')
       .select('winner_name, amount, offers_received')
       .eq('cpv_sector', cpv)
-      .not('winner_name', 'eq', '');
+      .not('winner_name', 'eq', '')
+      .limit(5000);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
     }
 
     const isSiret = (s: string) => /^\d{9,14}$/.test((s ?? '').trim());
@@ -59,11 +68,12 @@ export async function GET(req: NextRequest) {
     const concentration: 'low' | 'moderate' | 'high' =
       hhi < 1500 ? 'low' : hhi < 2500 ? 'moderate' : 'high';
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       competition: { avgOffers, hhi, concentration, topShareholders },
     });
+    res.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
+    return res;
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

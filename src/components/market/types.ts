@@ -145,6 +145,24 @@ export interface LocationData {
   volume: number;
 }
 
+// ─── Watchlist Types ───
+
+export interface WatchlistEntry {
+  id: string;
+  buyer_name: string;
+  buyer_siret: string | null;
+  added_at: string;
+}
+
+export interface WatchlistAlert {
+  id: string;
+  title: string;
+  buyer_name: string;
+  notification_date: string;
+  amount: number;
+  cpv_code: string;
+}
+
 // ─── Competition & Intelligence Types ───
 
 export interface CompetitionData {

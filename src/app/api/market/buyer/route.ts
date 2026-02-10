@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 import { CPV_NAMES } from '@/components/market/utils';
 
 export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, STANDARD_LIMIT);
+  if (limited) return limited;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
   const siret = req.nextUrl.searchParams.get('siret');
   const name = req.nextUrl.searchParams.get('name');
 
@@ -24,8 +32,8 @@ export async function GET(req: NextRequest) {
       query = query.eq('buyer_name', name);
     }
 
-    const { data, error } = await query;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const { data, error } = await query.limit(5000);
+    if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
 
     const rows = data ?? [];
     if (rows.length === 0) {
@@ -154,7 +162,6 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

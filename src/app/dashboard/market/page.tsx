@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Landmark, Trophy, AlertCircle } from 'lucide-react';
+import { Landmark, Trophy, AlertCircle, BarChart3 } from 'lucide-react';
 import { isAuthenticated, markOnboardingStep } from '@/lib/auth';
 import { getCompanyProfile } from '@/lib/profile-storage';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { stagger } from '@/lib/motion-variants';
-import Header from '@/components/Header';
+import TopBar from '@/components/dashboard/TopBar';
 import {
   CPV_SECTORS, DEFAULT_FILTERS,
   type MarketInsight, type Attribution, type VolumeDataPoint,
@@ -202,26 +202,25 @@ export default function MarketPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Header variant="dashboard" activePage="intelligence" />
+    <div className="animate-fade-in">
+      <TopBar 
+        title="Intelligence de marché" 
+        description="Analysez les marchés attribués, identifiez les acheteurs et vos concurrents."
+        icon={<BarChart3 className="w-6 h-6 text-indigo-600" />}
+      />
 
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Intelligence de marché</h1>
-          <p className="text-slate-500">Analysez les marchés attribués, identifiez les acheteurs et vos concurrents. <span className="text-slate-400">Données DECP sur 5 ans.</span></p>
-        </div>
-
-        <div className="flex flex-wrap gap-2 mb-8">
+      <div className="mt-8">
+        <div className="flex flex-wrap gap-2 mb-10 pb-4 border-b border-slate-100">
           {CPV_SECTORS.map((sector) => {
             const isActive = selectedSector === sector.code;
             return (
               <button
                 key={sector.code}
                 onClick={() => setSelectedSector(sector.code)}
-                className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all border ${
                   isActive
-                    ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm shadow-indigo-500/10'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-200 scale-105'
+                    : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
                 {sector.name}
@@ -231,95 +230,107 @@ export default function MarketPage() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-3 p-4 mb-6 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <div className="flex items-center gap-3 p-4 mb-8 rounded-2xl bg-red-50 border border-red-100 text-red-700 text-sm animate-shake">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
             {error}
           </div>
         )}
 
         {loading ? (
-          <div className="space-y-6">
-            <PositioningSkeleton />
+          <div className="space-y-8">
             <MarketStatsSkeleton />
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <RankingChartSkeleton />
               <RankingChartSkeleton />
-            </div>
-            <div className="grid md:grid-cols-2 gap-6">
-              <CompetitiveIntensitySkeleton />
-              <PartnershipsSkeleton />
+              <div className="md:col-span-2 lg:col-span-1">
+                <CompetitiveIntensitySkeleton />
+              </div>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
               <ChartSkeleton height="h-72" />
-              <ChartSkeleton height="h-40" />
+              <ChartSkeleton height="h-72" />
             </div>
-            <div className="grid md:grid-cols-2 gap-6">
-              <RseIndicatorsSkeleton />
-              <BuyerLoyaltySkeleton />
-            </div>
-            <RegionalHeatmapSkeleton />
-            <AttributionsListSkeleton />
-            <RenewalAlertsSkeleton />
           </div>
         ) : (
-          <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
-            <MyPositioning profile={profile} insights={data.insights} regionalData={data.regional} />
+          <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-10">
+            {/* Section 1: Cockpit & Ranking */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2 min-w-0">
+                <MarketStatCards insights={data.insights!} />
+              </div>
+              <div className="xl:col-span-1 min-w-0 h-full">
+                <MyPositioning profile={profile} insights={data.insights} regionalData={data.regional} />
+              </div>
+            </div>
 
-            {data.insights && <MarketStatCards insights={data.insights} />}
-
-            {data.insights && (
-              <div className="grid md:grid-cols-2 gap-6">
+            {/* Section 2: Leaders & Intensity */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="min-w-0">
                 <TopRankingChart
                   title="Top Acheteurs"
                   icon={<Landmark className="w-4 h-4 text-indigo-500" />}
-                  items={data.insights.topBuyers}
+                  items={data.insights?.topBuyers ?? []}
                   color="indigo"
                   unit="marchés"
                   onNameClick={handleBuyerClick}
                 />
+              </div>
+              <div className="min-w-0">
                 <TopRankingChart
                   title="Top Gagnants"
                   icon={<Trophy className="w-4 h-4 text-emerald-500" />}
-                  items={data.insights.topWinners}
+                  items={data.insights?.topWinners ?? []}
                   color="emerald"
                   unit="victoires"
                   onNameClick={handleWinnerClick}
                 />
               </div>
-            )}
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <CompetitiveIntensity data={data.competition} />
-              <Partnerships data={data.partnerships} />
+              <div className="md:col-span-2 xl:col-span-1 flex flex-col gap-6 min-w-0">
+                <CompetitiveIntensity data={data.competition} />
+                <Partnerships data={data.partnerships} />
+              </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            {/* Section 3: Trends & Distribution */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <VolumeTrend data={data.volumeTrend} />
               <AmountDistribution data={data.amountDistribution} />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              <RseIndicators data={data.rse} />
-              <BuyerLoyalty data={data.loyalty} onBuyerClick={handleBuyerClick} onWinnerClick={handleWinnerClick} />
+            {/* Section 4: Geography & Loyalty */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <RegionalHeatmap data={data.regional} onRegionClick={handleRegionClick} />
+              </div>
+              <div className="lg:col-span-1 flex flex-col gap-6">
+                <BuyerLoyalty data={data.loyalty} onBuyerClick={handleBuyerClick} onWinnerClick={handleWinnerClick} />
+                <RseIndicators data={data.rse} />
+              </div>
             </div>
 
-            <RegionalHeatmap data={data.regional} onRegionClick={handleRegionClick} />
+            {/* Section 5: Search & Renewals */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CompetitorSearch competitors={data.competitors} onCompetitorClick={handleWinnerClick} />
+              <RenewalAlerts
+                renewals={data.renewals}
+                onBuyerClick={handleBuyerClick}
+                onWinnerClick={handleWinnerClick}
+              />
+            </div>
 
-            <CompetitorSearch competitors={data.competitors} onCompetitorClick={handleWinnerClick} />
-
-            <RenewalAlerts
-              renewals={data.renewals}
-              onBuyerClick={handleBuyerClick}
-              onWinnerClick={handleWinnerClick}
-            />
-
-            <MarketFilters filters={filters} onChange={setFilters} />
-            <AttributionsList
-              attributions={data.attributions}
-              filters={filters}
-              onBuyerClick={handleBuyerClick}
-              onWinnerClick={handleWinnerClick}
-            />
+            {/* Section 6: Data Table */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Historique des attributions</h2>
+                <MarketFilters filters={filters} onChange={setFilters} />
+              </div>
+              <AttributionsList
+                attributions={data.attributions}
+                filters={filters}
+                onBuyerClick={handleBuyerClick}
+                onWinnerClick={handleWinnerClick}
+              />
+            </div>
           </motion.div>
         )}
       </div>

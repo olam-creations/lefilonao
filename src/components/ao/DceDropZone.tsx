@@ -2,18 +2,20 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, Sparkles, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { Upload, FileText, Sparkles, CheckCircle2, AlertCircle, X, ExternalLink } from 'lucide-react';
 
 interface DceDropZoneProps {
   state: 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
   progress: { step: string; percent: number };
   error: string | null;
+  fallbackUrl?: string | null;
   onDrop: (file: File) => void;
   onReset: () => void;
   onOpenFilePicker?: () => void;
+  onInvalidFile?: (message: string) => void;
 }
 
-export default function DceDropZone({ state, progress, error, onDrop, onReset, onOpenFilePicker }: DceDropZoneProps) {
+export default function DceDropZone({ state, progress, error, fallbackUrl, onDrop, onReset, onOpenFilePicker, onInvalidFile }: DceDropZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,8 +52,10 @@ export default function DceDropZone({ state, progress, error, onDrop, onReset, o
     const files = e.dataTransfer?.files;
     if (files && files.length > 0) {
       const file = files[0];
-      if (file.type === 'application/pdf') {
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
         onDrop(file);
+      } else {
+        onInvalidFile?.('Seuls les fichiers PDF sont acceptes');
       }
     }
   }, [onDrop]);
@@ -74,8 +78,10 @@ export default function DceDropZone({ state, progress, error, onDrop, onReset, o
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
+    if (file && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
       onDrop(file);
+    } else if (file) {
+      onInvalidFile?.('Seuls les fichiers PDF sont acceptes');
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -256,14 +262,42 @@ export default function DceDropZone({ state, progress, error, onDrop, onReset, o
                     <div className="w-16 h-16 mx-auto rounded-2xl bg-red-500/20 flex items-center justify-center">
                       <AlertCircle className="w-8 h-8 text-red-400" />
                     </div>
-                    <h3 className="text-lg font-bold text-white">Erreur d&apos;analyse</h3>
+                    <h3 className="text-lg font-bold text-white">
+                      {fallbackUrl ? 'DCE non accessible directement' : 'Erreur d\'analyse'}
+                    </h3>
                     <p className="text-sm text-white/60">{error}</p>
-                    <button
-                      onClick={onReset}
-                      className="mt-2 px-6 py-2.5 bg-white/10 text-white font-semibold text-sm rounded-xl hover:bg-white/20 transition-all"
-                    >
-                      Reessayer
-                    </button>
+                    {fallbackUrl && /^https?:\/\//.test(fallbackUrl) && (
+                      <div className="space-y-3">
+                        <a
+                          href={fallbackUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-500/20 text-indigo-300 font-semibold text-sm rounded-xl hover:bg-indigo-500/30 transition-all"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Telecharger depuis le profil acheteur
+                        </a>
+                        <p className="text-xs text-white/40">
+                          Puis deposez le PDF ici ou cliquez ci-dessous
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-center gap-3">
+                      {fallbackUrl && (
+                        <button
+                          onClick={() => { onReset(); onOpenFilePicker?.(); }}
+                          className="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold text-sm rounded-xl hover:from-indigo-600 hover:to-violet-600 transition-all"
+                        >
+                          Charger un PDF
+                        </button>
+                      )}
+                      <button
+                        onClick={onReset}
+                        className="px-5 py-2.5 bg-white/10 text-white font-semibold text-sm rounded-xl hover:bg-white/20 transition-all"
+                      >
+                        {fallbackUrl ? 'Fermer' : 'Reessayer'}
+                      </button>
+                    </div>
                   </motion.div>
                 )}
               </div>

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PolitiqueConfidentialitePage() {
   return (
-    <LegalShell title="Politique de confidentialité" updatedAt="9 février 2026" currentPath="/politique-confidentialite">
+    <LegalShell title="Politique de confidentialité" updatedAt="10 février 2026" currentPath="/politique-confidentialite">
       <h2>1. Responsable du traitement</h2>
       <p>
         <strong>Olam Creations</strong> — Jonas Kleinschmidt (projet personnel)<br />
@@ -52,6 +52,11 @@ export default function PolitiqueConfidentialitePage() {
             <td>Feedback utilisateur</td>
             <td>E-mail, catégorie, message</td>
             <td>Intérêt légitime (art. 6.1.f RGPD)</td>
+          </tr>
+          <tr>
+            <td>Watchlist acheteurs</td>
+            <td>E-mail, nom acheteur, SIRET acheteur</td>
+            <td>Exécution du contrat (art. 6.1.b RGPD)</td>
           </tr>
         </tbody>
       </table>

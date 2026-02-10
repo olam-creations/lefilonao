@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
-  const email = req.nextUrl.searchParams.get('email');
+  const rl = rateLimit(req, STANDARD_LIMIT);
+  if (rl) return rl;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const email = auth.auth.email;
   const unseenOnly = req.nextUrl.searchParams.get('unseen') === 'true';
   const limit = Math.min(Number(req.nextUrl.searchParams.get('limit')) || 50, 200);
-
-  if (!email) {
-    return NextResponse.json({ error: 'email parameter required' }, { status: 400 });
-  }
 
   try {
     const supabase = getSupabase();
@@ -39,7 +43,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { data: matches, error } = await query;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
 
     // Fetch notice details for all matches
     const noticeIds = [...new Set((matches ?? []).map((m) => m.notice_id))];
@@ -83,26 +87,46 @@ export async function GET(req: NextRequest) {
       unseenCount: unseenCount ?? 0,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
+  const rl = rateLimit(req, STANDARD_LIMIT);
+  if (rl) return rl;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const email = auth.auth.email;
+
   try {
     const body = await req.json();
     const { id, ids, seen } = body;
 
     const supabase = getSupabase();
 
+    // Fetch this user's alert IDs to scope updates
+    const { data: userAlerts } = await supabase
+      .from('user_alerts')
+      .select('id')
+      .eq('user_email', email);
+
+    const userAlertIds = (userAlerts ?? []).map((a) => a.id);
+
+    if (userAlertIds.length === 0) {
+      return NextResponse.json({ updated: 0 });
+    }
+
     if (ids && Array.isArray(ids)) {
-      // Batch mark as seen
+      // Batch mark as seen — only for matches belonging to user's alerts
       const { error } = await supabase
         .from('alert_matches')
         .update({ seen: seen ?? true })
-        .in('id', ids);
+        .in('id', ids)
+        .in('alert_id', userAlertIds);
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
       return NextResponse.json({ updated: ids.length });
     }
 
@@ -110,15 +134,15 @@ export async function PATCH(req: NextRequest) {
       const { error } = await supabase
         .from('alert_matches')
         .update({ seen: seen ?? true })
-        .eq('id', id);
+        .eq('id', id)
+        .in('alert_id', userAlertIds);
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
       return NextResponse.json({ updated: 1 });
     }
 
     return NextResponse.json({ error: 'id or ids required' }, { status: 400 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

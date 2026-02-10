@@ -42,53 +42,68 @@ export default function KpiStatsSection({ pipeline, deadline, profile, responseR
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 h-full"
     >
-      <KpiStatCard
-        label="Pipeline"
-        value={pipeline.total}
-        sub={`${pipeline.go} GO, ${pipeline.maybe} Maybe, ${pipeline.pass} Pass`}
-        icon={<Activity className="w-4 h-4" />}
-        accent="indigo"
-      >
-        <PipelineBar {...pipeline} />
-      </KpiStatCard>
+      {/* Principal: Pipeline (Large on desktop) */}
+      <div className="sm:col-span-2 lg:row-span-2">
+        <KpiStatCard
+          label="Pipeline global"
+          value={pipeline.total}
+          sub={`${pipeline.go} GO, ${pipeline.maybe} Maybe`}
+          icon={<Activity className="w-5 h-5 text-indigo-500" />}
+          accent="indigo"
+          className="h-full"
+        >
+          <div className="mt-6 space-y-4">
+            <PipelineBar {...pipeline} />
+            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /> GO</span>
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> MAYBE</span>
+              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-slate-300" /> PASS</span>
+            </div>
+          </div>
+        </KpiStatCard>
+      </div>
 
-      <KpiStatCard
-        label="Deadlines proches"
-        value={deadline.urgentCount}
-        sub={deadline.urgentCount > 0 ? 'AO dans les 7 prochains jours' : 'Aucune urgence'}
-        icon={<AlertTriangle className="w-4 h-4" />}
-        accent={deadline.urgentCount > 0 ? 'red' : 'emerald'}
-      />
+      {/* Deadlines (Small) */}
+      <div className="md:col-span-2">
+        <KpiStatCard
+          label="Urgent"
+          value={deadline.urgentCount}
+          sub={deadline.urgentCount > 0 ? 'Deadlines < 7 jours' : 'Tout est sous contrôle'}
+          icon={<AlertTriangle className="w-5 h-5" />}
+          accent={deadline.urgentCount > 0 ? 'red' : 'emerald'}
+          className="h-full"
+        />
+      </div>
 
-      <KpiStatCard
-        label="Profil entreprise"
-        value={profile.completenessPercent}
-        sub={profile.completenessPercent >= 100 ? 'Complet' : 'Completer votre profil'}
-        icon={<UserCheck className="w-4 h-4" />}
-        accent={profile.completenessPercent >= 80 ? 'emerald' : 'violet'}
-      >
-        <div className="flex items-center gap-3">
-          <ProfileCompletenessRing percent={profile.completenessPercent} size={40} strokeWidth={3} />
-          {profile.completenessPercent < 100 && (
-            <Link
-              href="/dashboard/profile"
-              className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
-            >
-              Completer
-            </Link>
-          )}
-        </div>
-      </KpiStatCard>
+      {/* Profil (Square) */}
+      <div className="md:col-span-1">
+        <KpiStatCard
+          label="Complétude"
+          value={`${profile.completenessPercent}%`}
+          sub="Profil entreprise"
+          icon={<UserCheck className="w-5 h-5" />}
+          accent={profile.completenessPercent >= 80 ? 'emerald' : 'violet'}
+          className="h-full"
+        >
+          <div className="mt-4 flex flex-col items-center">
+             <ProfileCompletenessRing percent={profile.completenessPercent} size={54} strokeWidth={4} />
+          </div>
+        </KpiStatCard>
+      </div>
 
-      <KpiStatCard
-        label="Taux de reponse"
-        value={responseRate.percent}
-        sub={`${responseRate.decided}/${responseRate.total} decisions prises`}
-        icon={<CheckCircle className="w-4 h-4" />}
-        accent="emerald"
-      />
+      {/* Taux (Square) */}
+      <div className="md:col-span-1">
+        <KpiStatCard
+          label="Engagement"
+          value={`${responseRate.percent}%`}
+          sub="Taux de réponse"
+          icon={<CheckCircle className="w-5 h-5" />}
+          accent="emerald"
+          className="h-full"
+        />
+      </div>
     </motion.div>
   );
 }

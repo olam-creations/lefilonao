@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { noticeToRfp } from '@/lib/notice-transform';
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
-  const email = req.nextUrl.searchParams.get('email');
+  const rl = rateLimit(req, STANDARD_LIMIT);
+  if (rl) return rl;
 
-  if (!email) {
-    return NextResponse.json({ error: 'email parameter required' }, { status: 400 });
-  }
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const email = auth.auth.email;
 
   try {
     const supabase = getSupabase();
@@ -17,7 +21,7 @@ export async function GET(req: NextRequest) {
       .eq('user_email', email)
       .order('created_at', { ascending: false });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
 
     const rfps = (data ?? []).map((row) => {
       const notice = row.boamp_notices;
@@ -30,46 +34,60 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ rfps });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(req, STANDARD_LIMIT);
+  if (rl) return rl;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const email = auth.auth.email;
+
   try {
     const body = await req.json();
-    const { user_email, notice_id } = body;
+    const { notice_id } = body;
 
-    if (!user_email || !notice_id) {
-      return NextResponse.json({ error: 'user_email and notice_id required' }, { status: 400 });
+    if (!notice_id) {
+      return NextResponse.json({ error: 'notice_id required' }, { status: 400 });
     }
 
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('user_rfps')
       .upsert(
-        { user_email, notice_id },
+        { user_email: email, notice_id },
         { onConflict: 'user_email,notice_id' }
       )
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
 
     return NextResponse.json({ rfp: data }, { status: 201 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
+  const rl = rateLimit(req, STANDARD_LIMIT);
+  if (rl) return rl;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const email = auth.auth.email;
+
   try {
     const body = await req.json();
-    const { id, user_email, notice_id, ...rest } = body;
+    const { id, notice_id, ...rest } = body;
 
-    if (!id && !(user_email && notice_id)) {
-      return NextResponse.json({ error: 'id or (user_email + notice_id) required' }, { status: 400 });
+    if (!id && !notice_id) {
+      return NextResponse.json({ error: 'id or notice_id required' }, { status: 400 });
     }
 
     const allowedFields = ['score', 'score_label', 'status', 'notes'] as const;
@@ -84,23 +102,29 @@ export async function PATCH(req: NextRequest) {
     let query = supabase.from('user_rfps').update(updates);
 
     if (id) {
-      query = query.eq('id', id);
+      query = query.eq('id', id).eq('user_email', email);
     } else {
-      query = query.eq('user_email', user_email).eq('notice_id', notice_id);
+      query = query.eq('user_email', email).eq('notice_id', notice_id);
     }
 
     const { data, error } = await query.select().single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
 
     return NextResponse.json({ rfp: data });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  const rl = rateLimit(req, STANDARD_LIMIT);
+  if (rl) return rl;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const email = auth.auth.email;
   const id = req.nextUrl.searchParams.get('id');
 
   if (!id) {
@@ -112,13 +136,13 @@ export async function DELETE(req: NextRequest) {
     const { error } = await supabase
       .from('user_rfps')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_email', email);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
 
     return NextResponse.json({ deleted: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

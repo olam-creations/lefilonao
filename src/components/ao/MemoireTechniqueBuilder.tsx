@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Pencil, Sparkles, Loader2 } from 'lucide-react';
+import { Pencil, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
 import { fadeUp } from '@/lib/motion-variants';
 import MemoireSection from './MemoireSection';
 import type { TechnicalPlanSection, CompanyProfile, SelectionCriteria } from '@/lib/dev';
 import type { CoachSuggestion, CoachResponse } from '@/lib/dev';
 import AiCoachPanel from './AiCoachPanel';
 import { saveGeneratedSections, getGeneratedSections } from '@/lib/ao-storage';
+import { useAiPlan } from '@/hooks/useAiPlan';
+import { createBatchGeneratePlan } from '@/lib/ai-plan-templates';
+import type { StepType } from '@/lib/ai-plan';
 
 interface MemoireTechniqueBuilderProps {
   sections: TechnicalPlanSection[];
@@ -59,9 +62,17 @@ export default function MemoireTechniqueBuilder({
   profile, dceContext, selectionCriteria, aoId,
 }: MemoireTechniqueBuilderProps) {
   const reviewedCount = Object.values(reviewed).filter(Boolean).length;
-  const [generatingAll, setGeneratingAll] = useState(false);
+  const aiPlan = useAiPlan();
   const [coachData, setCoachData] = useState<CoachResponse | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
+  const [coachError, setCoachError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      aiPlan.abort();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSectionUpdated = useCallback((sectionId: string, newDraft: string) => {
     if (!aoId) return;
@@ -75,72 +86,75 @@ export default function MemoireTechniqueBuilder({
     saveGeneratedSections(aoId, updated);
   }, [aoId, sections]);
 
-  const handleGenerateAll = useCallback(async () => {
-    if (!profile || generatingAll) return;
-    setGeneratingAll(true);
+  const handleCancelGenerateAll = useCallback(() => {
+    aiPlan.abort();
+  }, [aiPlan]);
 
-    for (const section of sections) {
-      try {
-        const response = await fetch('/api/ai/generate-section', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sectionTitle: section.title,
-            buyerExpectation: section.buyerExpectation,
-            dceContext: dceContext || '',
-            companyProfile: {
-              companyName: profile.companyName,
-              sectors: profile.sectors,
-              references: profile.references,
-              team: profile.team,
-              caN1: profile.caN1,
-              caN2: profile.caN2,
-              caN3: profile.caN3,
-            },
-            options: { tone: 'standard', length: 'medium' },
-          }),
-        });
+  const generateSectionHandler = useCallback(async (params: Record<string, unknown>, signal?: AbortSignal): Promise<string> => {
+    const response = await fetch('/api/ai/generate-section', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+      signal,
+    });
 
-        if (!response.ok) continue;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        const reader = response.body?.getReader();
-        if (!reader) continue;
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
 
-        const decoder = new TextDecoder();
-        let fullText = '';
-        let buffer = '';
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let buffer = '';
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+    while (true) {
+      if (signal?.aborted) break;
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6).trim();
-              if (data === '[DONE]') break;
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.text) fullText += parsed.text;
-              } catch { /* skip */ }
-            }
-          }
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) fullText += parsed.text;
+          } catch { /* skip malformed chunk */ }
         }
-
-        if (fullText && aoId) {
-          handleSectionUpdated(section.id, fullText);
-        }
-      } catch { /* continue with next section */ }
+      }
     }
 
-    setGeneratingAll(false);
-  }, [profile, generatingAll, sections, dceContext, aoId, handleSectionUpdated]);
+    const sectionId = params.sectionId as string | undefined;
+    if (fullText && aoId && sectionId) {
+      handleSectionUpdated(sectionId, fullText);
+    }
+
+    return fullText;
+  }, [aoId, handleSectionUpdated]);
+
+  const planHandlers = useMemo(() => ({
+    generate_section: generateSectionHandler,
+    analyze_dce: async () => { throw new Error('Not supported in batch mode'); },
+    coach_review: async () => { throw new Error('Not supported in batch mode'); },
+  } satisfies Record<StepType, (params: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown>>), [generateSectionHandler]);
+
+  const handleGenerateAll = useCallback(async () => {
+    if (!profile || aiPlan.isRunning) return;
+    const plan = createBatchGeneratePlan({
+      sections,
+      profile,
+      dceContext: dceContext || '',
+    });
+    await aiPlan.execute(plan, planHandlers);
+  }, [profile, aiPlan, sections, dceContext, planHandlers]);
 
   const handleRefreshCoach = useCallback(async () => {
     if (!profile || coachLoading) return;
     setCoachLoading(true);
+    setCoachError(null);
 
     try {
       const response = await fetch('/api/ai/coach', {
@@ -162,20 +176,28 @@ export default function MemoireTechniqueBuilder({
         }),
       });
 
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success) {
-          setCoachData(json.data);
-        }
+      const json = await response.json();
+      if (response.ok && json.success) {
+        setCoachData(json.data);
+      } else {
+        setCoachError(json.error || 'Erreur lors de l\'analyse');
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      setCoachError(err instanceof Error ? err.message : 'Erreur de connexion');
+    }
     setCoachLoading(false);
   }, [profile, coachLoading, sections, dceContext, selectionCriteria]);
 
-  const getSuggestionsForSection = (sectionId: string): CoachSuggestion[] => {
-    if (!coachData) return [];
-    return coachData.suggestions.filter((s) => s.sectionId === sectionId);
-  };
+  const suggestionsBySection = useMemo(() => {
+    if (!coachData) return {};
+    const map: Record<string, CoachSuggestion[]> = {};
+    for (const s of coachData.suggestions) {
+      if (s.sectionId) {
+        (map[s.sectionId] ??= []).push(s);
+      }
+    }
+    return map;
+  }, [coachData]);
 
   return (
     <motion.section
@@ -190,6 +212,7 @@ export default function MemoireTechniqueBuilder({
         <AiCoachPanel
           coachData={coachData}
           loading={coachLoading}
+          error={coachError}
           onRefresh={handleRefreshCoach}
         />
       )}
@@ -205,18 +228,34 @@ export default function MemoireTechniqueBuilder({
         </div>
         <div className="flex items-center gap-3">
           {profile && (
-            <button
-              onClick={handleGenerateAll}
-              disabled={generatingAll}
-              className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {generatingAll ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5" />
+            <>
+              <button
+                onClick={handleGenerateAll}
+                disabled={aiPlan.isRunning}
+                className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {aiPlan.isRunning ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                {aiPlan.isRunning ? `${aiPlan.currentStepIndex + 1}/${sections.length}` : 'Generer tout'}
+              </button>
+              {aiPlan.isRunning && (
+                <button
+                  onClick={handleCancelGenerateAll}
+                  className="text-xs font-medium px-3 py-2 rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all"
+                >
+                  Arreter
+                </button>
               )}
-              {generatingAll ? 'Generation...' : 'Generer tout'}
-            </button>
+              {aiPlan.error && !aiPlan.isRunning && (
+                <span className="flex items-center gap-1 text-xs text-amber-600">
+                  <AlertTriangle className="w-3 h-3" />
+                  {aiPlan.plan?.steps.filter((s) => s.status === 'failed').length} section(s) echouee(s)
+                </span>
+              )}
+            </>
           )}
           <ProgressRing current={reviewedCount} total={sections.length} />
         </div>
@@ -233,7 +272,7 @@ export default function MemoireTechniqueBuilder({
             profile={profile}
             dceContext={dceContext}
             selectionCriteria={selectionCriteria}
-            suggestions={getSuggestionsForSection(section.id)}
+            suggestions={suggestionsBySection[section.id]}
             onSectionUpdated={handleSectionUpdated}
           />
         ))}

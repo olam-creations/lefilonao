@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Search, FileUp } from 'lucide-react';
 import { isAuthenticated, getTokenPayload } from '@/lib/auth';
-import Header from '@/components/Header';
+import TopBar from '@/components/dashboard/TopBar';
 import { isDevMode, MOCK_RFPS, MOCK_AO_DETAILS, type AoDetail, type CompanyProfile, type AoUploadedFile } from '@/lib/dev';
 import { daysUntil, computeProgress } from '@/lib/ao-utils';
 import { getWorkspaceState, saveWorkspaceState, getDceAnalysis, saveDceAnalysis } from '@/lib/ao-storage';
@@ -167,13 +167,13 @@ export default function AoDetailPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [dce]);
+  }, [dce.analyzeDce]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Header variant="dashboard" activePage="ao" backHref="/dashboard" />
-        <div className="max-w-7xl mx-auto p-6 space-y-4">
+      <div className="animate-fade-in">
+        <TopBar title="Analyse AO" backHref="/dashboard" />
+        <div className="max-w-7xl mx-auto py-10 space-y-4">
           <div className="skeleton w-3/4 h-8 rounded" />
           <div className="skeleton w-1/2 h-5 rounded" />
           <div className="skeleton h-48 rounded-2xl" />
@@ -186,7 +186,7 @@ export default function AoDetailPage() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-slate-500 text-lg mb-4">Appel d&apos;offres non trouve</p>
+          <p className="text-slate-500 text-lg mb-4">Appel d&apos;offres non trouvé</p>
           <Link href="/dashboard" className="btn-primary text-sm py-2 px-4">Retour au dashboard</Link>
         </div>
       </div>
@@ -196,8 +196,8 @@ export default function AoDetailPage() {
   // RFP loaded but no DCE analysis yet — show header + upload prompt
   if (!detail || !profile) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Header variant="dashboard" activePage="ao" backHref="/dashboard" />
+      <div className="animate-fade-in">
+        <TopBar title="Détail Appel d'offres" backHref="/dashboard" />
 
         {/* Hidden file input for DCE picker */}
         <input
@@ -213,12 +213,13 @@ export default function AoDetailPage() {
           state={dce.state}
           progress={dce.progress}
           error={dce.error}
+          fallbackUrl={dce.fallbackUrl}
           onDrop={dce.analyzeDce}
           onReset={dce.reset}
           onOpenFilePicker={handleOpenFilePicker}
         />
 
-        <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <div className="max-w-7xl mx-auto py-10 space-y-6">
           <AoHeroHeader
             title={rfp.title}
             issuer={rfp.issuer}
@@ -232,21 +233,33 @@ export default function AoDetailPage() {
             onAnalyzeDce={handleOpenFilePicker}
           />
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
             <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <ExternalLink className="w-7 h-7 text-indigo-400" />
+              <Search className="w-7 h-7 text-indigo-400" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Analysez le DCE pour debloquer l&apos;analyse IA</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Analysez le DCE pour débloquer l&apos;analyse IA</h3>
             <p className="text-slate-500 text-sm mb-6 max-w-md mx-auto">
-              Deposez le document de consultation (PDF) pour obtenir le scoring, les criteres de selection et le plan technique.
+              Déposez le document de consultation (PDF) pour obtenir le scoring, les critères de sélection et le plan technique.
             </p>
-            <button
-              onClick={handleOpenFilePicker}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Charger un DCE (PDF)
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={() => dce.analyzeFromUrl(id)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg"
+              >
+                <Search className="w-4 h-4" />
+                Analyser automatiquement
+              </button>
+              <button
+                onClick={handleOpenFilePicker}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all"
+              >
+                <FileUp className="w-4 h-4" />
+                Charger un PDF
+              </button>
+            </div>
+            <p className="text-slate-400 text-xs mt-3">
+              L&apos;analyse automatique récupère le DCE depuis le profil acheteur. Si indisponible, chargez le PDF manuellement.
+            </p>
           </div>
         </div>
       </div>
@@ -257,13 +270,12 @@ export default function AoDetailPage() {
   const progress = computeProgress(workspace, detail.requiredDocumentsDetailed.length, detail.technicalPlanSections.length);
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 lg:pb-0">
-      <Header
-        variant="dashboard"
-        activePage="ao"
+    <div className="animate-fade-in pb-20 lg:pb-0">
+      <TopBar
+        title="Détail Appel d'offres"
         backHref="/dashboard"
         rightSlot={
-          <a href={rfp.url} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm py-2 px-4">
+          <a href={rfp.url} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm py-2 px-4 shadow-sm">
             <ExternalLink className="w-3.5 h-3.5" /> BOAMP
           </a>
         }
@@ -284,12 +296,13 @@ export default function AoDetailPage() {
         state={dce.state}
         progress={dce.progress}
         error={dce.error}
+        fallbackUrl={dce.fallbackUrl}
         onDrop={dce.analyzeDce}
         onReset={dce.reset}
         onOpenFilePicker={handleOpenFilePicker}
       />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto py-10">
         <div className="flex gap-6">
           {/* Main content */}
           <div className="flex-1 min-w-0 space-y-6">

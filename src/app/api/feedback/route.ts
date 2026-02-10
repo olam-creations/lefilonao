@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
-
-const CATEGORIES = ['bug', 'idea', 'other'] as const;
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
+import { feedbackSchema, parseBody } from '@/lib/validators';
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(req, STANDARD_LIMIT);
+  if (rl) return rl;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const email = auth.auth.email;
+
   try {
-    const body = await req.json();
-    const { email, category, message, pageUrl } = body;
+    const raw = await req.json();
+    const parsed = parseBody(feedbackSchema, raw);
+    if (!parsed.ok) return NextResponse.json(JSON.parse(await parsed.response.text()), { status: 400 });
 
-    if (!email || !category || !message) {
-      return NextResponse.json({ error: 'Champs requis manquants' }, { status: 400 });
-    }
-
-    if (!CATEGORIES.includes(category)) {
-      return NextResponse.json({ error: 'Catégorie invalide' }, { status: 400 });
-    }
-
-    if (message.length > 2000) {
-      return NextResponse.json({ error: 'Message trop long (2000 caractères max)' }, { status: 400 });
-    }
+    const { category, message, pageUrl } = parsed.data;
 
     const supabase = getSupabase();
     const { error } = await supabase
@@ -31,12 +31,11 @@ export async function POST(req: NextRequest) {
       });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, STANDARD_LIMIT);
+  if (limited) return limited;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+
   const cpv = req.nextUrl.searchParams.get('cpv') ?? '72';
 
   try {
@@ -9,10 +17,11 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase
       .from('decp_attributions')
       .select('is_innovative, social_clause, environmental_clause, notification_date')
-      .eq('cpv_sector', cpv);
+      .eq('cpv_sector', cpv)
+      .limit(5000);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
     }
 
     const rows = data ?? [];
@@ -64,7 +73,7 @@ export async function GET(req: NextRequest) {
         };
       });
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       rse: {
         innovationRate,
         socialClauseRate,
@@ -73,8 +82,9 @@ export async function GET(req: NextRequest) {
         trend,
       },
     });
+    res.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
+    return res;
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

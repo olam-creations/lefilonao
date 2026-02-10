@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Logo from '@/components/shared/Logo';
 
 export default function Footer() {
   return (
@@ -12,8 +13,8 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="text-lg font-semibold text-slate-900">
-              Le Filon <span className="gradient-text">AO</span>
+            <Link href="/">
+              <Logo size="sm" />
             </Link>
             <p className="text-sm text-slate-400 mt-3 leading-relaxed">
               Veille march&eacute;s publics intelligente par IA.

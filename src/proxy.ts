@@ -25,7 +25,7 @@ export default function proxy(request: NextRequest) {
     // Allow gate page and gate API
     if (!GATE_PUBLIC.some(p => pathname === p || pathname.startsWith(p + '/'))) {
       const accessCookie = request.cookies.get('lefilonao_access')?.value;
-      if (accessCookie !== 'granted') {
+      if (!accessCookie) {
         const url = request.nextUrl.clone();
         url.pathname = GATE_PATH;
         url.searchParams.set('redirect', pathname);

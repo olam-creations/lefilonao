@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function CguPage() {
   return (
-    <LegalShell title="Conditions générales d'utilisation" updatedAt="9 février 2026" currentPath="/cgu">
+    <LegalShell title="Conditions générales d'utilisation" updatedAt="10 février 2026" currentPath="/cgu">
       <h2>1. Objet</h2>
       <p>
         Les présentes CGU régissent l&apos;accès et l&apos;utilisation du service Le Filon AO,
@@ -44,6 +44,7 @@ export default function CguPage() {
         <li>Analyse automatisée des DCE par intelligence artificielle</li>
         <li>Aide à la rédaction de mémoires techniques</li>
         <li>Intelligence de marché et données concurrentielles (source : DECP)</li>
+        <li>Watchlist acheteurs — surveillance des comptes clés et alertes de publication</li>
       </ul>
 
       <h2>5. Obligations de l&apos;Utilisateur</h2>

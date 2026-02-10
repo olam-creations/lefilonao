@@ -7,6 +7,7 @@ import type { CoachResponse } from '@/lib/dev';
 interface AiCoachPanelProps {
   coachData: CoachResponse | null;
   loading: boolean;
+  error?: string | null;
   onRefresh: () => void;
 }
 
@@ -44,7 +45,7 @@ const SUGGESTION_ICONS = {
   missing: { icon: CircleAlert, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200' },
 } as const;
 
-export default function AiCoachPanel({ coachData, loading, onRefresh }: AiCoachPanelProps) {
+export default function AiCoachPanel({ coachData, loading, error, onRefresh }: AiCoachPanelProps) {
   return (
     <div className="mb-6">
       <div className="bg-gradient-to-r from-indigo-50/80 to-violet-50/80 rounded-2xl border border-indigo-100 p-5">
@@ -62,6 +63,7 @@ export default function AiCoachPanel({ coachData, loading, onRefresh }: AiCoachP
           <button
             onClick={onRefresh}
             disabled={loading}
+            aria-label={loading ? 'Analyse en cours' : coachData ? 'Rafraichir l\'analyse coach IA' : 'Lancer l\'analyse coach IA'}
             className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-all disabled:opacity-50"
           >
             {loading ? (
@@ -93,7 +95,7 @@ export default function AiCoachPanel({ coachData, loading, onRefresh }: AiCoachP
             {coachData.suggestions.length > 0 && (
               <div className="space-y-2">
                 {coachData.suggestions.map((suggestion, i) => {
-                  const config = SUGGESTION_ICONS[suggestion.type];
+                  const config = SUGGESTION_ICONS[suggestion.type] ?? SUGGESTION_ICONS.tip;
                   const Icon = config.icon;
 
                   return (
@@ -113,6 +115,7 @@ export default function AiCoachPanel({ coachData, loading, onRefresh }: AiCoachP
                               const el = document.getElementById('memoire-builder');
                               el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                             }}
+                            aria-label="Defiler vers la section concernee"
                             className="text-xs text-indigo-500 hover:text-indigo-700 font-medium mt-1 transition-colors"
                           >
                             Voir la section
@@ -127,7 +130,11 @@ export default function AiCoachPanel({ coachData, loading, onRefresh }: AiCoachP
           </motion.div>
         )}
 
-        {!coachData && !loading && (
+        {error && !loading && (
+          <p className="text-sm text-red-500 text-center py-4">{error}</p>
+        )}
+
+        {!coachData && !loading && !error && (
           <p className="text-sm text-slate-400 text-center py-4">
             Cliquez sur &quot;Analyser&quot; pour obtenir des conseils IA personnalises
           </p>

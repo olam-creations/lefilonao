@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
+import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
+import { settingsUpdateSchema, parseBody } from '@/lib/validators';
 
 const DEFAULTS = {
   display_name: '',
@@ -10,13 +13,17 @@ const DEFAULTS = {
   amount_max: 0,
   plan: 'free',
   created_at: null as string | null,
+  notify_frequency: 'daily',
+  notify_email: true,
 };
 
 export async function GET(req: NextRequest) {
-  const email = req.nextUrl.searchParams.get('email');
-  if (!email) {
-    return NextResponse.json({ error: 'email is required' }, { status: 400 });
-  }
+  const limited = rateLimit(req, STANDARD_LIMIT);
+  if (limited) return limited;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+  const { email } = auth.auth;
 
   const supabase = getSupabase();
 
@@ -34,42 +41,31 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ settings: data });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
-  let body: Record<string, unknown>;
+  const limited = rateLimit(req, STANDARD_LIMIT);
+  if (limited) return limited;
+
+  const auth = requireAuth(req);
+  if (!auth.ok) return auth.response;
+  const { email } = auth.auth;
+
+  let raw: unknown;
   try {
-    body = await req.json();
+    raw = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const email = body.email as string | undefined;
-  if (!email) {
-    return NextResponse.json({ error: 'email is required' }, { status: 400 });
-  }
+  const parsed = parseBody(settingsUpdateSchema, raw);
+  if (!parsed.ok) return NextResponse.json(JSON.parse(await parsed.response.text()), { status: 400 });
 
   const supabase = getSupabase();
-
-  const allowedFields = [
-    'display_name',
-    'default_cpv',
-    'default_regions',
-    'default_keywords',
-    'amount_min',
-    'amount_max',
-  ] as const;
-
-  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  for (const field of allowedFields) {
-    if (field in body) {
-      updates[field] = body[field];
-    }
-  }
+  const updates: Record<string, unknown> = { ...parsed.data, updated_at: new Date().toISOString() };
 
   try {
     const { data, error } = await supabase
@@ -84,8 +80,7 @@ export async function PATCH(req: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json({ settings: data });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }
 }

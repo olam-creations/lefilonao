@@ -50,6 +50,7 @@ export default function InlineSuggestion({ suggestion, onApply }: InlineSuggesti
       </div>
       <button
         onClick={onApply}
+        aria-label="Appliquer cette suggestion et regenerer la section"
         className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-white border border-indigo-200 px-2.5 py-1 rounded-lg hover:bg-indigo-50 transition-all flex-shrink-0"
       >
         <Wand2 className="w-3 h-3" /> Appliquer
