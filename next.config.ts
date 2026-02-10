@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'strict-dynamic' https://plausible.io",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://plausible.io",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data:",
               "connect-src 'self' https://meragel.vercel.app https://*.ingest.sentry.io https://plausible.io https://generativelanguage.googleapis.com https://api.anthropic.com https://integrate.api.nvidia.com https://data.economie.gouv.fr https://*.supabase.co https://lefilonao-workers.olamcreations.workers.dev",

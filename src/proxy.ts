@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const GATE_PATH = '/gate';
 const LOGIN_PATH = '/login';
-const GATE_PUBLIC = ['/gate', '/api/gate'];
+const GATE_PUBLIC = [
+  '/gate', '/api/',
+  '/', '/login', '/subscribe', '/pricing', '/success',
+  '/mentions-legales', '/politique-confidentialite', '/cgu', '/cgv',
+];
 const AUTH_PUBLIC = ['/', '/login', '/subscribe', '/pricing', '/success'];
 const SKIP_PATHS = ['/_next/', '/favicon.ico', '/favicon.svg', '/robots.txt', '/sitemap.xml', '/icon', '/monitoring'];
 const AUTH_REQUIRED_PREFIXES = ['/dashboard', '/api/ai', '/api/documents'];
@@ -21,9 +25,12 @@ export default function proxy(request: NextRequest) {
 
   // ─── Layer 1: Staging gate ───
   // When SITE_PASSWORD is configured, require lefilonao_access cookie
+  // Public pages, legal pages, and API routes bypass the gate
   if (process.env.SITE_PASSWORD) {
-    // Allow gate page and gate API
-    if (!GATE_PUBLIC.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+    const isGatePublic = GATE_PUBLIC.some(p =>
+      p.endsWith('/') ? pathname.startsWith(p) : pathname === p
+    );
+    if (!isGatePublic) {
       const accessCookie = request.cookies.get('lefilonao_access')?.value;
       if (!accessCookie) {
         const url = request.nextUrl.clone();
