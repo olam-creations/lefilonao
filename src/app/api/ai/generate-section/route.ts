@@ -8,7 +8,7 @@ import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 import { generateSectionSchema, parseBody, type GenerateSectionInput } from '@/lib/validators';
 
 export async function POST(request: NextRequest) {
-  const limited = rateLimit(request, AI_LIMIT);
+  const limited = await rateLimit(request, AI_LIMIT);
   if (limited) return new Response(JSON.stringify({ error: 'Trop de requêtes' }), { status: 429 });
 
   const auth = requireAuth(request);

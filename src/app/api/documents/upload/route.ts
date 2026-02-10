@@ -31,7 +31,7 @@ function isAllowedCategory(value: string): value is Category {
 }
 
 export async function POST(req: NextRequest) {
-  const rl = rateLimit(req, STANDARD_LIMIT);
+  const rl = await rateLimit(req, STANDARD_LIMIT);
   if (rl) return rl;
 
   const auth = requireAuth(req);

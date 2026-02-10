@@ -1,9 +1,17 @@
 import JSZip from 'jszip';
 import type { CompanyProfile, TechnicalPlanSection, RequiredDocumentDetailed, AoUploadedFile } from './dev';
 import type { WorkspaceState } from './ao-utils';
-import { generateDC1 } from './pdf-dc1';
-import { generateDC2 } from './pdf-dc2';
 import { downloadFile, triggerDownload } from './file-storage';
+
+async function fetchPdfBytes(type: 'dc1' | 'dc2', profile: CompanyProfile, issuer: string, title: string): Promise<ArrayBuffer> {
+  const res = await fetch('/api/documents/generate-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, profile, issuer, title }),
+  });
+  if (!res.ok) throw new Error(`PDF ${type} generation failed`);
+  return res.arrayBuffer();
+}
 
 interface ExportInput {
   profile: CompanyProfile;
@@ -86,14 +94,14 @@ export async function exportDossier(input: ExportInput): Promise<void> {
   const adminFolder = zip.folder(`${rootFolder}/01_Documents_administratifs`);
 
   try {
-    const dc1 = await generateDC1({ profile, issuer: rfp.issuer, title: rfp.title });
+    const dc1 = await fetchPdfBytes('dc1', profile, rfp.issuer, rfp.title);
     adminFolder!.file('DC1_Lettre_candidature.pdf', dc1);
   } catch {
     // DC1 generation failed — skip
   }
 
   try {
-    const dc2 = await generateDC2({ profile, issuer: rfp.issuer, title: rfp.title });
+    const dc2 = await fetchPdfBytes('dc2', profile, rfp.issuer, rfp.title);
     adminFolder!.file('DC2_Declaration_candidat.pdf', dc2);
   } catch {
     // DC2 generation failed — skip

@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/require-auth';
 import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 
 export async function DELETE(req: NextRequest) {
-  const limited = rateLimit(req, STANDARD_LIMIT);
+  const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
   const auth = requireAuth(req);

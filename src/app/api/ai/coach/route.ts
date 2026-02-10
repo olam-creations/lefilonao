@@ -9,7 +9,7 @@ import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 import { coachSchema, parseBody } from '@/lib/validators';
 
 export async function POST(request: NextRequest) {
-  const limited = rateLimit(request, AI_LIMIT);
+  const limited = await rateLimit(request, AI_LIMIT);
   if (limited) return limited;
 
   const auth = requireAuth(request);

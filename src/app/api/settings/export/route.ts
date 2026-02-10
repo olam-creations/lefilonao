@@ -5,7 +5,7 @@ import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 
 /** GET: export all user data for RGPD Article 20 portability */
 export async function GET(req: NextRequest) {
-  const limited = rateLimit(req, STANDARD_LIMIT);
+  const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
   const auth = requireAuth(req);

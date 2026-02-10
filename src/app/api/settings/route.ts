@@ -15,10 +15,15 @@ const DEFAULTS = {
   created_at: null as string | null,
   notify_frequency: 'daily',
   notify_email: true,
+  stripe_customer_id: null as string | null,
+  stripe_subscription_id: null as string | null,
+  stripe_status: 'none',
+  current_period_end: null as string | null,
+  cancel_at_period_end: false,
 };
 
 export async function GET(req: NextRequest) {
-  const limited = rateLimit(req, STANDARD_LIMIT);
+  const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
   const auth = requireAuth(req);
@@ -47,7 +52,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const limited = rateLimit(req, STANDARD_LIMIT);
+  const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
   const auth = requireAuth(req);

@@ -21,7 +21,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const rl = rateLimit(req, STANDARD_LIMIT);
+  const rl = await rateLimit(req, STANDARD_LIMIT);
   if (rl) return rl;
 
   const auth = requireAuth(req);
@@ -62,7 +62,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const rl = rateLimit(req, STANDARD_LIMIT);
+  const rl = await rateLimit(req, STANDARD_LIMIT);
   if (rl) return rl;
 
   const auth = requireAuth(req);

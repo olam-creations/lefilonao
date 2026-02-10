@@ -4,8 +4,6 @@ import { useState, useCallback } from 'react';
 import { Package, FileDown, Archive, Loader2, Check, AlertTriangle } from 'lucide-react';
 import type { CompanyProfile, TechnicalPlanSection, RequiredDocumentDetailed } from '@/lib/dev';
 import type { WorkspaceState } from '@/lib/ao-utils';
-import { generateDC1 } from '@/lib/pdf-dc1';
-import { generateDC2 } from '@/lib/pdf-dc2';
 import { exportDossier } from '@/lib/dossier-export';
 import { triggerDownload } from '@/lib/file-storage';
 
@@ -18,6 +16,16 @@ interface DossierExportCardProps {
 }
 
 type ActionState = 'idle' | 'loading' | 'done';
+
+async function fetchPdf(type: 'dc1' | 'dc2', profile: CompanyProfile, rfp: { title: string; issuer: string }) {
+  const res = await fetch('/api/documents/generate-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, profile, issuer: rfp.issuer, title: rfp.title }),
+  });
+  if (!res.ok) throw new Error('PDF generation failed');
+  return await res.blob();
+}
 
 export default function DossierExportCard({
   profile,
@@ -40,8 +48,7 @@ export default function DossierExportCard({
   const handleDC1 = useCallback(async () => {
     setDc1State('loading');
     try {
-      const bytes = await generateDC1({ profile, issuer: rfp.issuer, title: rfp.title });
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+      const blob = await fetchPdf('dc1', profile, rfp);
       triggerDownload(blob, 'DC1_Lettre_candidature.pdf');
       setDc1State('done');
       setTimeout(() => setDc1State('idle'), 2000);
@@ -53,8 +60,7 @@ export default function DossierExportCard({
   const handleDC2 = useCallback(async () => {
     setDc2State('loading');
     try {
-      const bytes = await generateDC2({ profile, issuer: rfp.issuer, title: rfp.title });
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+      const blob = await fetchPdf('dc2', profile, rfp);
       triggerDownload(blob, 'DC2_Declaration_candidat.pdf');
       setDc2State('done');
       setTimeout(() => setDc2State('idle'), 2000);

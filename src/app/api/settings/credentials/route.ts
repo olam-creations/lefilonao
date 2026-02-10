@@ -25,7 +25,7 @@ function getMasterKey(): string {
 
 /** GET: list credentials for current user (never returns passwords) */
 export async function GET(req: NextRequest) {
-  const limited = rateLimit(req, STANDARD_LIMIT);
+  const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
   const auth = requireAuth(req);
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
 /** POST: create or update a credential (encrypts password) */
 export async function POST(req: NextRequest) {
-  const limited = rateLimit(req, STANDARD_LIMIT);
+  const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
   const auth = requireAuth(req);
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
 
 /** DELETE: remove a credential by platform */
 export async function DELETE(req: NextRequest) {
-  const limited = rateLimit(req, STANDARD_LIMIT);
+  const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
   const auth = requireAuth(req);

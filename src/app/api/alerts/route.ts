@@ -5,7 +5,7 @@ import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 import { alertCreateSchema, alertUpdateSchema, parseBody } from '@/lib/validators';
 
 export async function GET(req: NextRequest) {
-  const rl = rateLimit(req, STANDARD_LIMIT);
+  const rl = await rateLimit(req, STANDARD_LIMIT);
   if (rl) return rl;
 
   const auth = requireAuth(req);
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const rl = rateLimit(req, STANDARD_LIMIT);
+  const rl = await rateLimit(req, STANDARD_LIMIT);
   if (rl) return rl;
 
   const auth = requireAuth(req);
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const rl = rateLimit(req, STANDARD_LIMIT);
+  const rl = await rateLimit(req, STANDARD_LIMIT);
   if (rl) return rl;
 
   const auth = requireAuth(req);
@@ -96,7 +96,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const rl = rateLimit(req, STANDARD_LIMIT);
+  const rl = await rateLimit(req, STANDARD_LIMIT);
   if (rl) return rl;
 
   const auth = requireAuth(req);

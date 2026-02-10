@@ -6,7 +6,7 @@ const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.
 const SITE_PASSWORD = (process.env.SITE_PASSWORD || '').trim();
 
 export async function POST(request: NextRequest) {
-  const limited = rateLimit(request, AUTH_LIMIT);
+  const limited = await rateLimit(request, AUTH_LIMIT);
   if (limited) return limited;
 
   try {

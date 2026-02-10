@@ -17,7 +17,7 @@ function normalizeLieu(raw: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  const limited = rateLimit(req, STANDARD_LIMIT);
+  const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
   const auth = requireAuth(req);
