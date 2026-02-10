@@ -3,11 +3,6 @@ import { analyzePdfBuffer } from '@/lib/dce-analyzer';
 import { requireAuth } from '@/lib/require-auth';
 import { requireFeature } from '@/lib/require-plan';
 import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
-import { indexDCEDocument } from '@/lib/rag';
-import { extractHighFidelityText } from '@/lib/pdf-engine';
-
-// Vercel Pro: allow up to 60s for PDF extraction + AI analysis
-export const maxDuration = 60;
 
 export const maxDuration = 60;
 
@@ -24,7 +19,6 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const noticeId = formData.get('noticeId') as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -50,20 +44,6 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const detail = await analyzePdfBuffer(buffer, request.signal);
-
-    // Fire-and-forget: index DCE for RAG (non-blocking, failure-safe)
-    if (noticeId) {
-      extractHighFidelityText(buffer)
-        .then((parsed) =>
-          indexDCEDocument({
-            noticeId,
-            userEmail: auth.auth.email,
-            text: parsed.text,
-            summary: detail.aiSummary,
-          }),
-        )
-        .catch(() => {/* RAG indexing is non-critical */});
-    }
 
     return NextResponse.json({ success: true, data: detail });
   } catch (error) {

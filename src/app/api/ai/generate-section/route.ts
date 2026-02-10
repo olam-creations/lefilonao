@@ -7,10 +7,6 @@ import { requireFeature } from '@/lib/require-plan';
 import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 
 import { generateSectionSchema, parseBody, type GenerateSectionInput } from '@/lib/validators';
-import { getRelevantContext } from '@/lib/rag';
-
-// Vercel Pro: allow up to 60s for LLM streaming generation
-export const maxDuration = 60;
 
 export const maxDuration = 60;
 
@@ -35,24 +31,9 @@ export async function POST(request: NextRequest) {
     const raw = await request.json();
     const parsed = parseBody(generateSectionSchema, raw);
     if (!parsed.ok) return parsed.response;
-    const { sectionTitle, buyerExpectation, dceContext, companyProfile, options, noticeId } = parsed.data;
+    const { sectionTitle, buyerExpectation, dceContext, companyProfile, options } = parsed.data;
 
-    // Use RAG context if document is indexed, otherwise fallback to truncated full text
-    let safeDceContext: string;
-    let ragStrategy = 'fallback';
-    if (noticeId && dceContext) {
-      const ragResult = await getRelevantContext({
-        noticeId,
-        userEmail: auth.auth.email,
-        query: `${sectionTitle} ${buyerExpectation}`,
-        fullText: dceContext,
-        topK: 8,
-      });
-      safeDceContext = ragResult.context;
-      ragStrategy = ragResult.strategy;
-    } else {
-      safeDceContext = dceContext.slice(0, 15000);
-    }
+    const safeDceContext = dceContext.slice(0, 15000);
 
     const toneInstruction = options?.tone === 'formal'
       ? 'Ton tres formel et administratif (ex: "La societe X presente ci-apres les moyens qu\'elle entend mobiliser...").'
@@ -80,7 +61,7 @@ export async function POST(request: NextRequest) {
 
 Redige la section "${sectionTitle}" d'un memoire technique.
 
-**${ragStrategy === 'rag' ? 'Extraits pertinents du DCE' : 'Contexte du marche (DCE)'}** :
+**Contexte du marche (DCE)** :
 ${safeDceContext}
 
 **Attente de l'acheteur pour cette section** :
