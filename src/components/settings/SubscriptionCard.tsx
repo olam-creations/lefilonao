@@ -146,7 +146,7 @@ export default function SubscriptionCard({
 
         {/* Actions */}
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          {plan === 'pro' && cancelAtPeriodEnd && (
+          {plan === 'pro' && cancelAtPeriodEnd && stripeStatus === 'active' && (
             <button
               onClick={handleResume}
               disabled={resumeLoading}

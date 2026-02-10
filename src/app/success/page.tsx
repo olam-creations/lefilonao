@@ -63,6 +63,7 @@ function SuccessContent() {
 
   // Poll subscription status — webhook may take a few seconds
   useEffect(() => {
+    if (!sessionId) return; // Don't poll during redirect
     let polls = 0;
     let stopped = false;
 
@@ -84,7 +85,7 @@ function SuccessContent() {
 
     poll();
     return () => { stopped = true; };
-  }, [checkSubscription]);
+  }, [sessionId, checkSubscription]);
 
   // Auto-redirect countdown (only when confirmed)
   useEffect(() => {

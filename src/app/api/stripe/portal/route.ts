@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const { url } = await createPortalSession(data.stripe_customer_id, `${APP_URL}/dashboard/settings`);
     return NextResponse.json({ url });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur portail Stripe';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[stripe-portal]', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'Erreur portail Stripe. Réessayez.' }, { status: 500 });
   }
 }

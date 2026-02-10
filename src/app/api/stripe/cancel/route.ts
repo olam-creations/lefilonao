@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur lors de l\'annulation';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[stripe-cancel]', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'Erreur lors de l\'annulation. Réessayez.' }, { status: 500 });
   }
 }

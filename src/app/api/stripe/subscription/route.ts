@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   try {
     const { data, error } = await supabase
       .from('user_settings')
-      .select('plan, stripe_customer_id, stripe_subscription_id, stripe_status, current_period_end, cancel_at_period_end')
+      .select('plan, stripe_customer_id, stripe_status, current_period_end, cancel_at_period_end')
       .eq('user_email', email)
       .single();
 

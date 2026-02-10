@@ -31,18 +31,30 @@ export async function POST(req: NextRequest) {
         const userEmail = session.metadata?.userEmail;
         if (userEmail && session.subscription) {
           const subId = session.subscription as string;
-          const sub = await getSubscription(subId);
+
+          // Fetch period end — but don't fail the entire activation if this call errors
+          let periodEnd: string | null = null;
+          try {
+            const sub = await getSubscription(subId);
+            periodEnd = sub.currentPeriodEnd.toISOString();
+          } catch (err) {
+            console.error('[stripe-webhook] getSubscription failed for', subId, err instanceof Error ? err.message : err);
+          }
+
+          const updates: Record<string, unknown> = {
+            plan: 'pro',
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: subId,
+            stripe_status: 'active',
+            cancel_at_period_end: false,
+          };
+          if (periodEnd) {
+            updates.current_period_end = periodEnd;
+          }
 
           await supabase
             .from('user_settings')
-            .update({
-              plan: 'pro',
-              stripe_customer_id: session.customer as string,
-              stripe_subscription_id: subId,
-              stripe_status: 'active',
-              current_period_end: sub.currentPeriodEnd.toISOString(),
-              cancel_at_period_end: false,
-            })
+            .update(updates)
             .eq('user_email', userEmail);
         }
         break;

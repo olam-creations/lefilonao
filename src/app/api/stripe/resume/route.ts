@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur lors de la reprise';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[stripe-resume]', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'Erreur lors de la reprise. Réessayez.' }, { status: 500 });
   }
 }
