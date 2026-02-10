@@ -97,14 +97,15 @@ export default function middleware(request: NextRequest) {
     }
   }
 
-  // ─── Apply CSP nonce to response ───
+  // ─── Apply response headers ───
+  // CSP temporarily disabled — nonce not propagated to Next.js inline scripts.
+  // TODO: re-enable CSP once layout reads x-nonce via headers() and passes to Script components.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
 
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
-  response.headers.set('Content-Security-Policy', buildCsp(nonce));
 
   return response;
 }
