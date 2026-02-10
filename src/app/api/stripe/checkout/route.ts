@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ clientSecret });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur lors du paiement';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[stripe-checkout]', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'Erreur lors du paiement. Réessayez.' }, { status: 500 });
   }
 }

@@ -16,6 +16,9 @@ const PRICE_PRO = () => {
   return id;
 };
 
+/** Stripe Tax — flip to 'true' when exceeding micro-enterprise VAT threshold */
+const isTaxEnabled = () => process.env.STRIPE_TAX_ENABLED === 'true';
+
 interface CheckoutParams {
   email: string;
   returnUrl: string;
@@ -29,10 +32,11 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<{ c
   // Expire checkout session after 30 minutes (default is 24h)
   const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
 
+  const taxEnabled = isTaxEnabled();
+
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
     ui_mode: 'embedded',
-    payment_method_types: ['card'],
     line_items: [{ price: PRICE_PRO(), quantity: 1 }],
     metadata: { userEmail: params.email, plan: 'pro' },
     subscription_data: {
@@ -42,12 +46,29 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<{ c
     expires_at: expiresAt,
   };
 
+  // When Stripe Tax is disabled, restrict to card. When enabled, let Stripe
+  // determine valid payment methods based on customer location.
+  if (!taxEnabled) {
+    sessionParams.payment_method_types = ['card'];
+  }
+
+  // Stripe Tax: automatic VAT calculation + customer tax ID collection (intra-EU)
+  if (taxEnabled) {
+    sessionParams.automatic_tax = { enabled: true };
+    sessionParams.tax_id_collection = { enabled: true };
+  }
+
   // Reuse existing Stripe customer to avoid duplicates (re-subscription, etc.)
   if (params.customerId) {
     sessionParams.customer = params.customerId;
-    sessionParams.customer_update = { address: 'auto' };
+    sessionParams.customer_update = { address: 'auto', ...(taxEnabled && { name: 'auto' }) };
   } else {
     sessionParams.customer_email = params.email;
+  }
+
+  // Require billing address for tax calculation when no existing customer
+  if (taxEnabled && !params.customerId) {
+    sessionParams.billing_address_collection = 'required';
   }
 
   if (founderCoupon) {
@@ -90,6 +111,9 @@ export async function resumeSubscription(subscriptionId: string): Promise<void> 
   const stripe = getStripe();
   await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: false });
 }
+
+/** Whether Stripe Tax is active — for server-side checks */
+export const taxEnabled = isTaxEnabled;
 
 export async function getSubscription(subscriptionId: string): Promise<{
   status: string;

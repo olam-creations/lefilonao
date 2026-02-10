@@ -10,6 +10,10 @@ const PRICE = 50;
 const FOUNDER_PRICE = 25;
 const FOUNDER_AFTER_PRICE = 40;
 
+/** When true, prices are displayed as HT (hors taxes) with a note about VAT */
+const TAX_ENABLED = process.env.NEXT_PUBLIC_STRIPE_TAX_ENABLED === 'true';
+const PRICE_SUFFIX = TAX_ENABLED ? ' HT' : '';
+
 const FREE_FEATURES = [
   '5 appels d\'offres par mois',
   'Digest hebdomadaire par email',
@@ -165,6 +169,7 @@ export default function PricingPage() {
                 <span className="text-xl text-slate-400">/mois</span>
               </div>
               <p className="text-slate-900 font-semibold mt-3 text-lg">Gratuit</p>
+              {TAX_ENABLED && <p className="text-xs text-slate-400 mt-1">TVA non applicable</p>}
               <p className="text-slate-400 mt-1 text-sm">
                 Pour découvrir les marchés publics
               </p>
@@ -206,16 +211,17 @@ export default function PricingPage() {
                 </span>
                 <div className="flex items-baseline justify-center gap-1">
                   <span className="text-5xl font-bold gradient-text-price">{FOUNDER_PRICE}&euro;</span>
-                  <span className="text-xl text-slate-400">/mois</span>
+                  <span className="text-xl text-slate-400">/mois{PRICE_SUFFIX}</span>
                 </div>
                 <div className="flex items-center justify-center gap-2 mt-2">
-                  <span className="text-sm text-slate-400 line-through">{PRICE}&euro;/mois</span>
+                  <span className="text-sm text-slate-400 line-through">{PRICE}&euro;/mois{PRICE_SUFFIX}</span>
                   <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">-50%</span>
                 </div>
                 <p className="text-slate-900 font-semibold mt-3 text-lg">Pro Fondateur</p>
                 <p className="text-slate-400 mt-1 text-sm">
-                  {FOUNDER_PRICE}&euro;/mois pendant 6 mois, puis {FOUNDER_AFTER_PRICE}&euro;/mois &agrave; vie
+                  {FOUNDER_PRICE}&euro;/mois{PRICE_SUFFIX} pendant 6 mois, puis {FOUNDER_AFTER_PRICE}&euro;/mois{PRICE_SUFFIX} &agrave; vie
                 </p>
+                {TAX_ENABLED && <p className="text-xs text-slate-400 mt-1">+ TVA applicable selon votre pays</p>}
               </div>
 
               <ul className="space-y-3.5 mb-10">
@@ -323,7 +329,7 @@ export default function PricingPage() {
               href="/subscribe?plan=pro"
               className="inline-flex items-center gap-2 text-base py-3.5 px-8 bg-white text-slate-900 font-semibold rounded-xl hover:bg-slate-100 hover:shadow-lg hover:shadow-white/10 transition-all"
             >
-              Devenir Fondateur &mdash; {FOUNDER_PRICE}&euro;/mois
+              Devenir Fondateur &mdash; {FOUNDER_PRICE}&euro;/mois{PRICE_SUFFIX}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

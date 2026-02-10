@@ -71,12 +71,19 @@ function SubscribeForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const plan = searchParams.get('plan');
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Redirect already-pro users to dashboard
   useEffect(() => {
     checkAuth().then((auth) => {
-      if (auth?.plan === 'pro') router.replace('/dashboard');
-    }).catch(() => {});
+      if (auth?.plan === 'pro') {
+        router.replace('/dashboard');
+      } else {
+        setAuthChecked(true);
+      }
+    }).catch(() => {
+      setAuthChecked(true);
+    });
   }, [router]);
 
   const [step, setStep] = useState(1);
@@ -165,6 +172,14 @@ function SubscribeForm() {
 
   const steps = ['Compte', 'Préférences'];
   const progressPercent = ((step - 1) / (steps.length - 1)) * 100;
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-400">Chargement...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

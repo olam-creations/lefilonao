@@ -9,9 +9,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, ShieldCheck } from 'lucide-react';
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
-);
+const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = STRIPE_PK ? loadStripe(STRIPE_PK) : null;
 
 interface Props {
   clientSecret: string;
@@ -38,6 +37,18 @@ export default function StripeCheckoutModal({ clientSecret, onClose, priceLabel 
       document.body.style.overflow = '';
     };
   }, [onClose]);
+
+  if (!stripePromise) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl p-8 max-w-sm text-center">
+          <p className="text-red-600 font-semibold mb-2">Configuration manquante</p>
+          <p className="text-sm text-slate-500 mb-4">Le paiement est temporairement indisponible. Réessayez plus tard.</p>
+          <button onClick={onClose} className="btn-secondary text-sm py-2 px-5">Fermer</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AnimatePresence>

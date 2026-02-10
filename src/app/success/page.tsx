@@ -33,17 +33,22 @@ const MAX_POLLS = 10;
 const POLL_INTERVAL = 2000;
 
 function SuccessContent() {
-  useSearchParams();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('session_id');
   const router = useRouter();
   const [status, setStatus] = useState<PaymentStatus>('checking');
   const [countdown, setCountdown] = useState(5);
 
-  // Redirect to login if not authenticated (prevents random visitors seeing this page)
+  // Redirect if no session_id or not authenticated
   useEffect(() => {
+    if (!sessionId) {
+      router.replace('/dashboard');
+      return;
+    }
     checkAuth().then((auth) => {
       if (!auth.authenticated) router.replace('/login');
     }).catch(() => {});
-  }, [router]);
+  }, [router, sessionId]);
 
   const checkSubscription = useCallback(async (): Promise<boolean> => {
     try {

@@ -62,9 +62,15 @@ export async function POST(req: NextRequest) {
           ).toISOString(),
         };
 
-        // Sync plan based on subscription status (handles past_due → active recovery)
+        // Sync plan based on subscription status
         if (isActive) {
           updates.plan = 'pro';
+        }
+
+        // Revoke access for terminal statuses (unpaid after all retries, incomplete_expired)
+        const terminalStatuses = ['unpaid', 'incomplete_expired'];
+        if (terminalStatuses.includes(sub.status)) {
+          updates.plan = 'free';
         }
 
         if (email) {
@@ -97,9 +103,11 @@ export async function POST(req: NextRequest) {
       }
 
       case 'invoice.payment_failed': {
+        // Only mark past_due for renewal failures — not initial checkout failures
         const invoice = event.data.object as Stripe.Invoice;
         const customerId = invoice.customer as string;
-        if (customerId) {
+        const renewalReasons = ['subscription_cycle', 'subscription_update'];
+        if (customerId && renewalReasons.includes(invoice.billing_reason ?? '')) {
           await supabase
             .from('user_settings')
             .update({ stripe_status: 'past_due' })
@@ -124,7 +132,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (error) {
     // Log error but still return 200 to prevent Stripe retry storm
-    console.error('[stripe-webhook]', event.type, error instanceof Error ? error.message : error);
+    console.error('[stripe-webhook]', event.type, event.id, error instanceof Error ? error.message : error);
   }
 
   return NextResponse.json({ received: true });
