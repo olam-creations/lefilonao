@@ -156,6 +156,16 @@ export const MOCK_COMPANY_PROFILE: CompanyProfile = {
   regions: ['Île-de-France', 'Auvergne-Rhône-Alpes', 'Nouvelle-Aquitaine', 'Occitanie'],
 };
 
+export interface ExtractedEntities {
+  cpvCodes: string[];
+  siretNumbers: string[];
+  budgetAmounts: string[];
+  deadlines: string[];
+  buyerNames: string[];
+  lots: { number: string; title: string }[];
+  contacts: { name?: string; email?: string; phone?: string }[];
+}
+
 export interface AoDetail {
   scoreCriteria: ScoreCriteria[];
   selectionCriteria: SelectionCriteria[];
@@ -170,6 +180,8 @@ export interface AoDetail {
   vigilancePoints: VigilancePoint[];
   technicalPlanSections: TechnicalPlanSection[];
   requiredDocumentsDetailed: RequiredDocumentDetailed[];
+  extractedEntities?: ExtractedEntities;
+  extractedTables?: { headers: string[]; rows: string[][]; pageNumber: number }[];
 }
 
 export function isDevMode(): boolean {
