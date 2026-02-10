@@ -39,6 +39,25 @@ export default function middleware(request: NextRequest) {
   // Generate CSP nonce for this request
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
 
+  // ─── Layer 0: Clear invalid (pre-HMAC) cookies ───
+  // Valid session cookies have format: base64url.timestamp.hmac (3 dot-separated parts)
+  const rawCookie = request.cookies.get(COOKIE_NAME)?.value;
+  if (rawCookie && rawCookie.split('.').length !== 3) {
+    const isPage = !pathname.startsWith('/api/');
+    const url = request.nextUrl.clone();
+    url.pathname = isPage ? GATE_PATH : pathname;
+    if (isPage) {
+      url.searchParams.set('redirect', pathname);
+      const response = NextResponse.redirect(url);
+      response.cookies.delete(COOKIE_NAME);
+      return response;
+    }
+    // For API routes with invalid cookie, treat as unauthenticated
+    const response = NextResponse.json({ error: 'Session expirée' }, { status: 401 });
+    response.cookies.delete(COOKIE_NAME);
+    return response;
+  }
+
   // ─── Layer 1: Staging gate ───
   // When SITE_PASSWORD is configured, require lefilonao_access cookie
   // Public pages, legal pages, gate/auth API routes bypass the gate
