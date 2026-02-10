@@ -15,17 +15,17 @@ interface KpiStatCardProps {
 }
 
 const accentGradients: Record<string, string> = {
-  emerald: 'from-emerald-400 to-emerald-500',
-  indigo: 'from-indigo-400 to-violet-500',
-  red: 'from-red-400 to-red-500',
-  violet: 'from-violet-400 to-purple-500',
+  cypress: 'from-emerald-600 to-emerald-700',
+  cobalt: 'from-blue-700 to-blue-800',
+  ochre: 'from-amber-600 to-amber-700',
+  star: 'from-yellow-400 to-yellow-500',
 };
 
 const accentText: Record<string, string> = {
-  emerald: 'text-emerald-600',
-  indigo: 'text-indigo-600',
-  red: 'text-red-600',
-  violet: 'text-violet-600',
+  cypress: 'text-emerald-800',
+  cobalt: 'text-blue-800',
+  ochre: 'text-amber-800',
+  star: 'text-yellow-700',
 };
 
 function useCountUp(target: number | string, duration = 600): number | string {
@@ -63,10 +63,10 @@ function useCountUp(target: number | string, duration = 600): number | string {
   return current;
 }
 
-export default function KpiStatCard({ label, value, sub, icon, accent = 'indigo', children, className }: KpiStatCardProps) {
+export default function KpiStatCard({ label, value, sub, icon, accent = 'cobalt', children, className }: KpiStatCardProps) {
   const displayValue = useCountUp(value);
-  const gradient = accentGradients[accent] ?? accentGradients.indigo;
-  const textColor = accentText[accent] ?? accentText.indigo;
+  const gradient = accentGradients[accent] ?? accentGradients.cobalt;
+  const textColor = accentText[accent] ?? accentText.cobalt;
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -83,14 +83,14 @@ export default function KpiStatCard({ label, value, sub, icon, accent = 'indigo'
       ref={cardRef}
       onMouseMove={handleMouseMove}
       variants={fadeUp}
-      className={`bg-white rounded-2xl p-6 border border-slate-200 hover:border-slate-300 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group relative overflow-hidden spotlight-card flex flex-col justify-between ${className}`}
+      className={`bg-white rounded-2xl p-6 border border-slate-200 hover:border-yellow-200 hover:shadow-xl hover:shadow-yellow-500/5 transition-all group relative overflow-hidden spotlight-card bg-swirl-pattern flex flex-col justify-between ${className}`}
     >
       <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gradient} opacity-20 group-hover:opacity-100 transition-opacity`} />
       
       <div>
         <div className="flex items-start justify-between mb-4">
           <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{label}</span>
-          <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-indigo-500 group-hover:bg-indigo-50 transition-all duration-300">
+          <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-yellow-600 group-hover:bg-yellow-50 transition-all duration-300">
             {icon}
           </div>
         </div>

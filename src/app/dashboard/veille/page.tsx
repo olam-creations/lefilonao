@@ -7,7 +7,7 @@ import {
   ExternalLink, AlertTriangle, AlertCircle, ChevronDown, Search,
   Calendar, MapPin, Clock, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { isAuthenticated } from '@/lib/auth';
+import { isAuthenticated, getToken } from '@/lib/auth';
 import TopBar from '@/components/dashboard/TopBar';
 import { stagger, fadeUp } from '@/lib/motion-variants';
 import { REGIONS } from '@/components/market/types';
@@ -178,7 +178,9 @@ export default function VeillePage() {
           break;
       }
 
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
       if (!res.ok) throw new Error('Erreur serveur');
       const json = await res.json();
 

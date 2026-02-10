@@ -68,7 +68,8 @@ function StatItem({ label, value, suffix, icon, accent, format }: StatItemProps)
   );
 }
 
-export default function MarketStatCards({ insights }: { insights: MarketInsight }) {
+export default function MarketStatCards({ insights }: { insights: MarketInsight | null }) {
+  if (!insights) return null;
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
       <StatItem label="Marchés attribués" value={insights.totalContracts} suffix="contrats" icon={<BarChart3 className="w-5 h-5" />} accent="from-slate-400 to-slate-500" />

@@ -7,7 +7,7 @@ export default function Footer() {
   return (
     <footer
       className="py-16 px-6 border-t border-transparent"
-      style={{ borderImage: 'linear-gradient(to right, transparent, #c7d2fe, transparent) 1' }}
+      style={{ borderImage: 'linear-gradient(to right, transparent, #1e40af, #fde047, transparent) 1' }}
     >
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">

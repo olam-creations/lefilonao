@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Landmark, Trophy, TrendingUp, MapPin, FileText } from 'lucide-react';
 import type { BuyerProfile, WinnerProfile, RankedEntity, EntityTrend } from './types';
 import WatchButton from '@/components/dashboard/watchlist/WatchButton';
+import { getToken } from '@/lib/auth';
 import { formatAmount, formatDate } from './utils';
 
 interface EntitySheetProps {
@@ -32,7 +33,7 @@ export default function EntitySheet({ open, entityName, entityType, cpv, onClose
     const params = new URLSearchParams({ name: entityName });
     if (cpv) params.set('cpv', cpv);
 
-    fetch(`/api/market/${endpoint}?${params}`)
+    fetch(`/api/market/${endpoint}?${params}`, { headers: { 'Authorization': `Bearer ${getToken()}` } })
       .then((res) => {
         if (!res.ok) throw new Error('Erreur de chargement');
         return res.json();

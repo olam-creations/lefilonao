@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Landmark, Trophy, AlertCircle, BarChart3 } from 'lucide-react';
-import { isAuthenticated, markOnboardingStep } from '@/lib/auth';
+import { isAuthenticated, getToken, markOnboardingStep } from '@/lib/auth';
 import { getCompanyProfile } from '@/lib/profile-storage';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { stagger } from '@/lib/motion-variants';
@@ -105,7 +105,7 @@ export default function MarketPage() {
 
   useEffect(() => {
     const safeFetch = async (url: string): Promise<Response | null> => {
-      try { return await fetch(url); }
+      try { return await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } }); }
       catch { return null; }
     };
 

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Landmark, Trophy, FileText, Building } from 'lucide-react';
 import type { RegionDetail, RankedEntity } from './types';
+import { getToken } from '@/lib/auth';
 import { formatAmount, formatDate } from './utils';
 
 interface RegionSheetProps {
@@ -29,7 +30,7 @@ export default function RegionSheet({ open, regionName, cpv, onClose, onBuyerCli
     const params = new URLSearchParams({ region: regionName });
     if (cpv) params.set('cpv', cpv);
 
-    fetch(`/api/market/region-detail?${params}`)
+    fetch(`/api/market/region-detail?${params}`, { headers: { 'Authorization': `Bearer ${getToken()}` } })
       .then((res) => {
         if (!res.ok) throw new Error('Erreur de chargement');
         return res.json();
