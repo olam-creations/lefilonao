@@ -6,6 +6,7 @@ import { Landmark, Trophy, AlertCircle, BarChart3 } from 'lucide-react';
 import { markOnboardingStep } from '@/lib/auth';
 import { getCompanyProfile } from '@/lib/profile-storage';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { usePlan } from '@/hooks/usePlan';
 import { stagger } from '@/lib/motion-variants';
 import TopBar from '@/components/dashboard/TopBar';
 import {
@@ -34,6 +35,7 @@ import BuyerLoyalty, { BuyerLoyaltySkeleton } from '@/components/market/BuyerLoy
 import { MarketStatsSkeleton, RankingChartSkeleton, ChartSkeleton, AttributionsListSkeleton, PositioningSkeleton } from '@/components/market/MarketSkeletons';
 import { RenewalAlertsSkeleton } from '@/components/market/RenewalAlerts';
 import { RegionalHeatmapSkeleton } from '@/components/market/RegionalHeatmap';
+import IntelDashboard from '@/components/intel/IntelDashboard';
 
 interface MarketData {
   insights: MarketInsight | null;
@@ -78,7 +80,9 @@ export default function MarketPage() {
   const [entitySheet, setEntitySheet] = useState<EntitySheetState>({ open: false, name: '', type: 'buyer' });
   const [regionSheet, setRegionSheet] = useState<{ open: boolean; name: string }>({ open: false, name: '' });
   const [profile, setProfile] = useState<{ companyName: string; sectors: string[]; regions: string[]; caN1: string } | null>(null);
+  const [watchedBuyers, setWatchedBuyers] = useState<string[]>([]);
   const { settings } = useUserSettings();
+  const { isPro } = usePlan();
   const sectorInitialized = useRef(false);
 
   useEffect(() => {
@@ -87,6 +91,14 @@ export default function MarketPage() {
     if (p.sectors?.length > 0 || p.regions?.length > 0) {
       setProfile({ companyName: p.companyName, sectors: p.sectors ?? [], regions: p.regions ?? [], caN1: p.caN1 ?? '' });
     }
+    // Fetch watched buyers for intel heatmap
+    fetch('/api/watchlist')
+      .then((r) => (r.ok ? r.json() : { watchlist: [] }))
+      .then((d) => {
+        const names = (d.watchlist ?? []).map((w: { buyer_name: string }) => w.buyer_name);
+        setWatchedBuyers(names);
+      })
+      .catch(() => {});
   }, []);
 
   // Initialize sector from user settings (once)
@@ -327,6 +339,14 @@ export default function MarketPage() {
                 onWinnerClick={handleWinnerClick}
               />
             </div>
+
+            {/* Section 7: Competitive Intelligence */}
+            <IntelDashboard
+              cpv={selectedSector}
+              region={profile?.regions?.[0]}
+              watchedBuyers={watchedBuyers}
+              hasPro={isPro}
+            />
           </motion.div>
         )}
       </div>

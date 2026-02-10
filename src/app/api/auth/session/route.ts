@@ -18,6 +18,13 @@ export async function GET(request: NextRequest) {
     .eq('user_email', email)
     .single();
 
+  // Update last_visit_at (fire-and-forget for briefing delta tracking)
+  supabase
+    .from('user_settings')
+    .update({ last_visit_at: new Date().toISOString() })
+    .eq('user_email', email)
+    .then(() => {});
+
   return NextResponse.json({
     authenticated: true,
     email,

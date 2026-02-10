@@ -98,6 +98,16 @@ export interface EntityTrend {
   volume: number;
 }
 
+export interface FinancialData {
+  caDernier: number | null;
+  caN1: number | null;
+  caN2: number | null;
+  caN3: number | null;
+  margeNette: number | null;
+  endettement: number | null;
+  tresorerie: number | null;
+}
+
 export interface BuyerProfile {
   name: string;
   totalContracts: number;
@@ -107,6 +117,9 @@ export interface BuyerProfile {
   sectors: { code: string; name: string; count: number }[];
   recentContracts: { id: string; title: string; winnerName: string; amount: number; date: string }[];
   trend: EntityTrend[];
+  scoreFinancier?: number | null;
+  financials?: FinancialData;
+  proceduresCollectives?: { type: string; date_debut: string }[];
 }
 
 export interface WinnerProfile {
@@ -119,6 +132,9 @@ export interface WinnerProfile {
   regions: { name: string; count: number }[];
   recentWins: { id: string; title: string; buyerName: string; amount: number; date: string }[];
   trend: EntityTrend[];
+  scoreFinancier?: number | null;
+  financials?: FinancialData;
+  proceduresCollectives?: { type: string; date_debut: string }[];
 }
 
 export interface RenewalOpportunity {

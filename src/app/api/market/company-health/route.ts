@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         .limit(20),
       supabase
         .from('companies')
-        .select('health_status, health_updated_at')
+        .select('health_status, health_updated_at, score_financier, score_financier_detail, procedures_collectives, ca_dernier, ca_n1, ca_n2, ca_n3, marge_nette, endettement, tresorerie')
         .eq('siren', searchSiren)
         .limit(1),
     ]);
@@ -66,6 +66,18 @@ export async function GET(req: NextRequest) {
       alerts,
       healthStatus,
       healthUpdatedAt: company?.health_updated_at ?? null,
+      scoreFinancier: company?.score_financier ?? null,
+      scoreFinancierDetail: company?.score_financier_detail ?? null,
+      proceduresCollectives: company?.procedures_collectives ?? null,
+      financials: {
+        caDernier: company?.ca_dernier ?? null,
+        caN1: company?.ca_n1 ?? null,
+        caN2: company?.ca_n2 ?? null,
+        caN3: company?.ca_n3 ?? null,
+        margeNette: company?.marge_nette ?? null,
+        endettement: company?.endettement ?? null,
+        tresorerie: company?.tresorerie ?? null,
+      },
     });
   } catch {
     return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });

@@ -3,10 +3,11 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { CheckCircle, ArrowRight, ArrowLeft, Building2, Search, Loader2, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { clearAuthCache, checkAuth } from '@/lib/auth';
+import { mapNafToCpv } from '@/lib/naf-to-cpv';
 import StripeCheckoutModal from '@/components/StripeCheckoutModal';
 
 const ease = { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] };
@@ -67,13 +68,37 @@ const stepVariants = {
   }),
 };
 
+interface EnrichedCompany {
+  siret: string;
+  siren: string;
+  name: string;
+  naf_code: string;
+  naf_label: string;
+  effectif: string;
+  address: string;
+  postal_code: string;
+  city: string;
+  department: string;
+  region: string;
+  date_creation: string;
+  ca_dernier: number | null;
+  is_rge: boolean;
+  source: string;
+}
+
+function formatSiret(siret: string): string {
+  if (siret.length === 14) {
+    return `${siret.slice(0, 3)} ${siret.slice(3, 6)} ${siret.slice(6, 9)} ${siret.slice(9)}`;
+  }
+  return siret;
+}
+
 function SubscribeForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const plan = searchParams.get('plan');
   const [authChecked, setAuthChecked] = useState(false);
 
-  // Redirect already-pro users to dashboard
   useEffect(() => {
     checkAuth().then((auth) => {
       if (auth?.plan === 'pro') {
@@ -92,17 +117,84 @@ function SubscribeForm() {
   const [error, setError] = useState<string | null>(null);
   const [shakeError, setShakeError] = useState(false);
   const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
+
+  // SIRET enrichment state
+  const [siretInput, setSiretInput] = useState('');
+  const [enriching, setEnriching] = useState(false);
+  const [enrichedCompany, setEnrichedCompany] = useState<EnrichedCompany | null>(null);
+  const [enrichError, setEnrichError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     firstName: '',
     sectors: [] as string[],
     regions: [] as string[],
+    siret: '',
+    siren: '',
+    nafCode: '',
+    nafLabel: '',
+    companyName: '',
+    companyAddress: '',
+    companyCity: '',
+    companyPostalCode: '',
+    companyDepartment: '',
   });
 
   const goToStep = (newStep: number) => {
     setDirection(newStep > step ? 1 : -1);
     setStep(newStep);
+  };
+
+  const handleEnrichSiret = async () => {
+    const cleaned = siretInput.replace(/\s/g, '');
+    if (!/^\d{9,14}$/.test(cleaned)) {
+      setEnrichError('Entrez un SIRET (14 chiffres) ou SIREN (9 chiffres).');
+      return;
+    }
+
+    setEnriching(true);
+    setEnrichError(null);
+    setEnrichedCompany(null);
+
+    try {
+      const res = await api.enrichSiret(cleaned);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setEnrichError(data.error || 'Entreprise non trouvée.');
+        return;
+      }
+
+      setEnrichedCompany(data);
+    } catch {
+      setEnrichError('Erreur de connexion. Réessayez.');
+    } finally {
+      setEnriching(false);
+    }
+  };
+
+  const confirmCompany = () => {
+    if (!enrichedCompany) return;
+
+    const mapping = mapNafToCpv(enrichedCompany.naf_code, enrichedCompany.department);
+
+    setFormData((prev) => ({
+      ...prev,
+      companyName: enrichedCompany.name,
+      siret: enrichedCompany.siret,
+      siren: enrichedCompany.siren,
+      nafCode: enrichedCompany.naf_code,
+      nafLabel: enrichedCompany.naf_label,
+      companyAddress: enrichedCompany.address,
+      companyCity: enrichedCompany.city,
+      companyPostalCode: enrichedCompany.postal_code,
+      companyDepartment: enrichedCompany.department,
+      sectors: mapping.sectorLabel ? [mapping.sectorLabel] : prev.sectors,
+      regions: mapping.region ? [mapping.region] : prev.regions,
+    }));
+
+    goToStep(2);
   };
 
   const toggleSector = (sector: string) => {
@@ -144,7 +236,6 @@ function SubscribeForm() {
 
       clearAuthCache();
 
-      // Pro plan: open Stripe checkout
       if (plan === 'pro') {
         const checkoutRes = await api.checkout();
         const checkoutData = await checkoutRes.json();
@@ -160,7 +251,6 @@ function SubscribeForm() {
         return;
       }
 
-      // Free plan: redirect to dashboard
       window.location.href = '/dashboard';
     } catch {
       setError('Erreur de connexion. Réessayez.');
@@ -170,7 +260,7 @@ function SubscribeForm() {
     }
   };
 
-  const steps = ['Compte', 'Préférences'];
+  const steps = ['Entreprise', 'Compte', 'Préférences'];
   const progressPercent = ((step - 1) / (steps.length - 1)) * 100;
 
   if (!authChecked) {
@@ -226,7 +316,7 @@ function SubscribeForm() {
         {/* Form card */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 overflow-hidden">
           <AnimatePresence mode="wait" custom={direction}>
-            {/* Step 1: Email + password + firstName */}
+            {/* Step 1: SIRET Magic */}
             {step === 1 && (
               <motion.div
                 key="step1"
@@ -237,8 +327,136 @@ function SubscribeForm() {
                 exit="exit"
                 transition={ease}
               >
+                <h2 className="text-xl font-bold text-slate-900 mb-1">Votre entreprise</h2>
+                <p className="text-slate-500 text-sm mb-6">
+                  Entrez votre SIRET pour pré-remplir votre profil automatiquement.
+                </p>
+
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={siretInput}
+                    onChange={(e) => {
+                      setSiretInput(e.target.value);
+                      setEnrichError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleEnrichSiret();
+                    }}
+                    placeholder="SIRET (14 chiffres) ou SIREN (9 chiffres)"
+                    className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all"
+                    inputMode="numeric"
+                    maxLength={14}
+                  />
+                  <button
+                    onClick={handleEnrichSiret}
+                    disabled={enriching || !siretInput.replace(/\s/g, '')}
+                    className="btn-primary px-5 py-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {enriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                <AnimatePresence>
+                  {enrichError && (
+                    <motion.p
+                      className="text-red-600 text-sm mb-4"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      {enrichError}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+
+                {/* Company confirmation card */}
+                <AnimatePresence>
+                  {enrichedCompany && (
+                    <motion.div
+                      className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-5 mb-6"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 text-base leading-tight">
+                            {enrichedCompany.name}
+                          </p>
+                          <p className="text-slate-500 text-sm mt-0.5">
+                            SIRET {formatSiret(enrichedCompany.siret)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-sm text-slate-600 mb-4">
+                        {enrichedCompany.naf_label && (
+                          <p>{enrichedCompany.naf_label}</p>
+                        )}
+                        {(enrichedCompany.address || enrichedCompany.city) && (
+                          <p className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                            {[enrichedCompany.address, enrichedCompany.postal_code, enrichedCompany.city]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={confirmCompany}
+                        className="btn-primary w-full justify-center py-3"
+                      >
+                        C&apos;est mon entreprise
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setEnrichedCompany(null);
+                          setSiretInput('');
+                        }}
+                        className="w-full text-center text-sm text-slate-400 hover:text-slate-600 mt-2 transition-colors"
+                      >
+                        Ce n&apos;est pas la bonne
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {!enrichedCompany && (
+                  <button
+                    onClick={() => goToStep(2)}
+                    className="w-full text-center text-sm text-slate-400 hover:text-slate-600 mt-2 transition-colors"
+                  >
+                    Pas de SIRET ? Continuer sans →
+                  </button>
+                )}
+              </motion.div>
+            )}
+
+            {/* Step 2: Email + password + firstName */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                custom={direction}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={ease}
+              >
                 <h2 className="text-xl font-bold text-slate-900 mb-1">Créez votre compte</h2>
-                <p className="text-slate-500 text-sm mb-6">Pour accéder à votre espace de veille.</p>
+                <p className="text-slate-500 text-sm mb-6">
+                  {formData.companyName
+                    ? `Compte pour ${formData.companyName}`
+                    : 'Pour accéder à votre espace de veille.'}
+                </p>
                 <div className="space-y-4 mb-8">
                   <input
                     type="email"
@@ -263,25 +481,30 @@ function SubscribeForm() {
                     className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none transition-all"
                   />
                 </div>
-                <button
-                  onClick={() => goToStep(2)}
-                  disabled={
-                    !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(formData.email) ||
-                    formData.password.length < 8 ||
-                    !formData.firstName.trim()
-                  }
-                  className="btn-primary w-full justify-center py-3 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Continuer
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="flex gap-3">
+                  <button onClick={() => goToStep(1)} className="btn-secondary flex-1 justify-center">
+                    <ArrowLeft className="w-4 h-4" /> Retour
+                  </button>
+                  <button
+                    onClick={() => goToStep(3)}
+                    disabled={
+                      !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(formData.email) ||
+                      formData.password.length < 8 ||
+                      !formData.firstName.trim()
+                    }
+                    className="btn-primary flex-1 justify-center py-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Continuer
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </motion.div>
             )}
 
-            {/* Step 2: Sectors + Regions (optional) */}
-            {step === 2 && (
+            {/* Step 3: Sectors + Regions (optional, auto-populated from SIRET) */}
+            {step === 3 && (
               <motion.div
-                key="step2"
+                key="step3"
                 custom={direction}
                 variants={stepVariants}
                 initial="enter"
@@ -290,7 +513,11 @@ function SubscribeForm() {
                 transition={ease}
               >
                 <h2 className="text-xl font-bold text-slate-900 mb-1">Vos préférences</h2>
-                <p className="text-slate-500 text-sm mb-6">Secteurs et régions (optionnel, modifiable plus tard).</p>
+                <p className="text-slate-500 text-sm mb-6">
+                  {formData.sectors.length > 0 || formData.regions.length > 0
+                    ? 'Pré-rempli depuis votre SIRET. Ajustez si besoin.'
+                    : 'Secteurs et régions (optionnel, modifiable plus tard).'}
+                </p>
 
                 <div className="mb-6">
                   <p className="text-sm text-slate-700 font-medium mb-3">Secteurs d&apos;expertise</p>
@@ -352,7 +579,7 @@ function SubscribeForm() {
                 </AnimatePresence>
 
                 <div className="flex gap-3">
-                  <button onClick={() => goToStep(1)} className="btn-secondary flex-1 justify-center">
+                  <button onClick={() => goToStep(2)} className="btn-secondary flex-1 justify-center">
                     <ArrowLeft className="w-4 h-4" /> Retour
                   </button>
                   <button

@@ -92,7 +92,7 @@ export default function MemoireSection({
   const sectionSuggestions = suggestions?.filter((s) => s.sectionId === section.id) ?? [];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:border-slate-300 transition-colors">
+    <div data-section-id={section.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:border-slate-300 transition-colors">
       <button
         onClick={() => setIsOpen((o) => !o)}
         className="w-full flex items-center justify-between p-5 text-left"

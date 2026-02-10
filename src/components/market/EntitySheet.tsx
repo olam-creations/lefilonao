@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Landmark, Trophy, TrendingUp, MapPin, FileText } from 'lucide-react';
-import type { BuyerProfile, WinnerProfile, RankedEntity, EntityTrend } from './types';
+import { X, Landmark, Trophy, TrendingUp, MapPin, FileText, ShieldCheck } from 'lucide-react';
+import type { BuyerProfile, WinnerProfile, RankedEntity, EntityTrend, FinancialData } from './types';
 import WatchButton from '@/components/dashboard/watchlist/WatchButton';
-import { formatAmount, formatDate } from './utils';
+import FinancialHealthBadge from './FinancialHealthBadge';
+import { formatAmount, formatDate, formatCompactNumber } from './utils';
 
 interface EntitySheetProps {
   open: boolean;
@@ -172,14 +173,66 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
   );
 }
 
+function MiniCaTrend({ financials }: { financials: FinancialData }) {
+  const values = [financials.caN2, financials.caN1, financials.caDernier].filter((v): v is number => v != null);
+  if (values.length < 2) return null;
+
+  const max = Math.max(...values, 1);
+  const labels = ['N-2', 'N-1', 'N'];
+
+  return (
+    <div className="flex items-end gap-1.5 h-10">
+      {[financials.caN2, financials.caN1, financials.caDernier].map((v, i) => {
+        if (v == null) return null;
+        const pct = Math.max((v / max) * 100, 8);
+        return (
+          <div key={labels[i]} className="flex flex-col items-center gap-0.5">
+            <span className="text-[8px] text-slate-400">{formatCompactNumber(v)}</span>
+            <div className="w-5 bg-indigo-100 rounded-sm overflow-hidden" style={{ height: '28px' }}>
+              <div className="w-full bg-indigo-400 rounded-sm mt-auto" style={{ height: `${pct}%`, marginTop: `${100 - pct}%` }} />
+            </div>
+            <span className="text-[8px] text-slate-500">{labels[i]}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FinancialHealthSection({ score, financials, procedures }: {
+  score?: number | null;
+  financials?: FinancialData;
+  procedures?: { type: string; date_debut: string }[];
+}) {
+  if (score == null && !financials) return null;
+
+  const hasActiveProcedure = procedures?.some((p) => !(p as { date_fin?: string }).date_fin) ?? false;
+
+  return (
+    <div>
+      <SectionHeader icon={<ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />} title="Sante financiere" />
+      <div className="flex items-center gap-3">
+        <FinancialHealthBadge score={score} hasActiveProcedure={hasActiveProcedure} />
+        {financials && <MiniCaTrend financials={financials} />}
+      </div>
+    </div>
+  );
+}
+
 function BuyerContent({ data }: { data: BuyerProfile }) {
   return (
     <>
       <KpiRow items={[
-        { label: 'Marchés', value: String(data.totalContracts) },
+        { label: 'Marches', value: String(data.totalContracts) },
         { label: 'Volume', value: formatAmount(data.totalVolume) },
         { label: 'Moyen', value: formatAmount(data.avgAmount) },
       ]} />
+
+      <FinancialHealthSection
+        score={data.scoreFinancier}
+        financials={data.financials}
+        procedures={data.proceduresCollectives}
+      />
 
       {data.topWinners.length > 0 && (
         <div>
@@ -237,6 +290,12 @@ function WinnerContent({ data }: { data: WinnerProfile }) {
         { label: 'Volume', value: formatAmount(data.totalVolume) },
         { label: 'Budget moy.', value: formatAmount(data.avgBudget) },
       ]} />
+
+      <FinancialHealthSection
+        score={data.scoreFinancier}
+        financials={data.financials}
+        procedures={data.proceduresCollectives}
+      />
 
       {data.topBuyers.length > 0 && (
         <div>

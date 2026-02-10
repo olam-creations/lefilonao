@@ -2,16 +2,16 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Pencil, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import { Pencil, Sparkles, Loader2, AlertTriangle, Check } from 'lucide-react';
 import { fadeUp } from '@/lib/motion-variants';
 import MemoireSection from './MemoireSection';
 import type { TechnicalPlanSection, CompanyProfile, SelectionCriteria } from '@/lib/dev';
 import type { CoachSuggestion, CoachResponse } from '@/lib/dev';
 import AiCoachPanel from './AiCoachPanel';
 import { saveGeneratedSections, getGeneratedSections } from '@/lib/ao-storage';
-import { useAiPlan } from '@/hooks/useAiPlan';
-import { createBatchGeneratePlan } from '@/lib/ai-plan-templates';
-import type { StepType } from '@/lib/ai-plan';
+import { useBatchGeneration } from '@/hooks/useBatchGeneration';
+import OneClickGenerate from './memoire/OneClickGenerate';
+import BatchProgress from './memoire/BatchProgress';
 
 interface MemoireTechniqueBuilderProps {
   sections: TechnicalPlanSection[];
@@ -21,6 +21,7 @@ interface MemoireTechniqueBuilderProps {
   dceContext?: string;
   selectionCriteria?: SelectionCriteria[];
   aoId?: string;
+  prefilledCoachData?: CoachResponse | null;
 }
 
 function ProgressRing({ current, total }: { current: number; total: number }) {
@@ -59,97 +60,87 @@ function ProgressRing({ current, total }: { current: number; total: number }) {
 
 export default function MemoireTechniqueBuilder({
   sections, reviewed, onToggleReviewed,
-  profile, dceContext, selectionCriteria, aoId,
+  profile, dceContext, selectionCriteria, aoId, prefilledCoachData,
 }: MemoireTechniqueBuilderProps) {
   const reviewedCount = Object.values(reviewed).filter(Boolean).length;
-  const aiPlan = useAiPlan();
-  const [coachData, setCoachData] = useState<CoachResponse | null>(null);
+  const batch = useBatchGeneration();
+  const [coachData, setCoachData] = useState<CoachResponse | null>(prefilledCoachData ?? null);
   const [coachLoading, setCoachLoading] = useState(false);
   const [coachError, setCoachError] = useState<string | null>(null);
+  const [showPerSection, setShowPerSection] = useState(false);
+
+  // Draft overrides from batch generation
+  const [localDrafts, setLocalDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    return () => {
-      aiPlan.abort();
-    };
+    return () => { batch.abort(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When batch completes, save results to localStorage
+  useEffect(() => {
+    if (batch.status === 'done' && batch.result && batch.result.successCount > 0) {
+      const drafts: Record<string, string> = {};
+      for (const section of sections) {
+        const text = batch.getSectionText(section.id);
+        if (text) {
+          drafts[section.id] = text;
+          if (aoId) {
+            const existing = getGeneratedSections(aoId) ?? {};
+            saveGeneratedSections(aoId, {
+              ...existing,
+              [section.id]: { ...section, aiDraft: text },
+            });
+          }
+        }
+      }
+      setLocalDrafts(drafts);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batch.status, batch.result?.successCount]);
 
   const handleSectionUpdated = useCallback((sectionId: string, newDraft: string) => {
     if (!aoId) return;
     const existing = getGeneratedSections(aoId) ?? {};
     const section = sections.find((s) => s.id === sectionId);
     if (!section) return;
-    const updated = {
+    saveGeneratedSections(aoId, {
       ...existing,
       [sectionId]: { ...section, aiDraft: newDraft },
-    };
-    saveGeneratedSections(aoId, updated);
+    });
   }, [aoId, sections]);
 
-  const handleCancelGenerateAll = useCallback(() => {
-    aiPlan.abort();
-  }, [aiPlan]);
+  // Merge batch-generated drafts with original sections
+  const effectiveSections = useMemo(() =>
+    sections.map((s) => ({
+      ...s,
+      aiDraft: localDrafts[s.id] || s.aiDraft,
+    })),
+  [sections, localDrafts]);
 
-  const generateSectionHandler = useCallback(async (params: Record<string, unknown>, signal?: AbortSignal): Promise<string> => {
-    const response = await fetch('/api/ai/generate-section', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-      signal,
-    });
+  const handleGenerateAll = useCallback(() => {
+    if (!profile || batch.status === 'generating') return;
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No response body');
-
-    const decoder = new TextDecoder();
-    let fullText = '';
-    let buffer = '';
-
-    while (true) {
-      if (signal?.aborted) break;
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.text) fullText += parsed.text;
-          } catch { /* skip malformed chunk */ }
-        }
-      }
-    }
-
-    const sectionId = params.sectionId as string | undefined;
-    if (fullText && aoId && sectionId) {
-      handleSectionUpdated(sectionId, fullText);
-    }
-
-    return fullText;
-  }, [aoId, handleSectionUpdated]);
-
-  const planHandlers = useMemo(() => ({
-    generate_section: generateSectionHandler,
-    analyze_dce: async () => { throw new Error('Not supported in batch mode'); },
-    coach_review: async () => { throw new Error('Not supported in batch mode'); },
-  } satisfies Record<StepType, (params: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown>>), [generateSectionHandler]);
-
-  const handleGenerateAll = useCallback(async () => {
-    if (!profile || aiPlan.isRunning) return;
-    const plan = createBatchGeneratePlan({
-      sections,
-      profile,
+    batch.generate({
+      noticeId: aoId,
+      sections: sections.map((s) => ({
+        id: s.id,
+        title: s.title,
+        buyerExpectation: s.buyerExpectation,
+      })),
+      companyProfile: {
+        companyName: profile.companyName,
+        sectors: profile.sectors,
+        references: profile.references,
+        team: profile.team,
+        caN1: profile.caN1,
+        caN2: profile.caN2,
+        caN3: profile.caN3,
+      },
       dceContext: dceContext || '',
+      options: { tone: 'standard', length: 'medium' },
     });
-    await aiPlan.execute(plan, planHandlers);
-  }, [profile, aiPlan, sections, dceContext, planHandlers]);
+  }, [profile, batch, sections, dceContext, aoId]);
 
   const handleRefreshCoach = useCallback(async () => {
     if (!profile || coachLoading) return;
@@ -161,7 +152,7 @@ export default function MemoireTechniqueBuilder({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sections,
+          sections: effectiveSections,
           profile: {
             companyName: profile.companyName,
             sectors: profile.sectors,
@@ -186,7 +177,7 @@ export default function MemoireTechniqueBuilder({
       setCoachError(err instanceof Error ? err.message : 'Erreur de connexion');
     }
     setCoachLoading(false);
-  }, [profile, coachLoading, sections, dceContext, selectionCriteria]);
+  }, [profile, coachLoading, dceContext, selectionCriteria, effectiveSections]);
 
   const suggestionsBySection = useMemo(() => {
     if (!coachData) return {};
@@ -198,6 +189,18 @@ export default function MemoireTechniqueBuilder({
     }
     return map;
   }, [coachData]);
+
+  // Detect empty state (no section has a real draft)
+  const allEmpty = effectiveSections.every(
+    (s) => !s.aiDraft || s.aiDraft.includes('['),
+  );
+
+  // Compute total words from batch results
+  const batchTotalWords = useMemo(() => {
+    let total = 0;
+    batch.sections.forEach((s) => { total += s.wordCount; });
+    return total;
+  }, [batch.sections]);
 
   return (
     <motion.section
@@ -217,66 +220,113 @@ export default function MemoireTechniqueBuilder({
         />
       )}
 
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <Pencil className="w-5 h-5 text-indigo-500" />
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Memoire Technique</h2>
-            <p className="text-xs text-slate-400">Brouillon IA pour chaque section &mdash; personnalisez et copiez</p>
-            <p className="text-[10px] text-slate-300 mt-0.5">Contenu g&eacute;n&eacute;r&eacute; par IA &mdash; &agrave; v&eacute;rifier avant utilisation</p>
-          </div>
+      {/* One-click CTA when all sections are empty */}
+      {allEmpty && profile && batch.status === 'idle' && !showPerSection && (
+        <div className="mb-6">
+          <OneClickGenerate
+            sectionCount={sections.length}
+            onGenerate={handleGenerateAll}
+            onSkip={() => setShowPerSection(true)}
+            disabled={batch.status !== 'idle'}
+          />
         </div>
-        <div className="flex items-center gap-3">
-          {profile && (
-            <>
-              <button
-                onClick={handleGenerateAll}
-                disabled={aiPlan.isRunning}
-                className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {aiPlan.isRunning ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5" />
-                )}
-                {aiPlan.isRunning ? `${aiPlan.currentStepIndex + 1}/${sections.length}` : 'Generer tout'}
-              </button>
-              {aiPlan.isRunning && (
-                <button
-                  onClick={handleCancelGenerateAll}
-                  className="text-xs font-medium px-3 py-2 rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all"
-                >
-                  Arreter
-                </button>
+      )}
+
+      {/* Batch progress during generation */}
+      {batch.status === 'generating' && (
+        <div className="mb-6">
+          <BatchProgress
+            sections={sections.map((s) => ({ id: s.id, title: s.title }))}
+            sectionStates={batch.sections}
+            currentIndex={batch.currentIndex}
+            progress={batch.progress}
+            totalWords={batchTotalWords}
+            onCancel={batch.abort}
+          />
+        </div>
+      )}
+
+      {/* Batch completion summary */}
+      {batch.status === 'done' && batch.result && batch.result.successCount > 0 && (
+        <motion.div
+          className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center gap-2.5">
+            <Check className="w-5 h-5 text-emerald-500" />
+            <span className="text-sm font-medium text-emerald-800">
+              M&eacute;moire g&eacute;n&eacute;r&eacute; ! {batch.result.successCount}/{batch.result.totalSections} sections,
+              ~{batch.result.totalWords.toLocaleString('fr-FR')} mots
+            </span>
+          </div>
+          <button
+            onClick={batch.reset}
+            className="text-xs text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
+          >
+            Fermer
+          </button>
+        </motion.div>
+      )}
+
+      {/* Header + sections list (shown unless in one-click empty state) */}
+      {(showPerSection || !allEmpty || batch.status !== 'idle') && (
+        <>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <Pencil className="w-5 h-5 text-indigo-500" />
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Memoire Technique</h2>
+                <p className="text-xs text-slate-400">Brouillon IA pour chaque section &mdash; personnalisez et copiez</p>
+                <p className="text-[10px] text-slate-300 mt-0.5">Contenu g&eacute;n&eacute;r&eacute; par IA &mdash; &agrave; v&eacute;rifier avant utilisation</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {profile && batch.status !== 'generating' && (
+                <>
+                  <button
+                    onClick={handleGenerateAll}
+                    className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {!allEmpty ? 'Regenerer tout' : 'Generer tout'}
+                  </button>
+                  {batch.error && (
+                    <span className="flex items-center gap-1 text-xs text-amber-600">
+                      <AlertTriangle className="w-3 h-3" />
+                      Erreur
+                    </span>
+                  )}
+                </>
               )}
-              {aiPlan.error && !aiPlan.isRunning && (
-                <span className="flex items-center gap-1 text-xs text-amber-600">
-                  <AlertTriangle className="w-3 h-3" />
-                  {aiPlan.plan?.steps.filter((s) => s.status === 'failed').length} section(s) echouee(s)
+              {batch.status === 'generating' && (
+                <span className="flex items-center gap-2 text-xs font-medium text-indigo-600">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  {batch.currentIndex + 1}/{sections.length}
                 </span>
               )}
-            </>
-          )}
-          <ProgressRing current={reviewedCount} total={sections.length} />
-        </div>
-      </div>
+              <ProgressRing current={reviewedCount} total={sections.length} />
+            </div>
+          </div>
 
-      <div className="space-y-3">
-        {sections.map((section, i) => (
-          <MemoireSection
-            key={section.id}
-            section={section}
-            index={i}
-            isReviewed={!!reviewed[section.id]}
-            onToggleReviewed={() => onToggleReviewed(section.id)}
-            profile={profile}
-            dceContext={dceContext}
-            selectionCriteria={selectionCriteria}
-            suggestions={suggestionsBySection[section.id]}
-            onSectionUpdated={handleSectionUpdated}
-          />
-        ))}
-      </div>
+          <div className="space-y-3">
+            {effectiveSections.map((section, i) => (
+              <MemoireSection
+                key={`${section.id}-${localDrafts[section.id] ? 'batch' : 'prop'}`}
+                section={section}
+                index={i}
+                isReviewed={!!reviewed[section.id]}
+                onToggleReviewed={() => onToggleReviewed(section.id)}
+                profile={profile}
+                dceContext={dceContext}
+                selectionCriteria={selectionCriteria}
+                suggestions={suggestionsBySection[section.id]}
+                onSectionUpdated={handleSectionUpdated}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </motion.section>
   );
 }

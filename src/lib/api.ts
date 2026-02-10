@@ -7,6 +7,13 @@ export const api = {
       credentials: 'include',
     }),
 
+  enrichSiret: (siret: string) =>
+    fetch('/api/onboarding/enrich-siret', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siret }),
+    }),
+
   login: (email: string, password: string) =>
     fetch('/api/auth/login', {
       method: 'POST',

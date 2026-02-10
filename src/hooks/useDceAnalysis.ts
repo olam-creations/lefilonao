@@ -64,7 +64,13 @@ export function useDceAnalysis() {
 
       if (intervalRef.current) clearInterval(intervalRef.current);
 
-      const json = await response.json();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let json: any;
+      try {
+        json = await response.json();
+      } catch {
+        throw new Error(response.ok ? 'Reponse invalide du serveur' : `Erreur serveur (${response.status})`);
+      }
 
       if (!response.ok || !json.success) {
         throw new Error(json.error || 'Erreur lors de l\'analyse');
@@ -117,7 +123,13 @@ export function useDceAnalysis() {
 
       if (intervalRef.current) clearInterval(intervalRef.current);
 
-      const json = await response.json();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let json: any;
+      try {
+        json = await response.json();
+      } catch {
+        throw new Error(response.ok ? 'Reponse invalide du serveur' : `Erreur serveur (${response.status})`);
+      }
 
       if (!response.ok || !json.success) {
         if (json.fallback_url) {

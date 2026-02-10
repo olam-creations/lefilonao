@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileText, Sparkles, CheckCircle2, AlertCircle, X, ExternalLink } from 'lucide-react';
+import ProBadge from '@/components/shared/ProBadge';
 
 interface DceDropZoneProps {
   state: 'idle' | 'uploading' | 'analyzing' | 'done' | 'error';
@@ -13,9 +14,12 @@ interface DceDropZoneProps {
   onReset: () => void;
   onOpenFilePicker?: () => void;
   onInvalidFile?: (message: string) => void;
+  analysisMode?: 'quick' | 'complete';
+  onAnalysisModeChange?: (mode: 'quick' | 'complete') => void;
+  hideProgressStates?: boolean;
 }
 
-export default function DceDropZone({ state, progress, error, fallbackUrl, onDrop, onReset, onOpenFilePicker, onInvalidFile }: DceDropZoneProps) {
+export default function DceDropZone({ state, progress, error, fallbackUrl, onDrop, onReset, onOpenFilePicker, onInvalidFile, analysisMode, onAnalysisModeChange, hideProgressStates }: DceDropZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,7 +100,9 @@ export default function DceDropZone({ state, progress, error, fallbackUrl, onDro
     }
   }, [onOpenFilePicker]);
 
-  const isVisible = isDragOver || state === 'uploading' || state === 'analyzing' || state === 'done' || state === 'error';
+  const isVisible = hideProgressStates
+    ? isDragOver
+    : (isDragOver || state === 'uploading' || state === 'analyzing' || state === 'done' || state === 'error');
 
   return (
     <>
@@ -152,6 +158,30 @@ export default function DceDropZone({ state, progress, error, fallbackUrl, onDro
                     </motion.div>
                     <h3 className="text-xl font-bold text-white">Deposez votre DCE ici</h3>
                     <p className="text-sm text-white/60">Format PDF uniquement (max 20 Mo)</p>
+                    {onAnalysisModeChange && (
+                      <div className="flex items-center justify-center gap-1 p-1 bg-white/10 rounded-xl">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onAnalysisModeChange('quick'); }}
+                          className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                            analysisMode === 'quick'
+                              ? 'bg-white/20 text-white'
+                              : 'text-white/50 hover:text-white/70'
+                          }`}
+                        >
+                          Rapide
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onAnalysisModeChange('complete'); }}
+                          className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                            analysisMode === 'complete'
+                              ? 'bg-white/20 text-white'
+                              : 'text-white/50 hover:text-white/70'
+                          }`}
+                        >
+                          Complet <ProBadge />
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 

@@ -3,7 +3,7 @@
 import DocumentSplitView from './DocumentSplitView';
 import MemoireTechniqueBuilder from './MemoireTechniqueBuilder';
 import DossierExportCard from './DossierExportCard';
-import type { RequiredDocumentDetailed, TechnicalPlanSection, ProfileDocument, CompanyProfile, AoUploadedFile, SelectionCriteria } from '@/lib/dev';
+import type { RequiredDocumentDetailed, TechnicalPlanSection, ProfileDocument, CompanyProfile, AoUploadedFile, SelectionCriteria, CoachResponse } from '@/lib/dev';
 import type { WorkspaceState } from '@/lib/ao-utils';
 
 interface TabReponseProps {
@@ -23,6 +23,7 @@ interface TabReponseProps {
   dceContext?: string;
   selectionCriteria?: SelectionCriteria[];
   aoId?: string;
+  prefilledCoachData?: CoachResponse | null;
 }
 
 export default function TabReponse({
@@ -31,6 +32,7 @@ export default function TabReponse({
   profile, rfp, workspace,
   onAoFileUpload, aoFiles, onAoFileDelete,
   dceContext, selectionCriteria, aoId,
+  prefilledCoachData,
 }: TabReponseProps) {
   return (
     <div className="space-y-8">
@@ -58,6 +60,7 @@ export default function TabReponse({
         dceContext={dceContext}
         selectionCriteria={selectionCriteria}
         aoId={aoId}
+        prefilledCoachData={prefilledCoachData}
       />
     </div>
   );

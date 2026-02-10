@@ -15,6 +15,7 @@ import type { CompanyProfile } from '@/lib/dev';
 import FreeBanner from '@/components/FreeBanner';
 import PastDueBanner from '@/components/PastDueBanner';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
+import MorningBriefing from '@/components/briefing/MorningBriefing';
 import TopBar from '@/components/dashboard/TopBar';
 import KpiStatsSection from '@/components/dashboard/KpiStatsSection';
 import DeadlineTimeline from '@/components/dashboard/DeadlineTimeline';
@@ -163,6 +164,10 @@ export default function DashboardPage() {
 
       <PastDueBanner />
       <FreeBanner tier={plan} />
+
+      <div className="mt-6">
+        <MorningBriefing />
+      </div>
 
       <div className="mt-8">
         <OnboardingChecklist key={onboardingKey} />

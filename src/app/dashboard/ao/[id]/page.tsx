@@ -5,10 +5,11 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ExternalLink, Search, FileUp } from 'lucide-react';
 import { useUser } from '@/components/UserProvider';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import TopBar from '@/components/dashboard/TopBar';
-import { isDevMode, MOCK_RFPS, MOCK_AO_DETAILS, type AoDetail, type CompanyProfile, type AoUploadedFile } from '@/lib/dev';
+import { isDevMode, MOCK_RFPS, MOCK_AO_DETAILS, type AoDetail, type CompanyProfile, type AoUploadedFile, type CoachResponse } from '@/lib/dev';
 import { daysUntil, computeProgress } from '@/lib/ao-utils';
-import { getWorkspaceState, saveWorkspaceState, getDceAnalysis, saveDceAnalysis } from '@/lib/ao-storage';
+import { getWorkspaceState, saveWorkspaceState, getDceAnalysis, saveDceAnalysis, saveGeneratedSections } from '@/lib/ao-storage';
 import type { WorkspaceState } from '@/lib/ao-utils';
 import { getCompanyProfile } from '@/lib/profile-storage';
 import { uploadFile } from '@/lib/file-storage';
@@ -19,8 +20,16 @@ import TabEssentiel from '@/components/ao/TabEssentiel';
 import TabAnalyse from '@/components/ao/TabAnalyse';
 import TabReponse from '@/components/ao/TabReponse';
 import TabMarche from '@/components/ao/TabMarche';
+import WorkspaceLayout from '@/components/ao/workspace/WorkspaceLayout';
+import WorkspaceLeftPane from '@/components/ao/workspace/WorkspaceLeftPane';
+import WorkspaceRightPane from '@/components/ao/workspace/WorkspaceRightPane';
+import WorkspaceCoachBar from '@/components/ao/workspace/WorkspaceCoachBar';
+import ProBadge from '@/components/shared/ProBadge';
 import DceDropZone from '@/components/ao/DceDropZone';
+import MultiAgentProgress from '@/components/ao/MultiAgentProgress';
 import { useDceAnalysis } from '@/hooks/useDceAnalysis';
+import { useMultiAgentAnalysis } from '@/hooks/useMultiAgentAnalysis';
+import { mapMultiAgentToAoDetail, mapReviewToCoachData } from '@/lib/multi-agent-adapter';
 
 export default function AoDetailPage() {
   const { email } = useUser();
@@ -33,8 +42,14 @@ export default function AoDetailPage() {
   const [activeTab, setActiveTab] = useState<AoTab>('essentiel');
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [dceAnalyzed, setDceAnalyzed] = useState(false);
+  const [activeCriterion, setActiveCriterion] = useState<string | null>(null);
+  const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
 
+  const { settings } = useUserSettings();
   const dce = useDceAnalysis();
+  const multiAgent = useMultiAgentAnalysis();
+  const [analysisMode, setAnalysisMode] = useState<'quick' | 'complete'>('quick');
+  const [prefilledCoachData, setPrefilledCoachData] = useState<CoachResponse | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -104,6 +119,59 @@ export default function AoDetailPage() {
     }
   }, [dce.state, dce.result, id, email]);
 
+  // Multi-agent pipeline completion
+  useEffect(() => {
+    if (multiAgent.pipeline !== 'done') return;
+    if (!multiAgent.analysis) return;
+
+    const mapped = mapMultiAgentToAoDetail({
+      parsed: multiAgent.parsedDce,
+      intel: multiAgent.intelligence,
+      analysis: multiAgent.analysis,
+      sections: multiAgent.sections,
+      review: multiAgent.review,
+    });
+
+    setDetail(mapped);
+    setDceAnalyzed(true);
+    saveDceAnalysis(id, mapped);
+
+    // Pre-fill coach data from reviewer agent
+    if (multiAgent.review) {
+      setPrefilledCoachData(mapReviewToCoachData(multiAgent.review));
+    }
+
+    // Save generated sections for MemoireTechniqueBuilder
+    if (multiAgent.sections.size > 0) {
+      const sectionsRecord: Record<string, { id: string; title: string; aiDraft: string; buyerExpectation: string; wordCount: number }> = {};
+      multiAgent.sections.forEach((s) => {
+        sectionsRecord[s.sectionId] = {
+          id: s.sectionId,
+          title: s.title,
+          aiDraft: s.content,
+          buyerExpectation: '',
+          wordCount: s.wordCount,
+        };
+      });
+      saveGeneratedSections(id, sectionsRecord);
+    }
+
+    // Sync score to user_rfps
+    if (email && mapped.scoreCriteria.length > 0) {
+      const avgScore = Math.round(
+        mapped.scoreCriteria.reduce((a, c) => a + c.score, 0) / mapped.scoreCriteria.length
+      );
+      const normalized = Math.round((avgScore / 20) * 100);
+      const scoreLabel = normalized >= 70 ? 'GO' : normalized >= 50 ? 'MAYBE' : 'PASS';
+
+      fetch('/api/rfps', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_email: email, notice_id: id, score: normalized, score_label: scoreLabel, status: 'analyzing' }),
+      }).catch(() => {});
+    }
+  }, [multiAgent.pipeline, multiAgent.analysis, multiAgent.parsedDce, multiAgent.intelligence, multiAgent.sections, multiAgent.review, id, email]);
+
   const updateWorkspace = useCallback((updater: (prev: WorkspaceState) => WorkspaceState) => {
     setWorkspace((prev) => {
       const next = updater(prev);
@@ -125,6 +193,25 @@ export default function AoDetailPage() {
       sectionsReviewed: { ...prev.sectionsReviewed, [sectionId]: !prev.sectionsReviewed[sectionId] },
     }));
   }, [updateWorkspace]);
+
+  // Workspace: criterion → section linking
+  const handleCriterionClick = useCallback((criterionName: string) => {
+    setActiveCriterion(criterionName);
+    // Find matching section by fuzzy keyword match
+    if (!detail) return;
+    const lower = criterionName.toLowerCase();
+    const match = detail.technicalPlanSections.find((s) =>
+      s.title.toLowerCase().includes(lower) || lower.includes(s.title.toLowerCase().split(' ')[0])
+    );
+    if (match) {
+      setHighlightedSectionId(match.id);
+      // Scroll to section in right pane
+      const el = document.querySelector(`[data-section-id="${match.id}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Clear highlight after animation
+      setTimeout(() => setHighlightedSectionId(null), 2500);
+    }
+  }, [detail]);
 
   const handleAoFileUpload = useCallback(async (documentName: string, file: File) => {
     const result = await uploadFile(file, 'ao-specific');
@@ -154,15 +241,35 @@ export default function AoDetailPage() {
     fileInputRef.current?.click();
   }, []);
 
+  const handleFileDrop = useCallback((file: File) => {
+    if (analysisMode === 'complete' && profile) {
+      multiAgent.execute({
+        file,
+        profile: {
+          companyName: profile.companyName,
+          siret: profile.siret,
+          sectors: profile.sectors,
+          caN1: profile.caN1,
+          caN2: profile.caN2,
+          caN3: profile.caN3,
+          references: profile.references,
+          team: profile.team,
+        },
+      });
+    } else {
+      dce.analyzeDce(file);
+    }
+  }, [analysisMode, profile, multiAgent, dce]);
+
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === 'application/pdf') {
-      dce.analyzeDce(file);
+      handleFileDrop(file);
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [dce.analyzeDce]);
+  }, [handleFileDrop]);
 
   if (loading) {
     return (
@@ -209,9 +316,25 @@ export default function AoDetailPage() {
           progress={dce.progress}
           error={dce.error}
           fallbackUrl={dce.fallbackUrl}
-          onDrop={dce.analyzeDce}
+          onDrop={handleFileDrop}
           onReset={dce.reset}
           onOpenFilePicker={handleOpenFilePicker}
+          analysisMode={analysisMode}
+          onAnalysisModeChange={setAnalysisMode}
+          hideProgressStates={analysisMode === 'complete' && multiAgent.pipeline !== 'idle'}
+        />
+
+        <MultiAgentProgress
+          agents={multiAgent.agents}
+          progress={multiAgent.progress}
+          sectionStreams={multiAgent.sectionStreams}
+          sections={multiAgent.sections}
+          review={multiAgent.review}
+          totalMs={multiAgent.totalMs}
+          error={multiAgent.error}
+          pipeline={multiAgent.pipeline}
+          onAbort={multiAgent.abort}
+          onDismiss={multiAgent.reset}
         />
 
         <div className="max-w-7xl mx-auto py-10 space-y-6">
@@ -233,9 +356,31 @@ export default function AoDetailPage() {
               <Search className="w-7 h-7 text-indigo-400" />
             </div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Analysez le DCE pour débloquer l&apos;analyse IA</h3>
-            <p className="text-slate-500 text-sm mb-6 max-w-md mx-auto">
+            <p className="text-slate-500 text-sm mb-4 max-w-md mx-auto">
               Déposez le document de consultation (PDF) pour obtenir le scoring, les critères de sélection et le plan technique.
             </p>
+            <div className="flex items-center justify-center gap-1 p-1 bg-slate-100 rounded-xl mb-6 w-fit mx-auto">
+              <button
+                onClick={() => setAnalysisMode('quick')}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  analysisMode === 'quick'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Rapide
+              </button>
+              <button
+                onClick={() => setAnalysisMode('complete')}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                  analysisMode === 'complete'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Complet <ProBadge />
+              </button>
+            </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 onClick={() => dce.analyzeFromUrl(id)}
@@ -292,9 +437,26 @@ export default function AoDetailPage() {
         progress={dce.progress}
         error={dce.error}
         fallbackUrl={dce.fallbackUrl}
-        onDrop={dce.analyzeDce}
+        onDrop={handleFileDrop}
         onReset={dce.reset}
         onOpenFilePicker={handleOpenFilePicker}
+        analysisMode={analysisMode}
+        onAnalysisModeChange={setAnalysisMode}
+        hideProgressStates={analysisMode === 'complete' && multiAgent.pipeline !== 'idle'}
+      />
+
+      {/* Multi-Agent Progress Overlay */}
+      <MultiAgentProgress
+        agents={multiAgent.agents}
+        progress={multiAgent.progress}
+        sectionStreams={multiAgent.sectionStreams}
+        sections={multiAgent.sections}
+        review={multiAgent.review}
+        totalMs={multiAgent.totalMs}
+        error={multiAgent.error}
+        pipeline={multiAgent.pipeline}
+        onAbort={multiAgent.abort}
+        onDismiss={multiAgent.reset}
       />
 
       <div className="max-w-7xl mx-auto py-10">
@@ -325,6 +487,9 @@ export default function AoDetailPage() {
                 selectionCriteria={detail.selectionCriteria}
                 vigilancePoints={detail.vigilancePoints}
                 complianceChecklist={detail.complianceChecklist}
+                cpv={settings?.default_cpv?.[0]}
+                region={rfp.region ?? undefined}
+                budget={rfp.budget ? parseInt(rfp.budget.replace(/[^0-9]/g, ''), 10) || undefined : undefined}
               />
             )}
 
@@ -354,6 +519,7 @@ export default function AoDetailPage() {
                 dceContext={detail.aiSummary}
                 selectionCriteria={detail.selectionCriteria}
                 aoId={id}
+                prefilledCoachData={prefilledCoachData}
               />
             )}
 
@@ -363,6 +529,42 @@ export default function AoDetailPage() {
                 competitors={detail.competitors}
                 publishedAt={rfp.publishedAt}
                 deadline={rfp.deadline}
+              />
+            )}
+
+            {activeTab === 'workspace' && (
+              <WorkspaceLayout
+                leftPane={
+                  <WorkspaceLeftPane
+                    aiSummary={detail.aiSummary}
+                    selectionCriteria={detail.selectionCriteria}
+                    vigilancePoints={detail.vigilancePoints}
+                    complianceChecklist={detail.complianceChecklist}
+                    scoreCriteria={detail.scoreCriteria}
+                    recommendation={detail.recommendation}
+                    executiveSummary={detail.executiveSummary}
+                    onCriterionClick={handleCriterionClick}
+                    activeCriterion={activeCriterion}
+                  />
+                }
+                rightPane={
+                  <WorkspaceRightPane
+                    sections={detail.technicalPlanSections}
+                    reviewed={workspace.sectionsReviewed}
+                    onToggleReviewed={handleToggleSection}
+                    profile={profile}
+                    dceContext={detail.aiSummary}
+                    selectionCriteria={detail.selectionCriteria}
+                    aoId={id}
+                    prefilledCoachData={prefilledCoachData}
+                    highlightedSectionId={highlightedSectionId}
+                  />
+                }
+                coachBar={
+                  prefilledCoachData?.suggestions ? (
+                    <WorkspaceCoachBar suggestions={prefilledCoachData.suggestions} />
+                  ) : undefined
+                }
               />
             )}
 
