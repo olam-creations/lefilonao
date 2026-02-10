@@ -5,9 +5,11 @@ import { requireAuth } from '@/lib/require-auth';
 import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 import { fetchPdfViaBrightData, discoverDceDocuments } from '@/lib/brightdata';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const FETCH_TIMEOUT = 15_000;
+// Safety margin: return a proper JSON error before Vercel kills the function
+const HARD_DEADLINE_MS = 280_000;
 const MAX_RESPONSE_SIZE = 25 * 1024 * 1024;
 const MAX_REDIRECTS = 5;
 const BOAMP_API_BASE = 'https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records';
@@ -278,6 +280,32 @@ function failResponse(
   );
 }
 
+// ─── Analyze with deadline guard ───
+
+class DeadlineExceeded extends Error {
+  constructor() { super('Deadline exceeded'); this.name = 'DeadlineExceeded'; }
+}
+
+async function analyzeWithDeadline(
+  buffer: Buffer,
+  deadline: number,
+  logs: StepLog[],
+  stepName: string,
+  url?: string,
+): Promise<{ ok: true; detail: unknown } | { ok: false; analysisError: true }> {
+  if (Date.now() > deadline) {
+    logStep(logs, stepName, 'fail', 'Deadline depassee avant analyse', { url });
+    throw new DeadlineExceeded();
+  }
+  try {
+    const detail = await analyzePdfBuffer(buffer);
+    return { ok: true, detail };
+  } catch (err) {
+    logStep(logs, stepName, 'fail', err instanceof Error ? err.message : 'Analyse echouee', { url });
+    return { ok: false, analysisError: true };
+  }
+}
+
 // ─── Main handler ───
 
 export async function POST(request: NextRequest) {
@@ -289,6 +317,11 @@ export async function POST(request: NextRequest) {
 
   const logs: StepLog[] = [];
   const t0 = Date.now();
+  const deadline = t0 + HARD_DEADLINE_MS;
+
+  function isNearDeadline(): boolean {
+    return Date.now() > deadline;
+  }
 
   try {
     const body = await request.json();
@@ -374,8 +407,9 @@ export async function POST(request: NextRequest) {
           }
           const buffer = Buffer.from(arrayBuffer);
           logStep(logs, 'step1_direct', 'success', `PDF direct, ${buffer.byteLength} octets`, { durationMs: dur });
-          const detail = await analyzePdfBuffer(buffer);
-          return successResponse(detail, logs, targetUrl);
+          const r1 = await analyzeWithDeadline(buffer, deadline, logs, 'step1_analyze', targetUrl);
+          if (r1.ok) return successResponse(r1.detail, logs, targetUrl);
+          pdfFoundButAnalysisFailed = true;
         }
 
         if (!contentType.includes('text/html')) {
@@ -383,8 +417,9 @@ export async function POST(request: NextRequest) {
           const buffer = Buffer.from(arrayBuffer);
           if (isPdfBuffer(buffer) && buffer.byteLength <= MAX_RESPONSE_SIZE) {
             logStep(logs, 'step1_direct', 'success', `PDF (magic bytes, ct=${contentType}), ${buffer.byteLength} octets`, { durationMs: dur });
-            const detail = await analyzePdfBuffer(buffer);
-            return successResponse(detail, logs, targetUrl);
+            const r1b = await analyzeWithDeadline(buffer, deadline, logs, 'step1_analyze', targetUrl);
+            if (r1b.ok) return successResponse(r1b.detail, logs, targetUrl);
+            pdfFoundButAnalysisFailed = true;
           }
           logStep(logs, 'step1_direct', 'fail', `Non-PDF, ct=${contentType}, ${buffer.byteLength} octets`, { durationMs: dur });
         }
@@ -429,14 +464,10 @@ export async function POST(request: NextRequest) {
           const pdfBuffer = Buffer.from(pdfArrayBuffer);
           if (isPdfBuffer(pdfBuffer) || pdfResponse.headers.get('content-type')?.includes('application/pdf')) {
             logStep(logs, 'step2_pdf_fetch', 'success', `PDF ${pdfBuffer.byteLength} octets`, { durationMs: dur, url: pdfUrl });
-            try {
-              const detail = await analyzePdfBuffer(pdfBuffer);
-              return successResponse(detail, logs, targetUrl);
-            } catch (analyzeErr) {
-              pdfFoundButAnalysisFailed = true;
-              logStep(logs, 'step2_analyze', 'fail', analyzeErr instanceof Error ? analyzeErr.message : 'Analyse echouee', { url: pdfUrl });
-              continue;
-            }
+            const r2 = await analyzeWithDeadline(pdfBuffer, deadline, logs, 'step2_analyze', pdfUrl);
+            if (r2.ok) return successResponse(r2.detail, logs, targetUrl);
+            pdfFoundButAnalysisFailed = true;
+            continue;
           }
           logStep(logs, 'step2_pdf_fetch', 'fail', 'Pas un PDF', { durationMs: dur, url: pdfUrl });
         } catch (err) {
@@ -467,14 +498,10 @@ export async function POST(request: NextRequest) {
           const buf = result.value;
           if (isPdfBuffer(buf)) {
             logStep(logs, 'step2.5_pdf_fetch', 'success', `PDF ${buf.byteLength} octets`, { url: docUrl });
-            try {
-              const detail = await analyzePdfBuffer(buf);
-              return successResponse(detail, logs, targetUrl);
-            } catch (analyzeErr) {
-              pdfFoundButAnalysisFailed = true;
-              logStep(logs, 'step2.5_analyze', 'fail', analyzeErr instanceof Error ? analyzeErr.message : 'Analyse echouee', { url: docUrl });
-              continue;
-            }
+            const r25 = await analyzeWithDeadline(buf, deadline, logs, 'step2.5_analyze', docUrl);
+            if (r25.ok) return successResponse(r25.detail, logs, targetUrl);
+            pdfFoundButAnalysisFailed = true;
+            continue;
           }
           logStep(logs, 'step2.5_pdf_fetch', 'fail', 'Pas un PDF', { url: docUrl });
         }
@@ -493,15 +520,12 @@ export async function POST(request: NextRequest) {
       if (brightDataBuffer && brightDataBuffer.byteLength > 0) {
         if (isPdfBuffer(brightDataBuffer)) {
           logStep(logs, 'step3_bd_raw', 'success', `PDF ${brightDataBuffer.byteLength} octets`, { durationMs: dur });
-          try {
-            const detail = await analyzePdfBuffer(brightDataBuffer);
-            return successResponse(detail, logs, targetUrl);
-          } catch (analyzeErr) {
-            pdfFoundButAnalysisFailed = true;
-            logStep(logs, 'step3_analyze', 'fail', analyzeErr instanceof Error ? analyzeErr.message : 'Analyse echouee', { durationMs: dur });
-          }
+          const r3 = await analyzeWithDeadline(brightDataBuffer, deadline, logs, 'step3_analyze', targetUrl);
+          if (r3.ok) return successResponse(r3.detail, logs, targetUrl);
+          pdfFoundButAnalysisFailed = true;
+        } else {
+          logStep(logs, 'step3_bd_raw', 'fail', `Pas un PDF (${brightDataBuffer.byteLength} octets)`, { durationMs: dur });
         }
-        logStep(logs, 'step3_bd_raw', 'fail', `Pas un PDF (${brightDataBuffer.byteLength} octets)`, { durationMs: dur });
       } else {
         logStep(logs, 'step3_bd_raw', 'fail', 'Reponse vide ou null', { durationMs: dur });
       }
@@ -532,13 +556,9 @@ export async function POST(request: NextRequest) {
           const scrapeBuffer = Buffer.from(await scrapeRes.arrayBuffer());
           if (scrapeBuffer.byteLength > 0 && scrapeBuffer.byteLength <= MAX_RESPONSE_SIZE) {
             logStep(logs, 'step4_worker', 'success', `PDF ${scrapeBuffer.byteLength} octets`, { durationMs: dur });
-            try {
-              const detail = await analyzePdfBuffer(scrapeBuffer);
-              return successResponse(detail, logs, targetUrl);
-            } catch (analyzeErr) {
-              pdfFoundButAnalysisFailed = true;
-              logStep(logs, 'step4_analyze', 'fail', analyzeErr instanceof Error ? analyzeErr.message : 'Analyse echouee', { durationMs: dur });
-            }
+            const r4 = await analyzeWithDeadline(scrapeBuffer, deadline, logs, 'step4_analyze', targetUrl);
+            if (r4.ok) return successResponse(r4.detail, logs, targetUrl);
+            pdfFoundButAnalysisFailed = true;
           }
           logStep(logs, 'step4_worker', 'fail', `Taille invalide: ${scrapeBuffer.byteLength}`, { durationMs: dur });
         } else {
@@ -574,6 +594,14 @@ export async function POST(request: NextRequest) {
       targetUrl,
     );
   } catch (err) {
+    if (err instanceof DeadlineExceeded) {
+      logStep(logs, 'deadline', 'fail', `Timeout interne apres ${Date.now() - t0}ms`);
+      return failResponse(
+        'L\'analyse a depasse le temps imparti. Essayez d\'uploader le PDF manuellement.',
+        504,
+        logs,
+      );
+    }
     logStep(logs, 'fatal', 'fail', err instanceof Error ? err.message : 'Erreur interne');
     return failResponse('Une erreur est survenue', 500, logs);
   }
