@@ -14,6 +14,16 @@ export const registerSchema = z.object({
   sectors: z.array(z.string()).default([]),
   regions: z.array(z.string()).default([]),
   keywords: z.array(z.string()).default([]),
+  // SIRET Magic Onboarding fields (optional, sent when user used SIRET flow)
+  siret: z.string().optional(),
+  siren: z.string().optional(),
+  nafCode: z.string().optional(),
+  nafLabel: z.string().optional(),
+  companyName: z.string().optional(),
+  companyAddress: z.string().optional(),
+  companyCity: z.string().optional(),
+  companyPostalCode: z.string().optional(),
+  companyDepartment: z.string().optional(),
 });
 
 export const setPasswordSchema = z.object({
@@ -38,6 +48,7 @@ export const generateSectionSchema = z.object({
   sectionTitle: nonEmpty,
   buyerExpectation: nonEmpty,
   dceContext: z.string().default(''),
+  noticeId: z.string().optional(),
   companyProfile: z.object({
     companyName: nonEmpty,
     sectors: z.array(z.string()).default([]),
@@ -64,6 +75,43 @@ export const generateSectionSchema = z.object({
 });
 
 export type GenerateSectionInput = z.infer<typeof generateSectionSchema>;
+
+// ─── AI: generate-memoire (batch) ───
+
+export const generateMemoireSchema = z.object({
+  noticeId: z.string().optional(),
+  sections: z.array(z.object({
+    id: z.string(),
+    title: z.string().min(1),
+    buyerExpectation: z.string().default(''),
+  })).min(1).max(20),
+  companyProfile: z.object({
+    companyName: nonEmpty,
+    sectors: z.array(z.string()).default([]),
+    references: z.array(z.object({
+      client: z.string(),
+      title: z.string(),
+      amount: z.string(),
+      period: z.string(),
+    })).default([]),
+    team: z.array(z.object({
+      name: z.string(),
+      role: z.string(),
+      certifications: z.array(z.string()).default([]),
+      experience: z.number(),
+    })).default([]),
+    caN1: z.string().default(''),
+    caN2: z.string().default(''),
+    caN3: z.string().default(''),
+  }),
+  dceContext: z.string().default(''),
+  options: z.object({
+    tone: z.enum(['formal', 'standard']).default('standard'),
+    length: z.enum(['short', 'medium', 'detailed']).default('medium'),
+  }).default({ tone: 'standard' as const, length: 'medium' as const }),
+});
+
+export type GenerateMemoireInput = z.infer<typeof generateMemoireSchema>;
 
 // ─── AI: coach ───
 
@@ -94,6 +142,7 @@ export const coachSchema = z.object({
     caN3: z.string().default(''),
   }),
   dceContext: z.string().default(''),
+  noticeId: z.string().optional(),
   selectionCriteria: z.array(z.object({
     name: z.string(),
     weight: z.number(),
