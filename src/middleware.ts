@@ -7,11 +7,14 @@ const AUTH_COOKIE = 'lefilonao_access';
 
 const GATE_PUBLIC = [
   '/gate', '/api/gate', '/api/auth/', '/api/stripe/webhook',
+  '/api/ai/batch-analyze',
   '/', '/login', '/subscribe', '/pricing', '/success',
   '/mentions-legales', '/politique-confidentialite', '/cgu', '/cgv',
 ];
 const SKIP_PATHS = ['/_next/', '/favicon.ico', '/favicon.svg', '/robots.txt', '/sitemap.xml', '/icon', '/monitoring'];
 const AUTH_REQUIRED_PREFIXES = ['/dashboard', '/api/ai', '/api/documents', '/api/market', '/api/watchlist', '/api/settings', '/api/alerts', '/api/pipeline', '/api/opportunities', '/api/rfps', '/api/feedback', '/api/ao-views'];
+// Routes that handle their own auth (Bearer token, cron secret) — exempt from session cookie check
+const AUTH_SELF_MANAGED = ['/api/ai/batch-analyze'];
 
 function shouldSkip(pathname: string): boolean {
   return SKIP_PATHS.some(p => pathname === p || pathname.startsWith(p));
@@ -75,7 +78,8 @@ export default function middleware(request: NextRequest) {
 
   // ─── Layer 2: Dashboard & API auth ───
   const isDev = process.env.NODE_ENV === 'development';
-  const needsAuth = AUTH_REQUIRED_PREFIXES.some(p => pathname.startsWith(p));
+  const isSelfManaged = AUTH_SELF_MANAGED.some(p => pathname === p);
+  const needsAuth = !isSelfManaged && AUTH_REQUIRED_PREFIXES.some(p => pathname.startsWith(p));
   if (needsAuth && !isDev) {
     const sessionCookie = request.cookies.get(AUTH_COOKIE)?.value;
     if (!sessionCookie) {
