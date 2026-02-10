@@ -5,10 +5,21 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { motion } from 'framer-motion';
 import PipelineCard from './PipelineCard';
 
+interface PipelineItem {
+  id: string;
+  ao_title: string;
+  ao_issuer: string;
+  ao_budget?: string;
+  ao_deadline: string | null;
+  ao_score?: number;
+  ao_score_label?: 'GO' | 'MAYBE' | 'PASS';
+  tags?: string[];
+}
+
 interface PipelineColumnProps {
   id: string;
   title: string;
-  items: any[];
+  items: PipelineItem[];
   count: number;
 }
 

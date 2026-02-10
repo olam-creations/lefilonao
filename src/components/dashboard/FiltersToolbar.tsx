@@ -66,6 +66,7 @@ export default function FiltersToolbar({
           <input
             type="text"
             placeholder="Rechercher un AO..."
+            aria-label="Rechercher un appel d'offres"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all"
@@ -110,6 +111,7 @@ export default function FiltersToolbar({
           <select
             value={region}
             onChange={(e) => onRegionChange(e.target.value)}
+            aria-label="Filtrer par region"
             className="px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
           >
             <option value="">Toutes les regions</option>
@@ -139,6 +141,7 @@ export default function FiltersToolbar({
           <select
             value={sort}
             onChange={(e) => onSortChange(e.target.value as SortKey)}
+            aria-label="Trier les resultats"
             className="px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
           >
             {SORT_OPTIONS.map((opt) => (

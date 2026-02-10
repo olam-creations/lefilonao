@@ -27,7 +27,7 @@ export default function WatchButton({ buyerName, buyerSiret, variant = 'full', c
     try {
       const res = await fetch(`/api/watchlist?email=${encodeURIComponent(email)}`);
       const data = await res.json();
-      const existing = data.watchlist?.find((item: any) => item.buyer_name === buyerName);
+      const existing = data.watchlist?.find((item: { buyer_name: string; id: string }) => item.buyer_name === buyerName);
       if (existing) {
         setIsWatched(true);
         setWatchId(existing.id);
@@ -98,6 +98,7 @@ export default function WatchButton({ buyerName, buyerSiret, variant = 'full', c
           : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
       } ${className}`}
       title={isWatched ? "Ne plus surveiller" : "Surveiller cet acheteur"}
+      aria-label={isWatched ? `Ne plus surveiller ${buyerName}` : `Surveiller ${buyerName}`}
     >
       {actionLoading ? (
         <Loader2 className="w-3.5 h-3.5 animate-spin" />

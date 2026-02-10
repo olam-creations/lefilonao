@@ -124,6 +124,7 @@ export default function FeedbackWidget() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Décrivez votre retour..."
+                    aria-label="Message de feedback"
                     maxLength={2000}
                     rows={4}
                     className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg px-3 py-2 resize-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none placeholder:text-slate-300"
