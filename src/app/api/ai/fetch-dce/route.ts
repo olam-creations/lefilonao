@@ -5,11 +5,11 @@ import { requireAuth } from '@/lib/require-auth';
 import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 import { fetchPdfViaBrightData, discoverDceDocuments } from '@/lib/brightdata';
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 const FETCH_TIMEOUT = 15_000;
 // Safety margin: return a proper JSON error before Vercel kills the function
-const HARD_DEADLINE_MS = 280_000;
+const HARD_DEADLINE_MS = 55_000;
 const MAX_RESPONSE_SIZE = 25 * 1024 * 1024;
 const MAX_REDIRECTS = 5;
 const BOAMP_API_BASE = 'https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records';
