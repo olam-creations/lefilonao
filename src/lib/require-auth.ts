@@ -11,6 +11,11 @@ type AuthResult =
 
 /** Extract and verify user session from request cookie. Returns email or 401. */
 export function requireAuth(req: NextRequest): AuthResult {
+  // Dev bypass — matches middleware behavior
+  if (process.env.NODE_ENV === 'development') {
+    return { ok: true, auth: { email: 'dev@lefilonao.local' } };
+  }
+
   const cookie = req.cookies.get(COOKIE_NAME)?.value;
   if (cookie) {
     const email = verifySession(cookie);
