@@ -1,11 +1,12 @@
-import { hasApiKey, hasAnthropicKey, getAnthropicClient, hasGeminiKey, getGeminiModel, hasNvidiaKey, nvidiaGenerate } from '@/lib/ai-client';
+import { hasApiKey, hasAnthropicKey, getAnthropicClient, hasGeminiKey, getGeminiModel, hasNvidiaKey, nvidiaGenerate, hasOllamaConfig, ollamaGenerate } from '@/lib/ai-client';
 import { resilientCascade } from '@/lib/ai-resilience';
 import { measureAiCall } from '@/lib/ai-audit';
+import { extractHighFidelityText } from '@/lib/pdf-engine';
 import type { AoDetail } from '@/lib/dev';
 
 const DCE_PROMPT = `Tu es un expert en marches publics francais. Analyse ce DCE (Dossier de Consultation des Entreprises) et extrais les informations au format JSON strict.
 
-Texte du DCE :
+Texte du DCE (extrait avec preservation de layout) :
 ---
 {TEXT}
 ---
@@ -48,19 +49,18 @@ export function validatePdfBuffer(buffer: Buffer): void {
 }
 
 export async function analyzePdfBuffer(buffer: Buffer, signal?: AbortSignal): Promise<AoDetail> {
-  if (!hasApiKey()) {
-    throw new Error('Aucune cle API configuree (GEMINI_API_KEY ou ANTHROPIC_API_KEY)');
+  if (!hasApiKey() && !hasOllamaConfig()) {
+    throw new Error('Aucun service IA configure (Gemini, NVIDIA ou Ollama)');
   }
 
   validatePdfBuffer(buffer);
 
-  const { PDFParse } = await import('pdf-parse');
-  const parser = new PDFParse({ data: new Uint8Array(buffer) });
-  const parsed = await parser.getText();
+  // Utilisation du nouveau moteur haute fidelite
+  const parsed = await extractHighFidelityText(buffer);
   const pdfText = parsed.text;
 
   if (!pdfText.trim()) {
-    throw new Error('Le PDF ne contient pas de texte extractible (scan ?)');
+    throw new Error('Le PDF ne contient pas de texte extractible');
   }
 
   const truncatedText = pdfText.slice(0, MAX_TEXT_LENGTH);
@@ -72,6 +72,27 @@ export async function analyzePdfBuffer(buffer: Buffer, signal?: AbortSignal): Pr
   try {
     rawText = await resilientCascade<string>(
       [
+        {
+          name: 'gemini',
+          available: hasGeminiKey,
+          execute: async () => {
+            const model = getGeminiModel();
+            const result = await model.generateContent(prompt, { signal });
+            return result.response.text();
+          },
+        },
+        {
+          name: 'ollama',
+          available: hasOllamaConfig,
+          execute: () => ollamaGenerate(prompt, signal),
+        },
+        {
+          name: 'nvidia',
+          available: hasNvidiaKey,
+          execute: () => nvidiaGenerate(prompt, signal),
+        },
+        // Anthropic en attente de fonds
+        /*
         {
           name: 'anthropic',
           available: hasAnthropicKey,
@@ -86,20 +107,7 @@ export async function analyzePdfBuffer(buffer: Buffer, signal?: AbortSignal): Pr
             return textBlock?.type === 'text' ? textBlock.text : '';
           },
         },
-        {
-          name: 'gemini',
-          available: hasGeminiKey,
-          execute: async () => {
-            const model = getGeminiModel();
-            const result = await model.generateContent(prompt, { signal });
-            return result.response.text();
-          },
-        },
-        {
-          name: 'nvidia',
-          available: hasNvidiaKey,
-          execute: () => nvidiaGenerate(prompt, signal),
-        },
+        */
       ],
       signal,
     );

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzePdfBuffer } from '@/lib/dce-analyzer';
 import { requireAuth } from '@/lib/require-auth';
+import { requireFeature } from '@/lib/require-plan';
 import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
@@ -9,6 +10,9 @@ export async function POST(request: NextRequest) {
 
   const auth = requireAuth(request);
   if (!auth.ok) return auth.response;
+
+  const gated = await requireFeature(auth.auth.email, 'dce-analysis');
+  if (gated) return gated;
 
   try {
     const formData = await request.formData();

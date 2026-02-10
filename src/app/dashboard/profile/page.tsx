@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Shield } from 'lucide-react';
-import { isAuthenticated, markOnboardingStep } from '@/lib/auth';
+import { markOnboardingStep } from '@/lib/auth';
 import TopBar from '@/components/dashboard/TopBar';
 import { isDevMode, MOCK_COMPANY_PROFILE, type CompanyProfile, type ProfileDocument, type TeamMember, type ProjectReference } from '@/lib/dev';
 import { getCompanyProfile, saveCompanyProfile } from '@/lib/profile-storage';
@@ -19,10 +19,6 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = '/login';
-      return;
-    }
     if (isDevMode()) {
       setProfile(getCompanyProfile());
     }

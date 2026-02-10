@@ -5,7 +5,12 @@ const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 function getSecret(): string {
   const secret = process.env.SESSION_SECRET;
-  if (!secret) throw new Error('SESSION_SECRET must be configured (do NOT use SITE_PASSWORD)');
+  if (!secret) {
+    if (process.env.NODE_ENV === 'development') {
+      return 'dev-only-insecure-secret-do-not-use-in-production';
+    }
+    throw new Error('SESSION_SECRET must be configured (do NOT use SITE_PASSWORD)');
+  }
   return secret;
 }
 

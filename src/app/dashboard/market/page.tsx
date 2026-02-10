@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Landmark, Trophy, AlertCircle, BarChart3 } from 'lucide-react';
-import { isAuthenticated, getToken, markOnboardingStep } from '@/lib/auth';
+import { markOnboardingStep } from '@/lib/auth';
 import { getCompanyProfile } from '@/lib/profile-storage';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { stagger } from '@/lib/motion-variants';
@@ -82,10 +82,6 @@ export default function MarketPage() {
   const sectorInitialized = useRef(false);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = '/login';
-      return;
-    }
     markOnboardingStep('market');
     const p = getCompanyProfile();
     if (p.sectors?.length > 0 || p.regions?.length > 0) {
@@ -105,7 +101,7 @@ export default function MarketPage() {
 
   useEffect(() => {
     const safeFetch = async (url: string): Promise<Response | null> => {
-      try { return await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } }); }
+      try { return await fetch(url); }
       catch { return null; }
     };
 

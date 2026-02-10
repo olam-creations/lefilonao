@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Heart } from 'lucide-react';
-import { getTokenPayload } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 
 interface WatchButtonProps {
   buyerName: string;
@@ -11,11 +11,10 @@ interface WatchButtonProps {
 }
 
 export default function WatchButton({ buyerName, buyerSiret, className = '' }: WatchButtonProps) {
+  const { email } = useUser();
   const [watched, setWatched] = useState(false);
   const [entryId, setEntryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const email = getTokenPayload()?.email ?? '';
 
   useEffect(() => {
     if (!email || !buyerName) return;

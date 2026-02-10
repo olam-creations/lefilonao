@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquarePlus, X, Send, Check } from 'lucide-react';
+import { useUser } from '@/components/UserProvider';
 
 const CATEGORIES = [
   { value: 'bug', label: 'Bug', emoji: '🐛' },
@@ -11,6 +12,7 @@ const CATEGORIES = [
 ] as const;
 
 export default function FeedbackWidget() {
+  const { email } = useUser();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<string>('idea');
   const [message, setMessage] = useState('');
@@ -24,17 +26,6 @@ export default function FeedbackWidget() {
     }
   }, [open]);
 
-  const getEmail = (): string => {
-    try {
-      const raw = localStorage.getItem('lefilonao_token');
-      if (!raw) return 'anonymous';
-      const payload = JSON.parse(atob(raw.split('.')[1]));
-      return payload.email ?? 'anonymous';
-    } catch {
-      return 'anonymous';
-    }
-  };
-
   const handleSubmit = async () => {
     if (!message.trim() || sending) return;
     setSending(true);
@@ -44,7 +35,7 @@ export default function FeedbackWidget() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: getEmail(),
+          email: email || 'anonymous',
           category,
           message: message.trim(),
           pageUrl: window.location.pathname,

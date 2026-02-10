@@ -1,5 +1,26 @@
 import { z } from 'zod';
 
+// ─── Auth ───
+
+export const loginSchema = z.object({
+  email: z.string().email('Email invalide'),
+  password: z.string().min(1, 'Mot de passe requis'),
+});
+
+export const registerSchema = z.object({
+  email: z.string().email('Email invalide'),
+  password: z.string().min(8, 'Mot de passe : 8 caractères minimum'),
+  firstName: z.string().min(1, 'Prénom requis').transform((s) => s.trim()),
+  sectors: z.array(z.string()).default([]),
+  regions: z.array(z.string()).default([]),
+  keywords: z.array(z.string()).default([]),
+});
+
+export const setPasswordSchema = z.object({
+  email: z.string().email('Email invalide'),
+  password: z.string().min(8, 'Mot de passe : 8 caractères minimum'),
+});
+
 // ─── Shared primitives ───
 
 /** SIREN: exactly 9 digits */

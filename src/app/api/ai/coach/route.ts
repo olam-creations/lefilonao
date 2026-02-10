@@ -4,6 +4,7 @@ import { resilientCascade } from '@/lib/ai-resilience';
 import { measureAiCall } from '@/lib/ai-audit';
 import { jsonToToon } from '@/lib/toon';
 import { requireAuth } from '@/lib/require-auth';
+import { requireFeature } from '@/lib/require-plan';
 import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 
 import { coachSchema, parseBody } from '@/lib/validators';
@@ -14,6 +15,9 @@ export async function POST(request: NextRequest) {
 
   const auth = requireAuth(request);
   if (!auth.ok) return auth.response;
+
+  const gated = await requireFeature(auth.auth.email, 'ai-coach');
+  if (gated) return gated;
 
   try {
     if (!hasApiKey()) {

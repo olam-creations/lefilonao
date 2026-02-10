@@ -22,9 +22,45 @@
 - **Deployment**: Vercel (standalone output)
 
 ### Backend & Auth
-- **API**: Calls `meragel.vercel.app/api/excalibur` for data (dashboard, login, subscribe, checkout)
-- **Auth**: JWT stored in localStorage, sent as Bearer token. No client-side crypto verification -- server validates.
+- **API**: Fully local — `src/lib/api.ts` exposes `register()`, `login()`, `checkout()`, `portal()`, `subscription()` (no external auth service)
+- **Auth**: Cookie-based HMAC sessions. `lefilonao_access` httpOnly cookie signed with `SESSION_SECRET` (HMAC-SHA256, base64url email + timestamp). 30-day expiry. Constant-time signature verification.
+- **Session flow**: `src/lib/session.ts` (`signSession`/`verifySession`) handles cookie crypto. `src/lib/require-auth.ts` (`requireAuth`) extracts email from cookie in API routes. Client-side: `checkAuth()` calls `/api/auth/session`, result cached in memory.
+- **Auth routes**: `/api/auth/register` (POST, Zod validation, bcryptjs 12 rounds), `/api/auth/login` (POST, password verify), `/api/auth/logout` (POST, clear cookie), `/api/auth/session` (GET, returns auth state)
+- **UserProvider**: `src/components/UserProvider.tsx` — React context providing `useUser()` hook (email, displayName, plan, authenticated)
+- **Password**: `src/lib/password.ts` — bcryptjs wrapper (hash/verify, 12 rounds)
 - **Storage**: localStorage for workspace state, profile (incl. cachet base64), onboarding. Cloudflare R2 for file uploads.
+
+### Auth Flow
+```
+Register: POST /api/auth/register → Zod validate → bcrypt hash → Supabase insert → sign cookie → 201
+Login:    POST /api/auth/login    → Zod validate → Supabase lookup → bcrypt verify → sign cookie → 200
+Logout:   POST /api/auth/logout   → clear cookie → 200
+Session:  GET  /api/auth/session  → verify cookie → return {authenticated, email, displayName, plan}
+```
+
+Client-side auth state is managed by `UserProvider` (React context). Components use `useUser()` hook. `api.ts` sends all requests with `credentials: 'include'` (browser sends cookie automatically).
+
+### Gate System
+- **Gate** uses a separate cookie `lefilonao_gate` (simple HMAC gate pass, no email — just site access control)
+- **Auth** uses `lefilonao_access` cookie (contains signed email, used for user identity)
+- Gate and auth are independent: gate controls site access, auth controls user identity
+
+### Feature Gating
+- **Feature registry**: `src/lib/features.ts` — defines 8 features (ai-scoring, dce-analysis, generate-section, ai-coach, buyer-intelligence, csv-export, daily-alerts, unlimited-ao), each with `minPlan` ('free' | 'pro')
+- **Plan source of truth**: `src/lib/require-plan.ts` — `getUserPlan(email)` reads `user_settings.plan` from Supabase (single source, no external service)
+- **API gating**: `requireFeature(email, featureKey)` returns 403 if plan insufficient. Used in 8 routes: `/api/ai/analyze-dce`, `/api/ai/generate-section`, `/api/ai/coach`, `/api/market/buyer-profile`, `/api/market/competition`, `/api/market/competitor`, `/api/market/winner-profile`, `/api/market/attributions`
+- **Client gating**: `usePlan()` hook fetches plan + feature access. `FeatureGate` wrapper shows `UpgradeModal` for locked features. `ProBadge` marks pro-only UI.
+- **Free plan limit**: 5 AO views/month, tracked in `ao_views` table (unique index on user_email + notice_id + month_key). `useAoViews()` hook + `/api/ao-views` route (GET count, POST record).
+- **`canAccess(feature, plan)`**: pure function, compares plan rank to feature's `minPlan`
+
+```
+Feature Gating Flow (API):
+  Request → requireAuth() → requireFeature(email, key) → getUserPlan() → Supabase → canAccess() → 200 or 403
+
+Feature Gating Flow (Client):
+  usePlan() → /api/auth/session → plan → canAccess(feature, plan)
+  <FeatureGate feature="dce-analysis"> → allowed ? children : <UpgradeModal>
+```
 
 ### Market Intelligence Backend (Cloudflare Workers)
 Le pipeline marche public est decoupe entre deux repos :
@@ -73,7 +109,7 @@ Cloudflare Worker (cron triggers)         Ce repo (Next.js)
 - Meme `ENCRYPTION_MASTER_KEY` partagee entre Vercel et Workers
 
 ### Security Headers
-Configured in `next.config.ts`: X-Frame-Options DENY, HSTS, CSP (Gemini + Anthropic + Sentry + Plausible + Workers), nosniff, strict referrer.
+Configured in `next.config.ts`: X-Frame-Options DENY, HSTS, CSP (Gemini + Anthropic + Sentry + Plausible + Workers + Stripe), nosniff, strict referrer. No external auth domains in CSP (meragel removed).
 
 ## AI Integration
 
@@ -157,12 +193,22 @@ Pas de donnees fictives. Si l'IA est indisponible (cle manquante, API down, repo
 src/
   app/                    # Next.js App Router pages
     dashboard/            # Protected dashboard (main page, AO detail, market, profile, watchlist)
-    api/ai/               # AI endpoints (analyze-dce, generate-section, coach)
-    api/market/           # Market intelligence (read-only from Supabase)
+    api/auth/             # Auth endpoints (cookie-based HMAC)
+      register/route.ts   # POST — Zod validation, bcrypt hash, create user, sign cookie
+      login/route.ts      # POST — password verify, sign cookie
+      logout/route.ts     # POST — clear cookie
+      session/route.ts    # GET — verify cookie, return auth state
+    api/ai/               # AI endpoints (analyze-dce, generate-section, coach) — pro-gated
+    api/ao-views/route.ts # GET count + POST record AO view (free plan tracking)
+    api/market/           # Market intelligence (read-only from Supabase, some pro-gated)
       insights/           # KPIs, top buyers/winners
-      attributions/       # Attribution list with filters
+      attributions/       # Attribution list with filters (pro-gated)
       trends/             # Volume by month
       competitors/        # Competitor search
+      buyer-profile/      # Buyer intelligence (pro-gated)
+      competition/        # Competition analysis (pro-gated)
+      competitor/         # Competitor detail (pro-gated)
+      winner-profile/     # Winner analysis (pro-gated)
     api/watchlist/        # Watchlist acheteurs (CRUD + alerts)
       route.ts            # GET list, POST add buyer
       [id]/route.ts       # DELETE remove buyer
@@ -171,10 +217,12 @@ src/
     api/settings/
       route.ts            # GET/PATCH user settings
       credentials/route.ts # GET/POST/DELETE platform credentials (AES-256-GCM)
+    api/stripe/           # Stripe endpoints (checkout, portal, subscription, webhook)
     api/documents/        # Document upload/management
-    api/gate/             # Auth gate
+    api/gate/             # Site-level gate (separate from auth)
     login/ pricing/ subscribe/ success/  # Public pages
   components/
+    UserProvider.tsx       # React context for auth state (useUser hook)
     ao/                   # AO detail page components (26 files)
       DceDropZone.tsx     # Overlay drag & drop plein ecran
       MemoireTechniqueBuilder.tsx  # Builder memoire + coach IA
@@ -190,11 +238,31 @@ src/
       PlatformCredentialsCard.tsx # CRUD identifiants plateformes (AES-256-GCM)
     profile/              # Profile management cards (5 files)
       CachetUploadCard.tsx  # Upload cachet entreprise (PNG/JPG, base64 → PDF)
-    shared/               # Reusable file upload components (Logo, etc.)
-    Header.tsx FreeBanner.tsx OnboardingChecklist.tsx
-  hooks/                  # Custom hooks (filters, completeness, DCE analysis, streaming, AI plans)
+    shared/               # Reusable components
+      FeatureGate.tsx     # Wrapper: renders children if feature allowed, else UpgradeModal
+      ProBadge.tsx        # "Pro" badge for pro-only UI elements
+      UpgradeModal.tsx    # Modal prompting upgrade to Pro plan
+      Logo.tsx FileUploadZone.tsx FileRow.tsx DashboardShell.tsx
+    Header.tsx FreeBanner.tsx OnboardingChecklist.tsx StripeCheckoutModal.tsx
+  hooks/                  # Custom hooks
     useAiPlan.ts          # Hook execution plans IA (state, progress, abort)
-  lib/                    # Utilities (auth, api, storage, KPI, PDF, AI clients, motion, crypto)
+    usePlan.ts            # Plan + feature access hook (calls /api/auth/session)
+    useAoViews.ts         # AO view count + record hook (calls /api/ao-views)
+    useDashboardFilters.ts # Filter/search/sort state for dashboard
+    useDceAnalysis.ts     # DCE analysis states (idle/uploading/analyzing/done/error)
+    useStreamingGeneration.ts # SSE streaming with AbortController
+    useCompanyCompleteness.ts # Profile completeness scoring
+    useUserSettings.ts    # User settings CRUD hook
+  lib/                    # Utilities
+    auth.ts               # Client-side auth: checkAuth(), logout(), clearAuthCache(), onboarding
+    api.ts                # API client: register(), login(), checkout(), portal(), subscription()
+    session.ts            # Cookie crypto: signSession(), verifySession() (HMAC-SHA256)
+    require-auth.ts       # Server-side: requireAuth(req) — extract email from cookie or 401
+    password.ts           # bcryptjs wrapper: hashPassword(), verifyPassword() (12 rounds)
+    features.ts           # Feature registry: FEATURES, canAccess(), FREE_AO_LIMIT
+    require-plan.ts       # getUserPlan(email), requireFeature(email, key), requirePro(email)
+    validators.ts         # Zod schemas: loginSchema, registerSchema, setPasswordSchema, + domain schemas
+    stripe.ts             # Stripe: checkout, portal, webhook, cancel, getSubscription
     ai-client.ts          # Tri-provider IA (Gemini + Anthropic + NVIDIA), singletons
     ai-resilience.ts      # Circuit breakers, retry, timeout, resilientCascade() (cockatiel)
     ai-audit.ts           # Audit logging appels IA (measureAiCall, getRecentLogs)
@@ -221,14 +289,17 @@ src/
 `fadeUp`, `stagger`, `scaleIn`, `expandCollapse` from `src/lib/motion-variants.ts`
 
 ### Data Flow
-1. `page.tsx` fetches RFPs from API (falls back to `MOCK_RFPS` in dev mode)
-2. `useDashboardFilters` hook manages filter/search/sort state
-3. KPI functions in `dashboard-kpi.ts` compute stats from RFP array
-4. Workspace state persisted in localStorage per AO id
-5. Company profile persisted in localStorage
-6. DCE analysis results persisted in localStorage (`lefilonao_dce_{aoId}`)
-7. Generated sections persisted in localStorage (`lefilonao_sections_{aoId}`)
-8. Company cachet (stamp image) persisted as base64 in profile, embedded in DC1/DC2 PDFs
+1. `UserProvider` wraps app — calls `checkAuth()` on mount, provides `useUser()` context
+2. `page.tsx` fetches RFPs from API (falls back to `MOCK_RFPS` in dev mode)
+3. `useDashboardFilters` hook manages filter/search/sort state
+4. KPI functions in `dashboard-kpi.ts` compute stats from RFP array
+5. Workspace state persisted in localStorage per AO id
+6. Company profile persisted in localStorage
+7. DCE analysis results persisted in localStorage (`lefilonao_dce_{aoId}`)
+8. Generated sections persisted in localStorage (`lefilonao_sections_{aoId}`)
+9. Company cachet (stamp image) persisted as base64 in profile, embedded in DC1/DC2 PDFs
+10. Plan/feature access: `usePlan()` reads plan from session, `canAccess()` checks features client-side
+11. AO view tracking: `useAoViews()` reads/writes via `/api/ao-views`, enforced in `FreeBanner`
 
 ### RFP Type (canonical: `src/hooks/useDashboardFilters.ts`)
 ```typescript
@@ -248,20 +319,73 @@ interface RFP {
 - Cookie banner avec consentement (Sentry conditionnel au consentement)
 - Badges IA sur les contenus generes par intelligence artificielle
 - Pages: `/mentions-legales`, `/politique-de-confidentialite`, `/cgu`, `/cgv`
+- TVA non applicable, article 293 B du CGI (franchise en base, micro-entreprise)
+
+## Stripe — Paiement
+
+### Account & Resources
+- **Account**: `acct_1SyeywBDkKUCWueH` (Olam Creations)
+- **Product**: `prod_TxCM7iGqGzQBmt` (live) / `prod_TxCNNuTyA7815Y` (test)
+
+| Resource | Live ID | Test ID | Description |
+|----------|---------|---------|-------------|
+| Prix Standard | `price_1SzHyIBDkKUCWueHhm8fhRAT` | — | 50 EUR/mois (pour plus tard) |
+| Prix Fondateur | `price_1SzHyKBDkKUCWueH8GmbbK7w` | `price_1SzHz7BYsEp2QzaQU5CZeFMx` | 40 EUR/mois (base fondateur) |
+| Coupon Fondateur | `rqtjQwoe` | `lvVL2gwK` | -15 EUR x6 mois |
+
+### Pricing Logic
+```
+Fondateur (actuel):
+  Prix base = 40 EUR/mois + coupon -15 EUR (6 mois)
+  → Mois 1-6 : 25 EUR/mois (automatique Stripe)
+  → Mois 7+  : 40 EUR/mois (coupon expire automatiquement)
+
+Standard (futur, quand places fondateur epuisees):
+  Prix base = 50 EUR/mois, pas de coupon
+  → Changer STRIPE_PRICE_PRO_MONTHLY au prix standard
+  → Supprimer STRIPE_COUPON_FOUNDER de l'env
+  → Les fondateurs existants gardent leur coupon
+```
+
+### Checkout Flow
+```
+subscribe page → api.checkout() → POST /api/stripe/checkout
+  → createCheckoutSession(email, returnUrl)
+    → price = STRIPE_PRICE_PRO_MONTHLY (40 EUR fondateur)
+    → discounts = [{ coupon: STRIPE_COUPON_FOUNDER }] (si defini)
+  → Stripe Embedded Checkout (StripeCheckoutModal)
+  → return_url = /success?session_id={CHECKOUT_SESSION_ID}
+```
+
+### Webhook Events
+Endpoint: `/api/stripe/webhook` — verifie signature via `STRIPE_WEBHOOK_SECRET`
+- `checkout.session.completed` → plan='pro', save stripe_customer_id + subscription_id
+- `customer.subscription.updated` → sync status, cancel_at_period_end, current_period_end
+- `customer.subscription.deleted` → plan='free', stripe_status='canceled'
+- `invoice.payment_failed` → stripe_status='past_due'
+
+### Cancellation Policy
+- `cancel_at_period_end: true` — acces maintenu jusqu'a fin de periode, pas de remboursement
+- CGV: "Aucun remboursement au prorata. Apres resiliation, le compte repasse sur l'offre Gratuite."
+- Client: SubscriptionCard affiche "Actif jusqu'au {date}" quand cancelAtPeriodEnd=true
 
 ## Vercel Env Vars (Production)
-- `NEXT_PUBLIC_API_URL` — Backend API (meragel)
+- `SESSION_SECRET` — HMAC secret for cookie signing (must NOT be the same as SITE_PASSWORD)
 - `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `NVIDIA_API_KEY` — IA providers
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` — Market Intelligence
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Client-side Supabase
 - `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN` — Error tracking
 - `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` — Analytics (lefilonao.com)
-- `ALLOWED_EMAILS`, `SITE_PASSWORD` — Access control
+- `ALLOWED_EMAILS`, `SITE_PASSWORD` — Gate access control (site-level password gate)
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — Stripe auth
+- `STRIPE_PRICE_PRO_MONTHLY` — Active price ID (fondateur=40EUR, standard=50EUR)
+- `STRIPE_COUPON_FOUNDER` — Coupon ID (-15EUR x6 mois, omit to disable founder pricing)
 - `WORKER_URL` — Cloudflare Worker URL (`https://lefilonao-workers.olamcreations.workers.dev`)
 - `WORKER_AUTH_TOKEN` — Secret partage avec Worker pour auth `/scrape-dce`
 - `ENCRYPTION_MASTER_KEY` — Cle 32 octets hex pour AES-256-GCM (meme que Worker)
 - `SUPABASE_ACCESS_TOKEN` — Management API (for migrations via `api.supabase.com`)
 - `POSTGRES_*` — Database (via Supabase)
+- ~~`NEXT_PUBLIC_API_URL`~~ — REMOVED (meragel dependency eliminated, all auth is local)
 
 ## Supabase Migrations
 
@@ -277,6 +401,11 @@ npx vercel env run --environment production -- node scripts/run-migration.mjs su
 ```
 
 Project ref: `vdatbrdkwwedetdlbqxx`
+
+## Database (Auth & Feature Gating)
+- `user_settings` table — columns: `user_email` (PK), `plan` ('free'|'pro'), `password_hash` (bcrypt), `first_name`, `company`, `display_name`, + settings fields
+- `ao_views` table — columns: `user_email`, `notice_id`, `month_key` (YYYY-MM), `created_at`. Unique index on `(user_email, notice_id, month_key)`. Tracks free-plan AO view limits.
+- Plan is read exclusively via `getUserPlan(email)` from `user_settings.plan` — single source of truth (no external service)
 
 ## Conventions
 - French UI text throughout (accents required)

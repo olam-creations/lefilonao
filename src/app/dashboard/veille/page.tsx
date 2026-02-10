@@ -7,7 +7,6 @@ import {
   ExternalLink, AlertTriangle, AlertCircle, ChevronDown, Search,
   Calendar, MapPin, Clock, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { isAuthenticated, getToken } from '@/lib/auth';
 import TopBar from '@/components/dashboard/TopBar';
 import { stagger, fadeUp } from '@/lib/motion-variants';
 import { REGIONS } from '@/components/market/types';
@@ -138,11 +137,6 @@ export default function VeillePage() {
   const [rge, setRge] = useState<RgeCert[]>([]);
   const [entities, setEntities] = useState<PublicEntity[]>([]);
 
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = '/login';
-    }
-  }, []);
 
   const fetchTab = useCallback(async () => {
     setLoading(true);
@@ -178,9 +172,7 @@ export default function VeillePage() {
           break;
       }
 
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${getToken()}` },
-      });
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Erreur serveur');
       const json = await res.json();
 

@@ -1,75 +1,54 @@
-const TOKEN_KEY = 'lefilonao_token';
 const ONBOARDING_KEY = 'lefilonao_onboarding';
 const REDIRECT_KEY = 'lefilonao_redirect';
 
-// ─── Token ───
+// ─── Session (cookie-based, no client-side token) ───
 
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+interface SessionData {
+  authenticated: boolean;
+  email: string;
+  displayName: string;
+  plan: string;
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
-}
+let sessionCache: SessionData | null = null;
 
-/** Exchange a meragel JWT for an HMAC session cookie. Call after login/subscribe. */
-export async function exchangeSession(token: string): Promise<void> {
-  localStorage.setItem(TOKEN_KEY, token);
+/** Fetch session from server. Cached until clearAuthCache(). */
+export async function checkAuth(): Promise<SessionData> {
+  if (sessionCache) return sessionCache;
+
   try {
-    await fetch('/api/auth/session', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
+    const res = await fetch('/api/auth/session', { credentials: 'include' });
+    const data = await res.json();
+    sessionCache = {
+      authenticated: !!data.authenticated,
+      email: data.email || '',
+      displayName: data.displayName || '',
+      plan: data.plan || 'free',
+    };
   } catch {
-    // Best-effort — cookie will be set on next login if this fails
+    sessionCache = { authenticated: false, email: '', displayName: '', plan: 'free' };
   }
+
+  return sessionCache;
 }
 
-export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+/** Clear the in-memory session cache (call after login/logout). */
+export function clearAuthCache(): void {
+  sessionCache = null;
 }
 
-// ─── JWT Decode (no crypto verification) ───
-
-interface TokenPayload {
-  sub?: string;
-  email?: string;
-  iat?: number;
-  exp?: number;
-  [key: string]: unknown;
-}
-
-function decodePayload(token: string): TokenPayload | null {
+/** Logout: POST /api/auth/logout, clear cache, redirect. */
+export async function logout(): Promise<void> {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    return JSON.parse(atob(parts[1])) as TokenPayload;
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
   } catch {
-    return null;
+    // Best-effort
   }
-}
-
-export function getTokenPayload(): TokenPayload | null {
-  const token = getToken();
-  if (!token) return null;
-  return decodePayload(token);
-}
-
-export function isTokenExpired(): boolean {
-  const payload = getTokenPayload();
-  if (!payload?.exp) return false;
-  return Date.now() >= payload.exp * 1000;
-}
-
-export function isAuthenticated(): boolean {
-  const token = getToken();
-  if (!token) return false;
-  if (isTokenExpired()) {
-    clearToken();
-    return false;
+  clearAuthCache();
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(ONBOARDING_KEY);
+    window.location.href = '/login';
   }
-  return true;
 }
 
 // ─── Onboarding ───

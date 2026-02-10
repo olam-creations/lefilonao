@@ -33,6 +33,7 @@ export function createProviderPolicy(name: string): ProviderPolicy {
 export const geminiPolicy = createProviderPolicy('gemini');
 export const anthropicPolicy = createProviderPolicy('anthropic');
 export const nvidiaPolicy = createProviderPolicy('nvidia');
+export const ollamaPolicy = createProviderPolicy('ollama');
 
 export interface CascadeProvider<T> {
   name: string;
@@ -44,6 +45,7 @@ const policyMap: Record<string, ProviderPolicy['policy']> = {
   gemini: geminiPolicy.policy,
   anthropic: anthropicPolicy.policy,
   nvidia: nvidiaPolicy.policy,
+  ollama: ollamaPolicy.policy,
 };
 
 export async function resilientCascade<T>(

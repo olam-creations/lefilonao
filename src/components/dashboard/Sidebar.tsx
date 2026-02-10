@@ -18,7 +18,7 @@ import {
   Target,
   Radar
 } from 'lucide-react';
-import { clearToken } from '@/lib/auth';
+import { logout } from '@/lib/auth';
 import Logo from '@/components/shared/Logo';
 
 const NAV_ITEMS = [
@@ -53,8 +53,7 @@ export default function Sidebar() {
   };
 
   const handleLogout = () => {
-    clearToken();
-    window.location.href = '/';
+    logout();
   };
 
   if (!mounted) return null;

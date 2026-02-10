@@ -1,56 +1,34 @@
-import { getToken, clearToken } from './auth';
-
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meragel.vercel.app';
-
-export async function authenticatedFetch(
-  path: string,
-  options: RequestInit = {},
-): Promise<Response> {
-  const token = getToken();
-  const headers = new Headers(options.headers);
-
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-
-  if (res.status === 401) {
-    // In dev mode, don't clear token or redirect — let the caller handle fallback to mock data
-    const isDev = typeof window !== 'undefined' &&
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    if (!isDev) {
-      clearToken();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-    }
-  }
-
-  return res;
-}
-
 export const api = {
-  subscribe: (data: Record<string, unknown>) =>
-    fetch(`${API_URL}/api/excalibur/subscribe`, {
+  register: (data: Record<string, unknown>) =>
+    fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      credentials: 'include',
     }),
 
-  login: (email: string) =>
-    fetch(`${API_URL}/api/excalibur/login`, {
+  login: (email: string, password: string) =>
+    fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, password }),
+      credentials: 'include',
     }),
 
-  dashboard: () => authenticatedFetch('/api/excalibur/dashboard'),
-
-  checkout: (data: Record<string, unknown>) =>
-    authenticatedFetch('/api/excalibur/checkout', {
+  checkout: () =>
+    fetch('/api/stripe/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      credentials: 'include',
     }),
+
+  portal: () =>
+    fetch('/api/stripe/portal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    }),
+
+  subscription: () =>
+    fetch('/api/stripe/subscription', { credentials: 'include' }),
 };

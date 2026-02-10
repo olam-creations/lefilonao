@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Bell, BellOff, Loader2 } from 'lucide-react';
-import { getTokenPayload } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 
 interface WatchButtonProps {
   buyerName: string;
@@ -12,13 +12,13 @@ interface WatchButtonProps {
 }
 
 export default function WatchButton({ buyerName, buyerSiret, variant = 'full', className }: WatchButtonProps) {
+  const { email } = useUser();
   const [isWatched, setIsWatched] = useState(false);
   const [watchId, setWatchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchStatus = useCallback(async () => {
-    const email = getTokenPayload()?.email;
     if (!email) {
       setLoading(false);
       return;
@@ -41,13 +41,12 @@ export default function WatchButton({ buyerName, buyerSiret, variant = 'full', c
 
   useEffect(() => {
     fetchStatus();
-  }, [fetchStatus]);
+  }, [fetchStatus, email]);
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const email = getTokenPayload()?.email;
     if (!email) return;
 
     setActionLoading(true);

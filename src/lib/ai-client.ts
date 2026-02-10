@@ -20,6 +20,11 @@ export function hasNvidiaKey(): boolean {
   return !!process.env.NVIDIA_API_KEY;
 }
 
+export function hasOllamaConfig(): boolean {
+  // Par defaut, on suppose que localhost:11434 est accessible si la variable est set ou en dev
+  return !!process.env.OLLAMA_BASE_URL || process.env.NODE_ENV === 'development';
+}
+
 export function getGeminiModel(modelName = 'gemini-2.0-flash'): GenerativeModel {
   if (!genAI) {
     genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -59,6 +64,42 @@ export async function nvidiaGenerate(prompt: string, signal?: AbortSignal): Prom
 
   const data = await response.json();
   return data.choices?.[0]?.message?.content ?? '';
+}
+
+const OLLAMA_DEFAULT_URL = 'http://127.0.0.1:11434';
+const OLLAMA_MODEL = 'llama3'; // ou 'mistral'
+
+export async function ollamaGenerate(prompt: string, signal?: AbortSignal): Promise<string> {
+  const baseUrl = process.env.OLLAMA_BASE_URL || OLLAMA_DEFAULT_URL;
+  
+  try {
+    const response = await fetch(`${baseUrl}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt: prompt,
+        stream: false,
+        options: {
+          temperature: 0.3,
+          num_ctx: 8192 // Contexte etendu pour les DCE
+        }
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      // Si 404, le modele n'est peut-etre pas pull
+      if (response.status === 404) throw new Error(`Modele ${OLLAMA_MODEL} non trouve sur Ollama`);
+      throw new Error(`Ollama API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.response ?? '';
+  } catch (error) {
+    // Fail silently if Ollama is not running in dev to allow fallback
+    throw new Error(`Ollama unreachable: ${error instanceof Error ? error.message : 'Unknown'}`);
+  }
 }
 
 export async function nvidiaStream(prompt: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {

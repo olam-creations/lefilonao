@@ -19,7 +19,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
-import { getTokenPayload } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 import PipelineColumn from './PipelineColumn';
 import PipelineCard from './PipelineCard';
 import { Loader2 } from 'lucide-react';
@@ -47,6 +47,7 @@ interface PipelineItem {
 }
 
 export default function PipelineBoard() {
+  const { email } = useUser();
   const [items, setItems] = useState<PipelineItem[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +58,6 @@ export default function PipelineBoard() {
   );
 
   useEffect(() => {
-    const email = getTokenPayload()?.email;
     if (!email) return;
 
     fetch(`/api/pipeline?email=${encodeURIComponent(email)}`)

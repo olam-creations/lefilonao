@@ -4,7 +4,6 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function GateForm() {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,7 +19,7 @@ function GateForm() {
       const res = await fetch('/api/gate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ password }),
       });
 
       if (res.ok) {
@@ -40,16 +39,6 @@ function GateForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          required
-          className="w-full p-3 bg-neutral-900 border border-neutral-700 text-white placeholder-neutral-500 focus:border-yellow-500 focus:outline-none"
-        />
-      </div>
       <div>
         <input
           type="password"

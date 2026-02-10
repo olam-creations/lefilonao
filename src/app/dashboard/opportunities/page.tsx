@@ -8,7 +8,7 @@ import {
   Zap, Sparkles, Briefcase, TrendingUp, X, ChevronDown, ArrowRight,
   SlidersHorizontal, Bell, Plus, Check, Loader2, Filter, MapPin, Target
 } from 'lucide-react';
-import { isAuthenticated, getTokenPayload } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 import TopBar from '@/components/dashboard/TopBar';
 import { stagger, fadeUp, expandCollapse } from '@/lib/motion-variants';
 import { CPV_SECTORS, REGIONS } from '@/components/market/types';
@@ -55,6 +55,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 export default function OpportunitiesPage() {
+  const { email } = useUser();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [total, setTotal] = useState(0);
@@ -79,15 +80,8 @@ export default function OpportunitiesPage() {
   const { settings } = useUserSettings();
   const filtersInitialized = useRef(false);
 
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = '/login';
-    }
-  }, []);
-
   // Load already-imported RFP IDs
   useEffect(() => {
-    const email = getTokenPayload()?.email;
     if (!email) return;
     fetch(`/api/rfps?email=${encodeURIComponent(email)}`)
       .then((r) => r.ok ? r.json() : null)
@@ -97,10 +91,9 @@ export default function OpportunitiesPage() {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [email]);
 
   const handleImport = useCallback(async (noticeId: string) => {
-    const email = getTokenPayload()?.email;
     if (!email) return;
 
     setImportingIds((prev) => new Set([...prev, noticeId]));
@@ -122,7 +115,7 @@ export default function OpportunitiesPage() {
         return next;
       });
     }
-  }, []);
+  }, [email]);
 
   // Keyboard shortcut: / to focus search
   useEffect(() => {

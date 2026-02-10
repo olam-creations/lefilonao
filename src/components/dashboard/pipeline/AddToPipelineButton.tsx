@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { Kanban, Check, Loader2, Plus } from 'lucide-react';
-import { getTokenPayload } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 import type { RFP } from '@/hooks/useDashboardFilters';
 
 interface AddToPipelineButtonProps {
@@ -12,14 +12,14 @@ interface AddToPipelineButtonProps {
 }
 
 export default function AddToPipelineButton({ rfp, className, variant = 'full' }: AddToPipelineButtonProps) {
+  const { email } = useUser();
   const [loading, setLoading] = useState(false);
   const [added, setAdded] = useState(false);
 
   const handleAdd = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const email = getTokenPayload()?.email;
+
     if (!email) return;
 
     setLoading(true);

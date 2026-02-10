@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Plus, Trash2, ToggleLeft, ToggleRight, Clock, ExternalLink, AlertCircle, X, Eye } from 'lucide-react';
-import { isAuthenticated, getTokenPayload } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 import TopBar from '@/components/dashboard/TopBar';
 import { stagger, fadeUp } from '@/lib/motion-variants';
 import { CPV_SECTORS, REGIONS } from '@/components/market/types';
@@ -55,6 +55,7 @@ const EMPTY_FORM = {
 };
 
 export default function AlertsPage() {
+  const { email } = useUser();
   const [alerts, setAlerts] = useState<UserAlert[]>([]);
   const [matches, setMatches] = useState<AlertMatch[]>([]);
   const [unseenCount, setUnseenCount] = useState(0);
@@ -66,7 +67,6 @@ export default function AlertsPage() {
   const [activeTab, setActiveTab] = useState<'alerts' | 'matches'>('alerts');
 
   const { settings: userSettings } = useUserSettings();
-  const email = getTokenPayload()?.email ?? '';
 
   const openNewAlertForm = useCallback(() => {
     if (userSettings) {
@@ -85,12 +85,6 @@ export default function AlertsPage() {
     }
     setShowForm(true);
   }, [userSettings]);
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = '/login';
-    }
-  }, []);
 
   const fetchAlerts = useCallback(async () => {
     if (!email) return;

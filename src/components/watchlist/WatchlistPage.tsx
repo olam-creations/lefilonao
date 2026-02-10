@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Trash2, Eye, AlertCircle } from 'lucide-react';
-import { isAuthenticated, getTokenPayload } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 import TopBar from '@/components/dashboard/TopBar';
 import WatchlistAlertsFeed from './WatchlistAlertsFeed';
 import { stagger, fadeUp } from '@/lib/motion-variants';
@@ -11,18 +11,12 @@ import { formatDate } from '@/components/market/utils';
 import type { WatchlistEntry, WatchlistAlert } from '@/components/market/types';
 
 export default function WatchlistPage() {
+  const { email } = useUser();
   const [entries, setEntries] = useState<WatchlistEntry[]>([]);
   const [alerts, setAlerts] = useState<WatchlistAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const email = getTokenPayload()?.email ?? '';
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = '/login';
-    }
-  }, []);
 
   const fetchData = useCallback(async () => {
     if (!email) return;

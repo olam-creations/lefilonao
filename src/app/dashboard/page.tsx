@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Activity, Target } from 'lucide-react';
+import { Search, Target } from 'lucide-react';
 import Link from 'next/link';
-import { isAuthenticated, getTokenPayload, markOnboardingStep } from '@/lib/auth';
-import { api } from '@/lib/api';
+import { markOnboardingStep } from '@/lib/auth';
 import { isDevMode, MOCK_RFPS } from '@/lib/dev';
 import { getCompanyProfile } from '@/lib/profile-storage';
 import { getWorkspaceState } from '@/lib/ao-storage';
 import { computePipelineKpi, computeDeadlineKpi, computeProfileKpi, computeResponseRateKpi } from '@/lib/dashboard-kpi';
 import { useDashboardFilters, type RFP } from '@/hooks/useDashboardFilters';
+import { useUser } from '@/components/UserProvider';
 import type { WorkspaceState } from '@/lib/ao-utils';
 import type { CompanyProfile } from '@/lib/dev';
 import FreeBanner from '@/components/FreeBanner';
@@ -31,64 +31,43 @@ function sanitizeCsvCell(value: string): string {
 }
 
 export default function DashboardPage() {
+  const { email, displayName, plan } = useUser();
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tier, setTier] = useState<'free' | 'pro'>('free');
-  const [rfpsThisMonth, setRfpsThisMonth] = useState(0);
   const [onboardingKey, setOnboardingKey] = useState(0);
   const [workspaces, setWorkspaces] = useState<Record<string, WorkspaceState>>({});
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
 
   const filters = useDashboardFilters(rfps);
 
   const initials = useMemo(() => {
-    if (userName) {
-      const parts = userName.split(' ').filter(Boolean);
+    if (displayName) {
+      const parts = displayName.split(' ').filter(Boolean);
       if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-      return userName.substring(0, 2).toUpperCase();
+      return displayName.substring(0, 2).toUpperCase();
     }
-    const payload = getTokenPayload();
-    if (!payload?.email) return '??';
-    return payload.email.substring(0, 2).toUpperCase();
-  }, [userName]);
+    if (email) return email.substring(0, 2).toUpperCase();
+    return '??';
+  }, [displayName, email]);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = '/login';
-      return;
-    }
-
     const fetchData = async () => {
       try {
-        const email = getTokenPayload()?.email;
+        const userEmail = email || (isDevMode() ? 'dev@lefilonao.local' : '');
+        const rfpRes = userEmail
+          ? await fetch(`/api/rfps?email=${encodeURIComponent(userEmail)}`).then((r) => r.ok ? r.json() : null)
+          : null;
 
-        const [rfpRes, excaliburRes] = await Promise.allSettled([
-          email
-            ? fetch(`/api/rfps?email=${encodeURIComponent(email)}`).then((r) => r.ok ? r.json() : null)
-            : Promise.resolve(null),
-          api.dashboard().then((r) => r.ok ? r.json() : null),
-        ]);
+        const supabaseRfps: RFP[] = rfpRes?.rfps ?? [];
 
-        const supabaseRfps: RFP[] = rfpRes.status === 'fulfilled' && rfpRes.value?.rfps ? rfpRes.value.rfps : [];
-        const excaliburData = excaliburRes.status === 'fulfilled' ? excaliburRes.value : null;
-        const excaliburRfps: RFP[] = excaliburData?.rfps ?? [];
-
-        const seenIds = new Set(supabaseRfps.map((r) => r.id));
-        const merged = [...supabaseRfps, ...excaliburRfps.filter((r) => !seenIds.has(r.id))];
-
-        if (merged.length > 0) {
-          setRfps(merged);
+        if (supabaseRfps.length > 0) {
+          setRfps(supabaseRfps);
         } else if (isDevMode()) {
           setRfps(MOCK_RFPS);
         } else {
           setRfps([]);
         }
-
-        setTier(excaliburData?.profile?.tier || 'free');
-        setUserName(excaliburData?.profile?.name || null);
-        setRfpsThisMonth(merged.length || 0);
       } catch {
         if (isDevMode()) {
           setRfps(MOCK_RFPS);
@@ -100,7 +79,7 @@ export default function DashboardPage() {
       }
     };
     fetchData();
-  }, []);
+  }, [email]);
 
   useEffect(() => {
     if (rfps.length === 0) return;
@@ -173,16 +152,16 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <TopBar 
-        title="Tableau de bord" 
-        description="Gérez vos appels d'offres et suivez vos performances." 
+      <TopBar
+        title="Tableau de bord"
+        description="Gérez vos appels d'offres et suivez vos performances."
         search={filters.search}
         onSearchChange={filters.setSearch}
         userInitials={initials}
       />
 
-      <FreeBanner tier={tier} rfpsThisMonth={rfpsThisMonth} />
-      
+      <FreeBanner tier={plan} />
+
       <div className="mt-8">
         <OnboardingChecklist key={onboardingKey} />
       </div>

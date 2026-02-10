@@ -4,7 +4,7 @@ import { useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Settings } from 'lucide-react';
 import TopBar from '@/components/dashboard/TopBar';
-import { isAuthenticated, clearToken } from '@/lib/auth';
+import { logout } from '@/lib/auth';
 import { stagger, fadeUp } from '@/lib/motion-variants';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import AccountCard from '@/components/settings/AccountCard';
@@ -18,15 +18,8 @@ export default function SettingsPage() {
   const { settings, email, loading, saving, saved, error, updateSettings, saveSettings } =
     useUserSettings();
 
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = '/login';
-    }
-  }, []);
-
   const handleLogout = useCallback(() => {
-    clearToken();
-    window.location.href = '/';
+    logout();
   }, []);
 
   if (loading) {
@@ -97,7 +90,14 @@ export default function SettingsPage() {
 
           <PlatformCredentialsCard email={email} />
 
-          <SubscriptionCard plan={settings.plan} createdAt={settings.created_at} />
+          <SubscriptionCard
+            plan={settings.plan}
+            createdAt={settings.created_at}
+            stripeStatus={settings.stripe_status}
+            currentPeriodEnd={settings.current_period_end}
+            cancelAtPeriodEnd={settings.cancel_at_period_end}
+            stripeCustomerId={settings.stripe_customer_id}
+          />
 
           <DangerZoneCard email={email} />
         </motion.div>

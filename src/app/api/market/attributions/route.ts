@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { requireAuth } from '@/lib/require-auth';
+import { requireFeature } from '@/lib/require-plan';
 import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
@@ -9,6 +10,9 @@ export async function GET(req: NextRequest) {
 
   const auth = requireAuth(req);
   if (!auth.ok) return auth.response;
+
+  const gated = await requireFeature(auth.auth.email, 'buyer-intelligence');
+  if (gated) return gated;
 
   const params = req.nextUrl.searchParams;
   const cpv = params.get('cpv') ?? '72';

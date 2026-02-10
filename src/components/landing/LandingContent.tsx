@@ -558,7 +558,7 @@ export default function LandingContent() {
                   "name": "Combien coûte la veille marchés publics ?",
                   "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro est à 50€ TTC/mois (offre Fondateur à 25€/mois pendant 6 mois, puis 40€/mois). C'est 3 à 5 fois moins cher que les solutions traditionnelles."
+                    "text": "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro est à 50€/mois (offre Fondateur à 25€/mois pendant 6 mois, puis 40€/mois). C'est 3 à 5 fois moins cher que les solutions traditionnelles."
                   }
                 },
                 {
@@ -607,7 +607,7 @@ export default function LandingContent() {
             {[
               {
                 q: "Combien coûte la veille marchés publics ?",
-                a: "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro est à 50€ TTC/mois (offre Fondateur à 25€/mois pendant 6 mois, puis 40€/mois). C'est 3 à 5 fois moins cher que la concurrence."
+                a: "Le Filon AO est gratuit pour commencer, avec 5 AO par mois. Le plan Pro est à 50€/mois (offre Fondateur à 25€/mois pendant 6 mois, puis 40€/mois). C'est 3 à 5 fois moins cher que la concurrence."
               },
               {
                 q: "D'où viennent les appels d'offres ?",

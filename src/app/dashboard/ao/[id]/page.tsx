@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ExternalLink, Search, FileUp } from 'lucide-react';
-import { isAuthenticated, getTokenPayload } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 import TopBar from '@/components/dashboard/TopBar';
 import { isDevMode, MOCK_RFPS, MOCK_AO_DETAILS, type AoDetail, type CompanyProfile, type AoUploadedFile } from '@/lib/dev';
 import { daysUntil, computeProgress } from '@/lib/ao-utils';
@@ -23,6 +23,7 @@ import DceDropZone from '@/components/ao/DceDropZone';
 import { useDceAnalysis } from '@/hooks/useDceAnalysis';
 
 export default function AoDetailPage() {
+  const { email } = useUser();
   const params = useParams();
   const id = params.id as string;
   const [rfp, setRfp] = useState<typeof MOCK_RFPS[0] | null>(null);
@@ -37,11 +38,6 @@ export default function AoDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      window.location.href = '/login';
-      return;
-    }
-
     const loadData = async () => {
       // Try loading from API first
       try {
@@ -92,7 +88,6 @@ export default function AoDetailPage() {
       saveDceAnalysis(id, dce.result);
 
       // Sync score to user_rfps if imported
-      const email = getTokenPayload()?.email;
       if (email && dce.result.scoreCriteria.length > 0) {
         const avgScore = Math.round(
           dce.result.scoreCriteria.reduce((a, c) => a + c.score, 0) / dce.result.scoreCriteria.length
@@ -107,7 +102,7 @@ export default function AoDetailPage() {
         }).catch(() => {});
       }
     }
-  }, [dce.state, dce.result, id]);
+  }, [dce.state, dce.result, id, email]);
 
   const updateWorkspace = useCallback((updater: (prev: WorkspaceState) => WorkspaceState) => {
     setWorkspace((prev) => {

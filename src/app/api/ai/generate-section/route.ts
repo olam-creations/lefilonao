@@ -3,6 +3,7 @@ import { hasApiKey, hasGeminiKey, getGeminiModel, hasAnthropicKey, getAnthropicC
 import { measureAiCall } from '@/lib/ai-audit';
 import { jsonToToon } from '@/lib/toon';
 import { requireAuth } from '@/lib/require-auth';
+import { requireFeature } from '@/lib/require-plan';
 import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 
 import { generateSectionSchema, parseBody, type GenerateSectionInput } from '@/lib/validators';
@@ -13,6 +14,9 @@ export async function POST(request: NextRequest) {
 
   const auth = requireAuth(request);
   if (!auth.ok) return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401 });
+
+  const gated = await requireFeature(auth.auth.email, 'generate-section');
+  if (gated) return gated;
 
   try {
     if (!hasApiKey()) {

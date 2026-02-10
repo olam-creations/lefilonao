@@ -30,7 +30,7 @@ export default function CgvPage() {
 
       <h3>Offre Pro</h3>
       <ul>
-        <li>Prix : <strong>50 € TTC / mois</strong> (41,67 € HT au taux de TVA de 20 %)</li>
+        <li>Prix : <strong>50 €/mois</strong></li>
         <li>Appels d&apos;offres illimités</li>
         <li>Analyse DCE par IA</li>
         <li>Aide à la rédaction de mémoires techniques</li>
@@ -42,8 +42,8 @@ export default function CgvPage() {
 
       <h3>Offre Fondateur (places limitées)</h3>
       <ul>
-        <li>Prix : <strong>25 € TTC / mois pendant 6 mois</strong> à compter de la date de souscription</li>
-        <li>À l&apos;issue de la période fondateur : <strong>40 € TTC / mois</strong> (tarif fidélité permanent, soit -20 % par rapport au tarif normal)</li>
+        <li>Prix : <strong>25 €/mois pendant 6 mois</strong> à compter de la date de souscription</li>
+        <li>À l&apos;issue de la période fondateur : <strong>40 €/mois</strong> (tarif fidélité permanent, soit -20 % par rapport au tarif normal)</li>
         <li>Fonctionnalités identiques à l&apos;offre Pro</li>
         <li>Offre réservée aux premiers utilisateurs, dans la limite des places disponibles</li>
       </ul>
@@ -52,8 +52,7 @@ export default function CgvPage() {
       <p>
         Le paiement s&apos;effectue par carte bancaire via <strong>Stripe</strong>.
         Le paiement est exigible immédiatement à la souscription.
-        Tous les prix affichés s&apos;entendent toutes taxes comprises (TTC).
-        Le taux de TVA applicable est de 20 %.
+        TVA non applicable, article 293 B du CGI (franchise en base).
       </p>
 
       <h2>4. Durée et renouvellement</h2>

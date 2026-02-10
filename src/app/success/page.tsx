@@ -76,7 +76,7 @@ function SuccessContent() {
             Bienvenue dans Le Filon <span className="gradient-text">AO</span>
           </h1>
           <p className="text-slate-500 text-lg mb-10">
-            Votre essai de 14 jours commence maintenant.
+            Votre abonnement Pro est actif.
           </p>
 
           {/* Steps */}

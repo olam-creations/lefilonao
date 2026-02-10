@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getTokenPayload } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 
 export interface UserSettings {
   user_email: string;
@@ -15,6 +15,11 @@ export interface UserSettings {
   created_at: string | null;
   notify_frequency: string;
   notify_email: boolean;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_status: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -29,6 +34,11 @@ const DEFAULT_SETTINGS: UserSettings = {
   created_at: null,
   notify_frequency: 'daily',
   notify_email: true,
+  stripe_customer_id: null,
+  stripe_subscription_id: null,
+  stripe_status: 'none',
+  current_period_end: null,
+  cancel_at_period_end: false,
 };
 
 export interface UseUserSettingsReturn {
@@ -43,18 +53,14 @@ export interface UseUserSettingsReturn {
 }
 
 export function useUserSettings(): UseUserSettingsReturn {
+  const { email: userEmail } = useUser();
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
-  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const payload = getTokenPayload();
-    const userEmail = payload?.email ?? '';
-    setEmail(userEmail);
-
     if (!userEmail) {
       setLoading(false);
       return;
@@ -67,7 +73,7 @@ export function useUserSettings(): UseUserSettingsReturn {
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Erreur de chargement'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [userEmail]);
 
   const updateSettings = useCallback((partial: Partial<UserSettings>) => {
     setSettings((prev) => ({ ...prev, ...partial }));
@@ -83,7 +89,7 @@ export function useUserSettings(): UseUserSettingsReturn {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email,
+          email: userEmail,
           display_name: settings.display_name,
           default_cpv: settings.default_cpv,
           default_regions: settings.default_regions,
@@ -106,7 +112,7 @@ export function useUserSettings(): UseUserSettingsReturn {
     } finally {
       setSaving(false);
     }
-  }, [email, settings]);
+  }, [userEmail, settings]);
 
-  return { settings, email, loading, saving, saved, error, updateSettings, saveSettings };
+  return { settings, email: userEmail, loading, saving, saved, error, updateSettings, saveSettings };
 }

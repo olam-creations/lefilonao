@@ -2,13 +2,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act, cleanup } from '@testing-library/react';
 import WatchButton from '../WatchButton';
 
-// Mock auth
-vi.mock('@/lib/auth', () => ({
-  getTokenPayload: vi.fn(() => ({ email: 'user@test.fr' })),
+// Mock UserProvider
+vi.mock('@/components/UserProvider', () => ({
+  useUser: vi.fn(() => ({
+    email: 'user@test.fr',
+    displayName: 'Test User',
+    plan: 'free',
+    loading: false,
+    authenticated: true,
+    refresh: vi.fn(),
+  })),
 }));
 
-import { getTokenPayload } from '@/lib/auth';
-const mockedGetTokenPayload = vi.mocked(getTokenPayload);
+import { useUser } from '@/components/UserProvider';
+const mockedUseUser = vi.mocked(useUser);
 
 // Mock fetch
 const mockFetch = vi.fn();
@@ -16,7 +23,14 @@ global.fetch = mockFetch;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockedGetTokenPayload.mockReturnValue({ email: 'user@test.fr' });
+  mockedUseUser.mockReturnValue({
+    email: 'user@test.fr',
+    displayName: 'Test User',
+    plan: 'free',
+    loading: false,
+    authenticated: true,
+    refresh: vi.fn(),
+  });
 });
 
 afterEach(() => {
@@ -25,7 +39,14 @@ afterEach(() => {
 
 describe('WatchButton', () => {
   it('renders nothing when no email (unauthenticated)', () => {
-    mockedGetTokenPayload.mockReturnValue(null);
+    mockedUseUser.mockReturnValue({
+      email: '',
+      displayName: '',
+      plan: 'free',
+      loading: false,
+      authenticated: false,
+      refresh: vi.fn(),
+    });
     const { container } = render(<WatchButton buyerName="Test Buyer" />);
     expect(container.querySelector('button')).toBeNull();
   });

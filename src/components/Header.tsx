@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, LogOut, Menu, X } from 'lucide-react';
-import { isAuthenticated, clearToken } from '@/lib/auth';
+import { logout } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 import Logo from '@/components/shared/Logo';
 
 type Variant = 'public' | 'dashboard';
@@ -36,14 +37,10 @@ const DASHBOARD_NAV: { href: string; label: string; page: ActivePage }[] = [
 export default function Header({ variant = 'public', activePage, backHref, rightSlot }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [authed, setAuthed] = useState(false);
   const pathname = usePathname();
   const overlayRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    setAuthed(isAuthenticated());
-  }, []);
+  const { authenticated } = useUser();
 
   useEffect(() => {
     if (variant !== 'public') return;
@@ -96,20 +93,8 @@ export default function Header({ variant = 'public', activePage, backHref, right
     };
   }, [mobileOpen]);
 
-  // Sync auth state across browser tabs via storage events
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === 'lefilonao_token' || e.key === null) {
-        setAuthed(isAuthenticated());
-      }
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-
   const handleLogout = useCallback(() => {
-    clearToken();
-    window.location.href = '/';
+    logout();
   }, []);
 
   const closeMobile = useCallback(() => setMobileOpen(false), []);
@@ -174,7 +159,7 @@ export default function Header({ variant = 'public', activePage, backHref, right
 
           {/* Right: actions */}
           <div className="flex items-center gap-3">
-            {variant === 'public' && !authed && (
+            {variant === 'public' && !authenticated && (
               <div className="hidden md:flex items-center gap-3">
                 <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
                   Connexion
@@ -185,7 +170,7 @@ export default function Header({ variant = 'public', activePage, backHref, right
               </div>
             )}
 
-            {variant === 'public' && authed && (
+            {variant === 'public' && authenticated && (
               <Link href="/dashboard" className="hidden md:inline-flex btn-primary text-sm py-2 px-4">
                 Mon dashboard <ArrowRight className="w-3.5 h-3.5" />
               </Link>
@@ -249,7 +234,7 @@ export default function Header({ variant = 'public', activePage, backHref, right
                     </Link>
                   ))}
                   <div className="pt-4">
-                    {authed ? (
+                    {authenticated ? (
                       <Link href="/dashboard" onClick={closeMobile} className="btn-primary w-full justify-center py-3">
                         Mon dashboard <ArrowRight className="w-4 h-4" />
                       </Link>
