@@ -4,6 +4,8 @@ import { requireAuth } from '@/lib/require-auth';
 import { requireFeature } from '@/lib/require-plan';
 import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   const limited = await rateLimit(request, AI_LIMIT);
   if (limited) return limited;

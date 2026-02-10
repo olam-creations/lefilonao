@@ -9,6 +9,8 @@ import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 
 import { coachSchema, parseBody } from '@/lib/validators';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   const limited = await rateLimit(request, AI_LIMIT);
   if (limited) return limited;

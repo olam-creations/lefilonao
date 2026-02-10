@@ -5,6 +5,8 @@ import { requireAuth } from '@/lib/require-auth';
 import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 import { fetchPdfViaBrightData, discoverDceDocuments } from '@/lib/brightdata';
 
+export const maxDuration = 60;
+
 const FETCH_TIMEOUT = 15_000;
 const MAX_RESPONSE_SIZE = 25 * 1024 * 1024;
 const MAX_REDIRECTS = 5;

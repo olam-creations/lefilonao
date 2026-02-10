@@ -8,6 +8,8 @@ import { rateLimit, AI_LIMIT } from '@/lib/rate-limit';
 
 import { generateSectionSchema, parseBody, type GenerateSectionInput } from '@/lib/validators';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   const limited = await rateLimit(request, AI_LIMIT);
   if (limited) return new Response(JSON.stringify({ error: 'Trop de requêtes' }), { status: 429 });
