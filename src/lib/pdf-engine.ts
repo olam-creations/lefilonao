@@ -32,14 +32,15 @@ export async function extractHighFidelityText(buffer: Buffer): Promise<PdfConten
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
     
-    // Sort items by vertical position then horizontal
-    // @ts-ignore
-    const items = content.items.sort((a, b) => {
-      if (a.transform[5] !== b.transform[5]) {
-        return b.transform[5] - a.transform[5]; // Descending Y
-      }
-      return a.transform[4] - b.transform[4]; // Ascending X
-    });
+    // Filter to TextItem (has transform + str), then sort by position
+    const items = (content.items as Array<{ str: string; transform: number[] }>)
+      .filter((item) => 'transform' in item && 'str' in item)
+      .sort((a, b) => {
+        if (a.transform[5] !== b.transform[5]) {
+          return b.transform[5] - a.transform[5]; // Descending Y
+        }
+        return a.transform[4] - b.transform[4]; // Ascending X
+      });
 
     let lastY = -1;
     let pageText = '';
