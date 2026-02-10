@@ -4,8 +4,9 @@
 - **Dev**: `npm run dev` (port 3050)
 - **Build**: `npm run build`
 - **Lint**: `npm run lint`
-- **Test**: `npm run test` (vitest)
+- **Test (unit)**: `npm run test` (vitest)
 - **Test watch**: `npm run test:watch`
+- **Test (E2E)**: `npx playwright test` (38 Playwright tests, requires dev server on port 3050)
 - **Type check**: `npx tsc --noEmit`
 
 ## Architecture
@@ -16,8 +17,11 @@
 - **Animation**: framer-motion 11
 - **Icons**: lucide-react
 - **AI**: Tri-provider (Gemini + Anthropic + NVIDIA) avec resilience (cockatiel), voir section IA ci-dessous
-- **PDF**: pdf-lib (generation, e-signature, cachet embedding) + pdf-parse v2 (extraction texte)
-- **Testing**: Vitest + Testing Library
+- **PDF**: pdf-lib (generation, e-signature, cachet embedding) + pdfjs-dist (spatial text extraction via `pdf-engine.ts`)
+- **Rate limiting**: @upstash/ratelimit + @upstash/redis (distributed, Redis-backed) with in-memory fallback for dev
+- **Dossier export**: jszip (ZIP dossier complet: DC1, DC2, memoire, documents)
+- **Drag & drop**: @dnd-kit/core + @dnd-kit/sortable (section reordering)
+- **Testing**: Vitest + Testing Library (unit) + Playwright (E2E, 38 tests)
 - **Monitoring**: Sentry (errors) + Plausible (analytics)
 - **Deployment**: Vercel (standalone output)
 
@@ -109,7 +113,7 @@ Cloudflare Worker (cron triggers)         Ce repo (Next.js)
 - Meme `ENCRYPTION_MASTER_KEY` partagee entre Vercel et Workers
 
 ### Security Headers
-Configured in `next.config.ts`: X-Frame-Options DENY, HSTS, CSP (Gemini + Anthropic + Sentry + Plausible + Workers + Stripe), nosniff, strict referrer. No external auth domains in CSP (meragel removed).
+Configured in `next.config.ts`: X-Frame-Options DENY, HSTS, X-Content-Type-Options nosniff, strict Referrer-Policy, Permissions-Policy (camera/mic/geo denied). CSP not currently configured (removed during auth rewrite — to be re-added).
 
 ## AI Integration
 
@@ -166,12 +170,35 @@ Orchestration multi-step via `executePlan()` (`src/lib/ai-plan.ts`) :
 - `src/hooks/useDceAnalysis.ts` — Hook analyse DCE (states: idle/uploading/analyzing/done/error)
 - `src/hooks/useStreamingGeneration.ts` — Hook SSE streaming avec AbortController
 
-## PDF Generation (DC1/DC2)
+## Rate Limiting
+
+### Architecture (`src/lib/rate-limit.ts`)
+- **Production**: Upstash Redis-backed sliding window (distributed, works across Vercel instances)
+- **Development**: In-memory fallback (no Redis required, auto-cleanup every 5 min)
+- **API**: `rateLimit(req, options)` returns `null` (allowed) or `429 Response` (exceeded)
+
+### Presets
+| Preset | Limit | Window | Used by |
+|--------|-------|--------|---------|
+| `AUTH_LIMIT` | 5 req | 60s | `/api/auth/*`, `/api/gate` |
+| `AI_LIMIT` | 10 req | 60s | `/api/ai/*` |
+| `STANDARD_LIMIT` | 60 req | 60s | All other API routes |
+
+## Agent Architecture
+
+### `src/lib/agents/`
+- `base-agent.ts` — Abstract `BaseAgent<TInput, TOutput>` class with `AgentContext` (userId, plan, history) and `AgentResult<T>` (success, data, error, usage). Inspired by Mastra.ai / Vercel AI SDK.
+- `dce-agent.ts` — `DceAgent` extends BaseAgent, analyzes PDF DCE documents via the resilient cascade.
+- `orchestrator.ts` — `FilonOrchestrator` singleton, central entry point for multi-agent coordination. Currently exposes `dceAgent`.
+
+## PDF Generation & Extraction
 
 ### Architecture
+- `src/lib/pdf-engine.ts` — High-fidelity PDF text extraction via pdfjs-dist (spatial layout-preserving, replaces pdf-parse for extraction)
 - `src/lib/pdf-utils.ts` — Shared drawing primitives (top-down coordinate system, y flows downward)
 - `src/lib/pdf-dc1.ts` — Lettre de candidature (2 pages: identification + engagement/signature)
 - `src/lib/pdf-dc2.ts` — Declaration du candidat (2 pages: identification/financials + references/attestation)
+- `src/lib/dossier-export.ts` — Full dossier ZIP export (DC1 + DC2 + memoire technique + uploaded documents) via jszip
 
 ### Fonctionnalites
 - **Cachet entreprise**: image PNG/JPG embeddee depuis `CompanyProfile.cachetBase64`
@@ -198,7 +225,7 @@ src/
       login/route.ts      # POST — password verify, sign cookie
       logout/route.ts     # POST — clear cookie
       session/route.ts    # GET — verify cookie, return auth state
-    api/ai/               # AI endpoints (analyze-dce, generate-section, coach) — pro-gated
+    api/ai/               # AI endpoints (analyze-dce, generate-section, coach, fetch-dce) — pro-gated
     api/ao-views/route.ts # GET count + POST record AO view (free plan tracking)
     api/market/           # Market intelligence (read-only from Supabase, some pro-gated)
       insights/           # KPIs, top buyers/winners
@@ -218,9 +245,16 @@ src/
       route.ts            # GET/PATCH user settings
       credentials/route.ts # GET/POST/DELETE platform credentials (AES-256-GCM)
     api/stripe/           # Stripe endpoints (checkout, portal, subscription, webhook)
-    api/documents/        # Document upload/management
+    api/documents/        # Document upload/management (upload, generate-pdf)
+    api/alerts/           # Alert matches
+    api/feedback/         # Founder feedback
+    api/geo/              # Address/geocoding
+    api/opportunities/    # Opportunity search
+    api/pipeline/         # Pipeline stats
+    api/rfps/             # RFP CRUD
     api/gate/             # Site-level gate (separate from auth)
     login/ pricing/ subscribe/ success/  # Public pages
+    cgu/ cgv/ mentions-legales/ politique-confidentialite/  # Legal pages
   components/
     UserProvider.tsx       # React context for auth state (useUser hook)
     ao/                   # AO detail page components (26 files)
@@ -269,9 +303,27 @@ src/
     ai-plan.ts            # Plan executor sequentiel avec variable injection
     ai-plan-templates.ts  # Templates de plans (batch generate, full analysis)
     crypto-utils.ts       # AES-256-GCM encrypt/decrypt (node:crypto, interop avec Workers)
+    pdf-engine.ts         # High-fidelity PDF text extraction (pdfjs-dist, spatial layout)
+    dossier-export.ts     # Full dossier ZIP export (DC1 + DC2 + memoire + documents)
+    dce-analyzer.ts       # DCE PDF analysis orchestration
+    r2-client.ts          # Cloudflare R2 file storage (S3-compatible)
+    file-storage.ts       # File download/trigger helpers
+    rate-limit.ts         # Per-IP rate limiter (Upstash Redis distributed, in-memory fallback)
+    sanitize-search.ts    # Search input sanitization
+    winnability-score.ts  # AO winnability scoring algorithm
+    notice-transform.ts   # Notice data transformation
+    profile-storage.ts    # Profile localStorage persistence
+    ao-utils.ts           # AO workspace state types + utilities
     dev.ts                # Types du domaine (AoDetail, CompanyProfile w/ cachetBase64, etc.)
     ao-storage.ts         # Persistance localStorage (DCE, sections, workspace)
-    __tests__/            # Unit tests (dashboard-kpi, csv sanitization)
+    supabase.ts           # Supabase client singleton (server + client)
+    agents/               # Agent architecture (base-agent, dce-agent, orchestrator)
+    __tests__/            # Unit tests (dashboard-kpi, csv sanitization, ia-engine)
+e2e/                      # Playwright E2E tests
+  auth.spec.ts            # Auth journeys: login, dev access, logout, registration, API routes, protected routes
+  feature-gating.spec.ts  # Feature gating API + auth cookie structure tests
+  global-setup.ts         # Rate-limit-aware setup (waits for 60s window between runs)
+supabase/migrations/      # Database migrations (001-023), run via Management API
 ```
 
 ## Key Patterns
@@ -313,6 +365,19 @@ interface RFP {
 - **Sentry** (error tracking): 14-day trial started ~Feb 9, 2026 (expires ~Feb 23)
 - **Plausible** (analytics): 30-day trial started ~Feb 9, 2026 (expires ~Mar 11)
 - Domain: `lefilonao.com` | Org: `olam-creations`
+
+## E2E Testing (Playwright)
+
+### Setup
+- Config: `playwright.config.ts` — Chromium only, serial execution (workers=1), baseURL `http://localhost:3050`
+- Global setup: `e2e/global-setup.ts` — Rate-limit-aware: detects consecutive runs and waits for the 60s rate limit window to expire before running tests
+
+### Test Files (38 tests total)
+- `e2e/auth.spec.ts` — 7 journeys: login form, dev access button, logout, registration flow (2-step: account + preferences), auth API routes (validation, session, register), protected routes
+- `e2e/feature-gating.spec.ts` — Feature gating API validation (403 for free users on pro features), auth cookie structure tests
+
+### Rate Limit Handling
+Auth endpoints have 5 req/min limit. Tests accept 429 as valid response and skip gracefully. Global setup uses timestamp file to auto-wait between runs.
 
 ## RGPD & Legal
 - 4 pages legales: mentions legales, politique de confidentialite, CGU, CGV
@@ -358,7 +423,7 @@ subscribe page → api.checkout() → POST /api/stripe/checkout
 ```
 
 ### Webhook Events
-Endpoint: `/api/stripe/webhook` — verifie signature via `STRIPE_WEBHOOK_SECRET`
+Endpoint: `/api/stripe/webhook` (webhook endpoint: `we_1SzI1TBDkKUCWueHBrJw0Yh8`) — verifie signature via `STRIPE_WEBHOOK_SECRET`
 - `checkout.session.completed` → plan='pro', save stripe_customer_id + subscription_id
 - `customer.subscription.updated` → sync status, cancel_at_period_end, current_period_end
 - `customer.subscription.deleted` → plan='free', stripe_status='canceled'
@@ -380,16 +445,19 @@ Endpoint: `/api/stripe/webhook` — verifie signature via `STRIPE_WEBHOOK_SECRET
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — Stripe auth
 - `STRIPE_PRICE_PRO_MONTHLY` — Active price ID (fondateur=40EUR, standard=50EUR)
 - `STRIPE_COUPON_FOUNDER` — Coupon ID (-15EUR x6 mois, omit to disable founder pricing)
+- `NEXT_PUBLIC_APP_URL` — App base URL (used for Stripe return URLs, default `http://localhost:3050`)
 - `WORKER_URL` — Cloudflare Worker URL (`https://lefilonao-workers.olamcreations.workers.dev`)
 - `WORKER_AUTH_TOKEN` — Secret partage avec Worker pour auth `/scrape-dce`
 - `ENCRYPTION_MASTER_KEY` — Cle 32 octets hex pour AES-256-GCM (meme que Worker)
+- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY`, `R2_SECRET_KEY`, `R2_BUCKET` — Cloudflare R2 file storage (bucket: `lefilonao-documents`)
+- `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` — Distributed rate limiting (optional, falls back to in-memory in dev)
 - `SUPABASE_ACCESS_TOKEN` — Management API (for migrations via `api.supabase.com`)
 - `POSTGRES_*` — Database (via Supabase)
 - ~~`NEXT_PUBLIC_API_URL`~~ — REMOVED (meragel dependency eliminated, all auth is local)
 
 ## Supabase Migrations
 
-Migrations are in `supabase/migrations/`. Run via the Management API:
+23 migrations in `supabase/migrations/` (001-023). Run via the Management API:
 
 ```bash
 node scripts/run-migration.mjs $(npx vercel env run --environment production -- node -e "process.stdout.write(process.env.SUPABASE_ACCESS_TOKEN)")
@@ -402,10 +470,22 @@ npx vercel env run --environment production -- node scripts/run-migration.mjs su
 
 Project ref: `vdatbrdkwwedetdlbqxx`
 
-## Database (Auth & Feature Gating)
-- `user_settings` table — columns: `user_email` (PK), `plan` ('free'|'pro'), `password_hash` (bcrypt), `first_name`, `company`, `display_name`, + settings fields
-- `ao_views` table — columns: `user_email`, `notice_id`, `month_key` (YYYY-MM), `created_at`. Unique index on `(user_email, notice_id, month_key)`. Tracks free-plan AO view limits.
+## Database (Auth, Billing & Feature Gating)
+- `user_settings` table — columns: `user_email` (PK), `plan` ('free'|'pro'), `password_hash` (bcrypt), `first_name`, `company`, `display_name`, `stripe_customer_id`, `stripe_subscription_id`, `stripe_status` ('none'|'active'|'past_due'|'canceled'), `current_period_end`, `cancel_at_period_end`, + settings fields
+- `ao_views` table — columns: `id` (UUID PK), `user_email`, `notice_id`, `month_key` (YYYY-MM), `viewed_at`. Unique index on `(user_email, notice_id, month_key)`. Tracks free-plan AO view limits.
+- `platform_credentials` table — AES-256-GCM encrypted platform login credentials
 - Plan is read exclusively via `getUserPlan(email)` from `user_settings.plan` — single source of truth (no external service)
+- Stripe webhook updates `user_settings` directly (plan, stripe_status, current_period_end, cancel_at_period_end)
+
+### Migrations (supabase/migrations/)
+23 migrations total (001-023). Key recent migrations:
+- `016_stripe_billing.sql` — Stripe columns on user_settings (customer_id, subscription_id, status, period_end, cancel)
+- `017_rls_defense_in_depth.sql` — RLS policies for all tables (anon key cannot access user data)
+- `019_auth_fields.sql` — password_hash, first_name, company columns for local auth
+- `020_ao_views.sql` — ao_views table for free plan metering
+- `021_drop_unused_indexes.sql` — Cleanup unused indexes (Supabase linter)
+- `022_index_foreign_keys.sql` — FK covering indexes for JOIN/CASCADE performance
+- `023_index_decp_cpv_sector.sql` — Composite index for market query performance
 
 ## Conventions
 - French UI text throughout (accents required)
