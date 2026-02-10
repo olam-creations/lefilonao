@@ -1,8 +1,53 @@
+import { z } from 'zod';
 import { hasApiKey, hasAnthropicKey, getAnthropicClient, hasGeminiKey, getGeminiModel, hasNvidiaKey, nvidiaGenerate, hasOllamaConfig, ollamaGenerate } from '@/lib/ai-client';
 import { resilientCascade } from '@/lib/ai-resilience';
 import { measureAiCall } from '@/lib/ai-audit';
-import { extractHighFidelityText } from '@/lib/pdf-engine';
+import { extractHighFidelityText, extractTablesFromPdf } from '@/lib/pdf-engine';
+import { extractEntities } from '@/lib/entity-extractor';
 import type { AoDetail } from '@/lib/dev';
+import type { ExtractedTable } from '@/lib/pdf-engine';
+
+// Schema de validation strict pour l'IA
+const AoDetailSchema = z.object({
+  aiSummary: z.string(),
+  executiveSummary: z.string(),
+  selectionCriteria: z.array(z.object({
+    name: z.string(),
+    weight: z.number()
+  })),
+  scoreCriteria: z.array(z.object({
+    label: z.string(),
+    score: z.number(),
+    icon: z.string(),
+    description: z.string()
+  })),
+  vigilancePoints: z.array(z.object({
+    type: z.enum(['risk', 'warning', 'opportunity']),
+    title: z.string(),
+    description: z.string()
+  })),
+  technicalPlanSections: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    buyerExpectation: z.string(),
+    aiDraft: z.string(),
+    wordCount: z.number()
+  })),
+  requiredDocumentsDetailed: z.array(z.object({
+    name: z.string(),
+    hint: z.string(),
+    isCritical: z.boolean(),
+    category: z.string()
+  })),
+  complianceChecklist: z.array(z.string()),
+  recommendation: z.object({
+    verdict: z.enum(['go', 'maybe', 'pass']),
+    headline: z.string(),
+    reasons: z.array(z.string())
+  }),
+  buyerHistory: z.array(z.any()).default([]),
+  competitors: z.array(z.any()).default([])
+});
 
 const DCE_PROMPT = `Tu es un expert en marches publics francais. Analyse ce DCE (Dossier de Consultation des Entreprises) et extrais les informations au format JSON strict.
 
@@ -39,6 +84,50 @@ Regles strictes :
 const MAX_TEXT_LENGTH = 80000;
 const MAX_PDF_SIZE = 25 * 1024 * 1024;
 
+/**
+ * Attempt to repair truncated JSON by closing unclosed brackets/braces/strings.
+ * Handles common AI output truncation where the response hits token limit.
+ */
+function repairTruncatedJson(json: string): string {
+  let s = json.trim();
+
+  // Remove trailing comma before we close
+  s = s.replace(/,\s*$/, '');
+
+  // Track open delimiters
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escaped) { escaped = false; continue; }
+    if (c === '\\' && inString) { escaped = true; continue; }
+
+    if (c === '"' && !inString) { inString = true; continue; }
+    if (c === '"' && inString) { inString = false; continue; }
+    if (inString) continue;
+
+    if (c === '{' || c === '[') stack.push(c);
+    if (c === '}' && stack.length > 0 && stack[stack.length - 1] === '{') stack.pop();
+    if (c === ']' && stack.length > 0 && stack[stack.length - 1] === '[') stack.pop();
+  }
+
+  // Close unclosed string
+  if (inString) s += '"';
+
+  // Remove trailing incomplete key-value (e.g. `"key": "incompl`)
+  s = s.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"{}[\]]*$/, '');
+
+  // Close unclosed delimiters in reverse order
+  while (stack.length > 0) {
+    const open = stack.pop();
+    s += open === '{' ? '}' : ']';
+  }
+
+  return s;
+}
+
 export function validatePdfBuffer(buffer: Buffer): void {
   if (!buffer || buffer.length === 0) {
     throw new Error('Le fichier PDF est vide');
@@ -55,15 +144,27 @@ export async function analyzePdfBuffer(buffer: Buffer, signal?: AbortSignal): Pr
 
   validatePdfBuffer(buffer);
 
-  // Utilisation du nouveau moteur haute fidelite
-  const parsed = await extractHighFidelityText(buffer);
+  // Extract text and tables in parallel
+  const [parsed, extractedTables] = await Promise.all([
+    extractHighFidelityText(buffer),
+    extractTablesFromPdf(buffer).catch((): ExtractedTable[] => []),
+  ]);
   const pdfText = parsed.text;
 
   if (!pdfText.trim()) {
     throw new Error('Le PDF ne contient pas de texte extractible');
   }
 
-  const truncatedText = pdfText.slice(0, MAX_TEXT_LENGTH);
+  // Append table data to text for AI context
+  let enrichedText = pdfText;
+  if (extractedTables.length > 0) {
+    const tableText = extractedTables.map((t, i) =>
+      `\n--- TABLEAU ${i + 1} (page ${t.pageNumber}) ---\n${t.headers.join(' | ')}\n${t.rows.map((r) => r.join(' | ')).join('\n')}`
+    ).join('\n');
+    enrichedText = pdfText + tableText;
+  }
+
+  const truncatedText = enrichedText.slice(0, MAX_TEXT_LENGTH);
   const prompt = DCE_PROMPT.replace('{TEXT}', truncatedText);
 
   const audit = measureAiCall('analyze_dce', 'cascade', 'mixed');
@@ -77,7 +178,10 @@ export async function analyzePdfBuffer(buffer: Buffer, signal?: AbortSignal): Pr
           available: hasGeminiKey,
           execute: async () => {
             const model = getGeminiModel();
-            const result = await model.generateContent(prompt, { signal });
+            const result = await model.generateContent({
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: { maxOutputTokens: 16384 },
+            });
             return result.response.text();
           },
         },
@@ -89,7 +193,7 @@ export async function analyzePdfBuffer(buffer: Buffer, signal?: AbortSignal): Pr
         {
           name: 'nvidia',
           available: hasNvidiaKey,
-          execute: () => nvidiaGenerate(prompt, signal),
+          execute: () => nvidiaGenerate(prompt, signal, 16000),
         },
         // Anthropic en attente de fonds
         /*
@@ -123,50 +227,39 @@ export async function analyzePdfBuffer(buffer: Buffer, signal?: AbortSignal): Pr
   }
 
   const jsonStr = rawText.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
-  let aiParsed;
+
+  let validated;
   try {
-    aiParsed = JSON.parse(jsonStr);
-  } catch {
-    throw new Error('Reponse IA mal formatee');
+    const aiParsed = JSON.parse(jsonStr);
+    validated = AoDetailSchema.parse(aiParsed);
+  } catch (firstErr) {
+    // Attempt JSON repair for truncated responses (unclosed brackets/braces)
+    try {
+      const repaired = repairTruncatedJson(jsonStr);
+      const aiParsed = JSON.parse(repaired);
+      validated = AoDetailSchema.parse(aiParsed);
+    } catch (err) {
+      console.error('Zod/JSON Validation Error (after repair):', err);
+      throw new Error('La reponse de l\'IA ne respecte pas le format attendu');
+    }
   }
 
-  const scoreCriteria = (aiParsed.scoreCriteria ?? []).map(
-    (c: { label: string; score: number; icon: string; description: string }) => ({
-      ...c,
-      score: Math.max(0, Math.min(20, Number(c.score) || 0)),
-    }),
-  );
-
-  const selectionCriteria = aiParsed.selectionCriteria ?? [];
-  const weightTotal = selectionCriteria.reduce(
-    (sum: number, c: { weight: number }) => sum + (Number(c.weight) || 0),
-    0,
-  );
+  // Normalisation finale
+  const selectionCriteria = validated.selectionCriteria;
+  const weightTotal = selectionCriteria.reduce((sum, c) => sum + c.weight, 0);
   const normalizedCriteria = weightTotal > 0 && weightTotal !== 100
-    ? selectionCriteria.map((c: { name: string; weight: number }) => ({
-        ...c,
-        weight: Math.round((Number(c.weight) / weightTotal) * 100),
-      }))
+    ? selectionCriteria.map(c => ({ ...c, weight: Math.round((c.weight / weightTotal) * 100) }))
     : selectionCriteria;
 
-  const recommendation = aiParsed.recommendation ?? { verdict: 'maybe', headline: 'A etudier', reasons: [] };
-  if (!['go', 'maybe', 'pass'].includes(recommendation.verdict)) {
-    recommendation.verdict = 'maybe';
-  }
+  // Non-blocking entity extraction (fire-and-forget style, awaited but failure-safe)
+  const extractedEntities = await extractEntities(pdfText, signal);
 
   return {
-    scoreCriteria,
+    ...validated,
     selectionCriteria: normalizedCriteria,
-    requiredDocuments: (aiParsed.requiredDocumentsDetailed ?? []).map((d: { name: string }) => d.name),
-    aiSummary: aiParsed.aiSummary ?? '',
-    technicalPlan: (aiParsed.technicalPlanSections ?? []).map((s: { id: string; title: string }) => `${s.id.replace('sec-', '')}. ${s.title}`),
-    executiveSummary: aiParsed.executiveSummary ?? '',
-    complianceChecklist: aiParsed.complianceChecklist ?? [],
-    buyerHistory: aiParsed.buyerHistory ?? [],
-    competitors: aiParsed.competitors ?? [],
-    recommendation,
-    vigilancePoints: aiParsed.vigilancePoints ?? [],
-    technicalPlanSections: aiParsed.technicalPlanSections ?? [],
-    requiredDocumentsDetailed: aiParsed.requiredDocumentsDetailed ?? [],
+    requiredDocuments: validated.requiredDocumentsDetailed.map(d => d.name),
+    technicalPlan: validated.technicalPlanSections.map(s => `${s.id.replace('sec-', '')}. ${s.title}`),
+    ...(extractedEntities ? { extractedEntities } : {}),
+    ...(extractedTables.length > 0 ? { extractedTables } : {}),
   } as AoDetail;
 }

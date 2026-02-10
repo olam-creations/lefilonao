@@ -42,7 +42,7 @@ export function getAnthropicClient(): Anthropic {
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const NVIDIA_MODEL = 'meta/llama-3.3-70b-instruct';
 
-export async function nvidiaGenerate(prompt: string, signal?: AbortSignal): Promise<string> {
+export async function nvidiaGenerate(prompt: string, signal?: AbortSignal, maxTokens = 8000): Promise<string> {
   const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -53,7 +53,7 @@ export async function nvidiaGenerate(prompt: string, signal?: AbortSignal): Prom
       model: NVIDIA_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
-      max_tokens: 8000,
+      max_tokens: maxTokens,
     }),
     signal,
   });
@@ -62,6 +62,30 @@ export async function nvidiaGenerate(prompt: string, signal?: AbortSignal): Prom
     throw new Error(`NVIDIA API error: ${response.status}`);
   }
 
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content ?? '';
+}
+
+/**
+ * Appel specifique pour le raisonnement complexe (DeepSeek-R1).
+ */
+export async function deepseekReason(prompt: string, signal?: AbortSignal): Promise<string> {
+  const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'deepseek-ai/deepseek-r1',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.6, // Legerement plus haut pour le raisonnement
+      max_tokens: 16000,
+    }),
+    signal,
+  });
+
+  if (!response.ok) throw new Error(`DeepSeek R1 Error: ${response.status}`);
   const data = await response.json();
   return data.choices?.[0]?.message?.content ?? '';
 }
