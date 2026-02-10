@@ -101,7 +101,7 @@ function SubscribeForm() {
 
   useEffect(() => {
     checkAuth().then((auth) => {
-      if (auth?.plan === 'pro') {
+      if (auth?.authenticated) {
         router.replace('/dashboard');
       } else {
         setAuthChecked(true);
