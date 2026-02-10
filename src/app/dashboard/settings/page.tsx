@@ -96,7 +96,7 @@ export default function SettingsPage() {
             stripeStatus={settings.stripe_status}
             currentPeriodEnd={settings.current_period_end}
             cancelAtPeriodEnd={settings.cancel_at_period_end}
-            stripeCustomerId={settings.stripe_customer_id}
+            hasStripeCustomer={!!settings.stripe_customer_id}
             onStatusChange={refreshSettings}
           />
 

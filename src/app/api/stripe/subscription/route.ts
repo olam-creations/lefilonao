@@ -24,14 +24,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         plan: 'free',
         stripe_status: 'none',
-        stripe_customer_id: null,
-        stripe_subscription_id: null,
+        has_stripe_customer: false,
         current_period_end: null,
         cancel_at_period_end: false,
       });
     }
 
-    return NextResponse.json(data);
+    // Don't leak Stripe IDs to client — expose boolean instead
+    return NextResponse.json({
+      plan: data.plan,
+      stripe_status: data.stripe_status,
+      has_stripe_customer: !!data.stripe_customer_id,
+      current_period_end: data.current_period_end,
+      cancel_at_period_end: data.cancel_at_period_end,
+    });
   } catch {
     return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
   }

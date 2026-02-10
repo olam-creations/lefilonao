@@ -45,6 +45,7 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<{ c
   // Reuse existing Stripe customer to avoid duplicates (re-subscription, etc.)
   if (params.customerId) {
     sessionParams.customer = params.customerId;
+    sessionParams.customer_update = { address: 'auto' };
   } else {
     sessionParams.customer_email = params.email;
   }

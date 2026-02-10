@@ -20,7 +20,7 @@ function shouldSkip(pathname: string): boolean {
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://js.stripe.com`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "connect-src 'self' https://*.ingest.sentry.io https://plausible.io https://generativelanguage.googleapis.com https://api.anthropic.com https://integrate.api.nvidia.com https://data.economie.gouv.fr https://*.supabase.co https://lefilonao-workers.olamcreations.workers.dev https://checkout.stripe.com https://api.stripe.com",

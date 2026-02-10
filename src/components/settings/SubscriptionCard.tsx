@@ -17,7 +17,7 @@ interface Props {
   stripeStatus: string;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
-  stripeCustomerId: string | null;
+  hasStripeCustomer: boolean;
   onStatusChange?: () => void;
 }
 
@@ -27,7 +27,7 @@ export default function SubscriptionCard({
   stripeStatus,
   currentPeriodEnd,
   cancelAtPeriodEnd,
-  stripeCustomerId,
+  hasStripeCustomer,
   onStatusChange,
 }: Props) {
   const current = PLAN_LABELS[plan] ?? PLAN_LABELS.free;
@@ -157,7 +157,7 @@ export default function SubscriptionCard({
             </button>
           )}
 
-          {plan === 'pro' && !cancelAtPeriodEnd && stripeCustomerId && (
+          {plan === 'pro' && !cancelAtPeriodEnd && stripeStatus !== 'past_due' && hasStripeCustomer && (
             <>
               <button
                 onClick={openPortal}
@@ -196,7 +196,7 @@ export default function SubscriptionCard({
             </>
           )}
 
-          {plan === 'pro' && stripeStatus === 'past_due' && stripeCustomerId && (
+          {plan === 'pro' && stripeStatus === 'past_due' && hasStripeCustomer && (
             <button
               onClick={openPortal}
               disabled={portalLoading}

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       .eq('user_email', email)
       .single();
 
-    if (!data?.stripe_subscription_id || !data.cancel_at_period_end) {
+    if (!data?.stripe_subscription_id || !data.cancel_at_period_end || data.stripe_status !== 'active') {
       return NextResponse.json({ error: 'Aucune annulation en cours' }, { status: 400 });
     }
 

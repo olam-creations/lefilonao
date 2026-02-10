@@ -17,13 +17,17 @@ export async function POST(req: NextRequest) {
   try {
     const { data } = await supabase
       .from('user_settings')
-      .select('stripe_subscription_id, stripe_status')
+      .select('stripe_subscription_id, stripe_status, cancel_at_period_end')
       .eq('user_email', email)
       .single();
 
     const cancelableStatuses = ['active', 'trialing'];
     if (!data?.stripe_subscription_id || !cancelableStatuses.includes(data.stripe_status)) {
       return NextResponse.json({ error: 'Aucun abonnement actif' }, { status: 400 });
+    }
+
+    if (data.cancel_at_period_end) {
+      return NextResponse.json({ error: 'L\'annulation est déjà programmée' }, { status: 400 });
     }
 
     await cancelSubscription(data.stripe_subscription_id);

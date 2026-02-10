@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { checkAuth } from '@/lib/auth';
+import { checkAuth, clearAuthCache } from '@/lib/auth';
 
 const ease = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] };
 
@@ -65,6 +65,7 @@ function SuccessContent() {
       if (stopped) return;
       const confirmed = await checkSubscription();
       if (confirmed) {
+        clearAuthCache(); // Flush stale plan=free so dashboard loads as pro
         setStatus('confirmed');
         return;
       }
