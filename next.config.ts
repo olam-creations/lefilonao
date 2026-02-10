@@ -4,6 +4,7 @@ import { resolve } from 'path';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  serverExternalPackages: ['pdfjs-dist'],
   turbopack: {
     root: resolve(__dirname),
   },
