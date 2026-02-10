@@ -5,7 +5,7 @@ import { ArrowRight, Mail, AlertCircle, Code } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { setToken, getToken, isAuthenticated, getRedirectAfterLogin } from '@/lib/auth';
+import { getToken, isAuthenticated, getRedirectAfterLogin, exchangeSession } from '@/lib/auth';
 import { isDevMode, createDevToken } from '@/lib/dev';
 import Header from '@/components/Header';
 
@@ -23,10 +23,15 @@ function LoginForm() {
 
   useEffect(() => {
     if (isAuthenticated()) {
-      // Re-set token to sync the cookie (fixes secure flag mismatch on HTTP)
       const token = getToken();
-      if (token) setToken(token);
-      window.location.href = '/dashboard';
+      if (token) {
+        // Ensure session cookie exists before redirecting
+        exchangeSession(token).finally(() => {
+          window.location.href = '/dashboard';
+        });
+      } else {
+        window.location.href = '/dashboard';
+      }
     }
   }, []);
 
@@ -56,7 +61,7 @@ function LoginForm() {
 
       const data = await res.json();
       if (data.token) {
-        setToken(data.token);
+        await exchangeSession(data.token);
         const redirect = searchParams.get('redirect') || getRedirectAfterLogin();
         window.location.href = redirect || '/dashboard';
       } else {
@@ -137,9 +142,9 @@ function LoginForm() {
       {isDev && (
         <div className="mt-8 pt-6 border-t border-dashed border-slate-200">
           <button
-            onClick={() => {
+            onClick={async () => {
               const token = createDevToken();
-              setToken(token);
+              await exchangeSession(token);
               window.location.href = searchParams.get('redirect') || '/dashboard';
             }}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-slate-800 transition-colors"

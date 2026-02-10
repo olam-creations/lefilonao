@@ -5,8 +5,9 @@ import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, ArrowRight, ArrowLeft, X } from 'lucide-react';
 import Link from 'next/link';
-import { setToken } from '@/lib/auth';
-import { api, API_URL } from '@/lib/api';
+import { exchangeSession } from '@/lib/auth';
+import { api } from '@/lib/api';
+import StripeCheckoutModal from '@/components/StripeCheckoutModal';
 
 const ease = { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] };
 
@@ -90,6 +91,7 @@ function SubscribeForm() {
   const [error, setError] = useState<string | null>(null);
   const [shakeError, setShakeError] = useState(false);
   const [keywordInput, setKeywordInput] = useState('');
+  const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
@@ -161,11 +163,11 @@ function SubscribeForm() {
 
       const authToken = data.token;
       if (authToken) {
-        setToken(authToken);
+        await exchangeSession(authToken);
       }
 
       if (plan === 'pro') {
-        const checkoutRes = await fetch(`${API_URL}/api/excalibur/checkout`, {
+        const checkoutRes = await fetch('/api/stripe/checkout', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -173,8 +175,8 @@ function SubscribeForm() {
           },
         });
         const checkoutData = await checkoutRes.json();
-        if (checkoutRes.ok && checkoutData.url) {
-          window.location.href = checkoutData.url;
+        if (checkoutRes.ok && checkoutData.clientSecret) {
+          setCheckoutSecret(checkoutData.clientSecret);
           return;
         }
         setError(checkoutData.error || 'Erreur lors du paiement');
@@ -536,6 +538,13 @@ function SubscribeForm() {
           </AnimatePresence>
         </div>
       </div>
+
+      {checkoutSecret && (
+        <StripeCheckoutModal
+          clientSecret={checkoutSecret}
+          onClose={() => setCheckoutSecret(null)}
+        />
+      )}
     </div>
   );
 }

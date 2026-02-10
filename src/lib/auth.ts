@@ -13,6 +13,19 @@ export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
 }
 
+/** Exchange a meragel JWT for an HMAC session cookie. Call after login/subscribe. */
+export async function exchangeSession(token: string): Promise<void> {
+  localStorage.setItem(TOKEN_KEY, token);
+  try {
+    await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+  } catch {
+    // Best-effort — cookie will be set on next login if this fails
+  }
+}
+
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
