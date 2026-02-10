@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const supabase = getSupabase();
   const { data } = await supabase
     .from('user_settings')
-    .select('display_name, plan, first_name')
+    .select('display_name, plan')
     .eq('user_email', email)
     .single();
 
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     authenticated: true,
     email,
-    displayName: data?.display_name || data?.first_name || '',
+    displayName: data?.display_name || '',
     plan: data?.plan || 'free',
   });
 }
