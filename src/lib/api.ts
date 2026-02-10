@@ -31,4 +31,16 @@ export const api = {
 
   subscription: () =>
     fetch('/api/stripe/subscription', { credentials: 'include' }),
+
+  cancel: () =>
+    fetch('/api/stripe/cancel', {
+      method: 'POST',
+      credentials: 'include',
+    }),
+
+  resume: () =>
+    fetch('/api/stripe/resume', {
+      method: 'POST',
+      credentials: 'include',
+    }),
 };

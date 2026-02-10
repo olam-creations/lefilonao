@@ -35,15 +35,21 @@ export default function SubscriptionCard({
   const [cancelLoading, setCancelLoading] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const openPortal = async () => {
     setPortalLoading(true);
+    setActionError(null);
     try {
       const res = await fetch('/api/stripe/portal', { method: 'POST', credentials: 'include' });
       const data = await res.json();
       if (res.ok && data.url) {
         window.location.href = data.url;
+      } else {
+        setActionError(data.error || 'Impossible d\'ouvrir le portail Stripe');
       }
+    } catch {
+      setActionError('Erreur de connexion. Réessayez.');
     } finally {
       setPortalLoading(false);
     }
@@ -51,12 +57,18 @@ export default function SubscriptionCard({
 
   const handleCancel = async () => {
     setCancelLoading(true);
+    setActionError(null);
     try {
       const res = await fetch('/api/stripe/cancel', { method: 'POST', credentials: 'include' });
       if (res.ok) {
         setConfirmCancel(false);
         onStatusChange?.();
+      } else {
+        const data = await res.json();
+        setActionError(data.error || 'Erreur lors de l\'annulation');
       }
+    } catch {
+      setActionError('Erreur de connexion. Réessayez.');
     } finally {
       setCancelLoading(false);
     }
@@ -64,11 +76,17 @@ export default function SubscriptionCard({
 
   const handleResume = async () => {
     setResumeLoading(true);
+    setActionError(null);
     try {
       const res = await fetch('/api/stripe/resume', { method: 'POST', credentials: 'include' });
       if (res.ok) {
         onStatusChange?.();
+      } else {
+        const data = await res.json();
+        setActionError(data.error || 'Erreur lors de la reprise');
       }
+    } catch {
+      setActionError('Erreur de connexion. Réessayez.');
     } finally {
       setResumeLoading(false);
     }
@@ -117,6 +135,12 @@ export default function SubscriptionCard({
             {cancelAtPeriodEnd
               ? `Actif jusqu'au ${formatDate(currentPeriodEnd)}, puis passage en Free`
               : `Prochain renouvellement le ${formatDate(currentPeriodEnd)}`}
+          </p>
+        )}
+
+        {actionError && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {actionError}
           </p>
         )}
 

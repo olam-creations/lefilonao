@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { clearAuthCache } from '@/lib/auth';
+import { clearAuthCache, checkAuth } from '@/lib/auth';
 import StripeCheckoutModal from '@/components/StripeCheckoutModal';
 
 const ease = { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] };
@@ -69,7 +69,15 @@ const stepVariants = {
 
 function SubscribeForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const plan = searchParams.get('plan');
+
+  // Redirect already-pro users to dashboard
+  useEffect(() => {
+    checkAuth().then((auth) => {
+      if (auth?.plan === 'pro') router.replace('/dashboard');
+    }).catch(() => {});
+  }, [router]);
 
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);

@@ -21,7 +21,8 @@ export async function POST(req: NextRequest) {
       .eq('user_email', email)
       .single();
 
-    if (!data?.stripe_subscription_id || data.stripe_status !== 'active') {
+    const cancelableStatuses = ['active', 'trialing'];
+    if (!data?.stripe_subscription_id || !cancelableStatuses.includes(data.stripe_status)) {
       return NextResponse.json({ error: 'Aucun abonnement actif' }, { status: 400 });
     }
 

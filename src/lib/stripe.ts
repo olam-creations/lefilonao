@@ -26,6 +26,9 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<{ c
   const stripe = getStripe();
   const founderCoupon = process.env.STRIPE_COUPON_FOUNDER;
 
+  // Expire checkout session after 30 minutes (default is 24h)
+  const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
+
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
     ui_mode: 'embedded',
@@ -36,6 +39,7 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<{ c
       metadata: { userEmail: params.email, plan: 'pro' },
     },
     return_url: params.returnUrl,
+    expires_at: expiresAt,
   };
 
   // Reuse existing Stripe customer to avoid duplicates (re-subscription, etc.)
@@ -92,7 +96,7 @@ export async function getSubscription(subscriptionId: string): Promise<{
   cancelAtPeriodEnd: boolean;
 }> {
   const stripe = getStripe();
-  const sub = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['items'] });
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
   const periodEnd = sub.items.data[0]?.current_period_end;
   return {
     status: sub.status,

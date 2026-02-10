@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabase();
 
+  // Always return 200 to Stripe — even on handler errors — to prevent infinite retries.
+  // Errors are logged but don't block acknowledgment.
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -29,7 +31,6 @@ export async function POST(req: NextRequest) {
         const userEmail = session.metadata?.userEmail;
         if (userEmail && session.subscription) {
           const subId = session.subscription as string;
-          // Retrieve subscription to get current_period_end
           const sub = await getSubscription(subId);
 
           await supabase
@@ -50,7 +51,9 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription;
         const email = sub.metadata?.userEmail;
-        const updates = {
+        const isActive = sub.status === 'active' || sub.status === 'trialing';
+
+        const updates: Record<string, unknown> = {
           stripe_status: sub.status,
           cancel_at_period_end: sub.cancel_at_period_end,
           current_period_end: new Date(sub.items.data[0]?.current_period_end
@@ -58,6 +61,11 @@ export async function POST(req: NextRequest) {
             : Date.now(),
           ).toISOString(),
         };
+
+        // Sync plan based on subscription status (handles past_due → active recovery)
+        if (isActive) {
+          updates.plan = 'pro';
+        }
 
         if (email) {
           await supabase.from('user_settings').update(updates).eq('user_email', email);
@@ -71,7 +79,13 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription;
         const email = sub.metadata?.userEmail;
-        const updates = { plan: 'free', stripe_status: 'canceled' };
+        const updates = {
+          plan: 'free',
+          stripe_status: 'canceled',
+          cancel_at_period_end: false,
+          stripe_subscription_id: null as string | null,
+          current_period_end: null as string | null,
+        };
 
         if (email) {
           await supabase.from('user_settings').update(updates).eq('user_email', email);
@@ -93,10 +107,24 @@ export async function POST(req: NextRequest) {
         }
         break;
       }
+
+      case 'invoice.payment_succeeded': {
+        // Handles successful retry after past_due — restore pro access
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        const renewalReasons = ['subscription_cycle', 'subscription_update'];
+        if (customerId && renewalReasons.includes(invoice.billing_reason ?? '')) {
+          await supabase
+            .from('user_settings')
+            .update({ plan: 'pro', stripe_status: 'active' })
+            .eq('stripe_customer_id', customerId);
+        }
+        break;
+      }
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Webhook handler error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Log error but still return 200 to prevent Stripe retry storm
+    console.error('[stripe-webhook]', event.type, error instanceof Error ? error.message : error);
   }
 
   return NextResponse.json({ received: true });

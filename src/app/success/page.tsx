@@ -2,9 +2,10 @@
 
 import { CheckCircle, ArrowRight, Search, Zap, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { checkAuth } from '@/lib/auth';
 
 const ease = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] };
 
@@ -33,8 +34,16 @@ const POLL_INTERVAL = 2000;
 
 function SuccessContent() {
   useSearchParams();
+  const router = useRouter();
   const [status, setStatus] = useState<PaymentStatus>('checking');
   const [countdown, setCountdown] = useState(5);
+
+  // Redirect to login if not authenticated (prevents random visitors seeing this page)
+  useEffect(() => {
+    checkAuth().then((auth) => {
+      if (!auth.authenticated) router.replace('/login');
+    }).catch(() => {});
+  }, [router]);
 
   const checkSubscription = useCallback(async (): Promise<boolean> => {
     try {

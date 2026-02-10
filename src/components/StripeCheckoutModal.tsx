@@ -16,9 +16,10 @@ const stripePromise = loadStripe(
 interface Props {
   clientSecret: string;
   onClose: () => void;
+  priceLabel?: string;
 }
 
-export default function StripeCheckoutModal({ clientSecret, onClose }: Props) {
+export default function StripeCheckoutModal({ clientSecret, onClose, priceLabel }: Props) {
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (e.target === e.currentTarget) onClose();
@@ -69,7 +70,7 @@ export default function StripeCheckoutModal({ clientSecret, onClose }: Props) {
             <div>
               <h2 className="text-base font-semibold text-slate-900">Finaliser votre abonnement</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Plan Pro Fondateur &mdash; 25&euro;/mois
+                {priceLabel || 'Plan Pro Fondateur \u2014 25\u20AC/mois'}
               </p>
             </div>
             <button

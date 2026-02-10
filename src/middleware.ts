@@ -6,7 +6,7 @@ const GATE_COOKIE = 'lefilonao_gate';
 const AUTH_COOKIE = 'lefilonao_access';
 
 const GATE_PUBLIC = [
-  '/gate', '/api/gate', '/api/auth/',
+  '/gate', '/api/gate', '/api/auth/', '/api/stripe/webhook',
   '/', '/login', '/subscribe', '/pricing', '/success',
   '/mentions-legales', '/politique-confidentialite', '/cgu', '/cgv',
 ];

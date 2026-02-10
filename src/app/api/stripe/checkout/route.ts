@@ -19,9 +19,17 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase();
     const { data } = await supabase
       .from('user_settings')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, plan, stripe_status')
       .eq('user_email', email)
       .single();
+
+    // Prevent double subscription — already active pro users should manage via portal
+    if (data?.plan === 'pro' && (data.stripe_status === 'active' || data.stripe_status === 'trialing')) {
+      return NextResponse.json(
+        { error: 'Vous avez déjà un abonnement Pro actif. Gérez-le depuis vos paramètres.' },
+        { status: 400 },
+      );
+    }
 
     const { clientSecret } = await createCheckoutSession({
       email,
