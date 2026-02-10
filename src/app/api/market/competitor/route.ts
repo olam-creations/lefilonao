@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/require-auth';
 import { requireFeature } from '@/lib/require-plan';
 import { rateLimit, STANDARD_LIMIT } from '@/lib/rate-limit';
 import { CPV_NAMES } from '@/components/market/utils';
+import { enrichCompetitorFromWeb } from '@/lib/web-enrichment';
 
 export async function GET(req: NextRequest) {
   const limited = await rateLimit(req, STANDARD_LIMIT);
@@ -23,6 +24,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // Launch web enrichment in parallel (non-blocking, optional)
+    const webEnrichPromise = process.env.BRIGHTDATA_API_KEY
+      ? enrichCompetitorFromWeb(name ?? siret ?? '').catch(() => null)
+      : Promise.resolve(null);
+
     const supabase = getSupabase();
 
     // Fetch attributions won by this competitor
@@ -148,6 +154,8 @@ export async function GET(req: NextRequest) {
         date: r.notification_date as string,
       }));
 
+    const webProfile = await webEnrichPromise;
+
     return NextResponse.json({
       competitor: {
         name: name ?? companyInfo?.name ?? siret,
@@ -164,6 +172,7 @@ export async function GET(req: NextRequest) {
         estimatedWinRate,
         recentWins,
         trend,
+        webProfile: webProfile ?? undefined,
       },
     });
   } catch (err) {
