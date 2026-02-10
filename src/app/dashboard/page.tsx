@@ -13,6 +13,7 @@ import { useUser } from '@/components/UserProvider';
 import type { WorkspaceState } from '@/lib/ao-utils';
 import type { CompanyProfile } from '@/lib/dev';
 import FreeBanner from '@/components/FreeBanner';
+import PastDueBanner from '@/components/PastDueBanner';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import TopBar from '@/components/dashboard/TopBar';
 import KpiStatsSection from '@/components/dashboard/KpiStatsSection';
@@ -160,6 +161,7 @@ export default function DashboardPage() {
         userInitials={initials}
       />
 
+      <PastDueBanner />
       <FreeBanner tier={plan} />
 
       <div className="mt-8">

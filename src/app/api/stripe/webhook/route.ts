@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { handleWebhookEvent } from '@/lib/stripe';
+import { handleWebhookEvent, getSubscription } from '@/lib/stripe';
 import { getSupabase } from '@/lib/supabase';
 import type Stripe from 'stripe';
 
@@ -27,14 +27,20 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const userEmail = session.metadata?.userEmail;
-        if (userEmail) {
+        if (userEmail && session.subscription) {
+          const subId = session.subscription as string;
+          // Retrieve subscription to get current_period_end
+          const sub = await getSubscription(subId);
+
           await supabase
             .from('user_settings')
             .update({
               plan: 'pro',
               stripe_customer_id: session.customer as string,
-              stripe_subscription_id: session.subscription as string,
+              stripe_subscription_id: subId,
               stripe_status: 'active',
+              current_period_end: sub.currentPeriodEnd.toISOString(),
+              cancel_at_period_end: false,
             })
             .eq('user_email', userEmail);
         }

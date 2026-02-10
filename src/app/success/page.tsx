@@ -1,9 +1,9 @@
 'use client';
 
-import { CheckCircle, ArrowRight, Search, Zap, TrendingUp } from 'lucide-react';
+import { CheckCircle, ArrowRight, Search, Zap, TrendingUp, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 
 const ease = { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] };
@@ -26,11 +26,54 @@ const STEPS = [
   },
 ];
 
+type PaymentStatus = 'checking' | 'confirmed' | 'failed';
+
+const MAX_POLLS = 10;
+const POLL_INTERVAL = 2000;
+
 function SuccessContent() {
   useSearchParams();
+  const [status, setStatus] = useState<PaymentStatus>('checking');
   const [countdown, setCountdown] = useState(5);
 
+  const checkSubscription = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/stripe/subscription', { credentials: 'include' });
+      if (!res.ok) return false;
+      const data = await res.json();
+      return data.plan === 'pro' && data.stripe_status === 'active';
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Poll subscription status — webhook may take a few seconds
   useEffect(() => {
+    let polls = 0;
+    let stopped = false;
+
+    const poll = async () => {
+      if (stopped) return;
+      const confirmed = await checkSubscription();
+      if (confirmed) {
+        setStatus('confirmed');
+        return;
+      }
+      polls++;
+      if (polls >= MAX_POLLS) {
+        setStatus('failed');
+        return;
+      }
+      setTimeout(poll, POLL_INTERVAL);
+    };
+
+    poll();
+    return () => { stopped = true; };
+  }, [checkSubscription]);
+
+  // Auto-redirect countdown (only when confirmed)
+  useEffect(() => {
+    if (status !== 'confirmed') return;
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -42,7 +85,7 @@ function SuccessContent() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [status]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -62,48 +105,68 @@ function SuccessContent() {
           animate={{ opacity: 1, y: 0 }}
           transition={ease}
         >
-          {/* Success icon */}
-          <motion.div
-            className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-emerald-500/25"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-          >
-            <CheckCircle className="w-10 h-10 text-white" />
-          </motion.div>
+          {/* Status icon */}
+          {status === 'checking' && (
+            <div className="w-20 h-20 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full flex items-center justify-center mx-auto mb-8">
+              <Loader2 className="w-10 h-10 text-slate-500 animate-spin" />
+            </div>
+          )}
+          {status === 'confirmed' && (
+            <motion.div
+              className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-emerald-500/25"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            >
+              <CheckCircle className="w-10 h-10 text-white" />
+            </motion.div>
+          )}
+          {status === 'failed' && (
+            <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-amber-500/25">
+              <AlertTriangle className="w-10 h-10 text-white" />
+            </div>
+          )}
 
           <h1 className="text-3xl font-bold text-slate-900 mb-3">
-            Bienvenue dans Le Filon <span className="gradient-text">AO</span>
+            {status === 'checking' && 'Activation en cours...'}
+            {status === 'confirmed' && (
+              <>Bienvenue dans Le Filon <span className="gradient-text">AO</span></>
+            )}
+            {status === 'failed' && 'Presque terminé'}
           </h1>
           <p className="text-slate-500 text-lg mb-10">
-            Votre abonnement Pro est actif.
+            {status === 'checking' && 'Vérification de votre paiement...'}
+            {status === 'confirmed' && 'Votre abonnement Pro est actif.'}
+            {status === 'failed' && 'Votre paiement est en cours de traitement. L\'activation peut prendre quelques instants.'}
           </p>
 
-          {/* Steps */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 mb-8 text-left">
-            <div className="space-y-6">
-              {STEPS.map((step, i) => {
-                const Icon = step.icon;
-                return (
-                  <motion.div
-                    key={step.title}
-                    className="flex items-start gap-4"
-                    initial={{ opacity: 0, x: -16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ ...ease, delay: 0.4 + i * 0.15 }}
-                  >
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-sm shadow-indigo-500/20">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900 mb-0.5">{step.title}</h3>
-                      <p className="text-sm text-slate-500">{step.desc}</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
+          {/* Steps (show when confirmed) */}
+          {status === 'confirmed' && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-8 mb-8 text-left">
+              <div className="space-y-6">
+                {STEPS.map((step, i) => {
+                  const Icon = step.icon;
+                  return (
+                    <motion.div
+                      key={step.title}
+                      className="flex items-start gap-4"
+                      initial={{ opacity: 0, x: -16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ ...ease, delay: 0.4 + i * 0.15 }}
+                    >
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center text-white flex-shrink-0 shadow-sm shadow-indigo-500/20">
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900 mb-0.5">{step.title}</h3>
+                        <p className="text-sm text-slate-500">{step.desc}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* CTA */}
           <Link
@@ -114,9 +177,16 @@ function SuccessContent() {
             <ArrowRight className="w-4 h-4" />
           </Link>
 
-          <p className="text-slate-400 text-sm">
-            Redirection automatique dans {countdown}s
-          </p>
+          {status === 'confirmed' && (
+            <p className="text-slate-400 text-sm">
+              Redirection automatique dans {countdown}s
+            </p>
+          )}
+          {status === 'failed' && (
+            <p className="text-slate-400 text-sm">
+              Votre compte sera activé automatiquement dès la confirmation du paiement.
+            </p>
+          )}
         </motion.div>
       </div>
     </div>

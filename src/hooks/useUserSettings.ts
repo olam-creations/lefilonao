@@ -50,6 +50,7 @@ export interface UseUserSettingsReturn {
   error: string | null;
   updateSettings: (partial: Partial<UserSettings>) => void;
   saveSettings: () => Promise<void>;
+  refreshSettings: () => void;
 }
 
 export function useUserSettings(): UseUserSettingsReturn {
@@ -59,6 +60,11 @@ export function useUserSettings(): UseUserSettingsReturn {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshSettings = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     if (!userEmail) {
@@ -73,7 +79,7 @@ export function useUserSettings(): UseUserSettingsReturn {
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Erreur de chargement'))
       .finally(() => setLoading(false));
-  }, [userEmail]);
+  }, [userEmail, refreshKey]);
 
   const updateSettings = useCallback((partial: Partial<UserSettings>) => {
     setSettings((prev) => ({ ...prev, ...partial }));
@@ -114,5 +120,5 @@ export function useUserSettings(): UseUserSettingsReturn {
     }
   }, [userEmail, settings]);
 
-  return { settings, email: userEmail, loading, saving, saved, error, updateSettings, saveSettings };
+  return { settings, email: userEmail, loading, saving, saved, error, updateSettings, saveSettings, refreshSettings };
 }

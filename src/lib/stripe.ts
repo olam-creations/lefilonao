@@ -19,6 +19,7 @@ const PRICE_PRO = () => {
 interface CheckoutParams {
   email: string;
   returnUrl: string;
+  customerId?: string;
 }
 
 export async function createCheckoutSession(params: CheckoutParams): Promise<{ clientSecret: string }> {
@@ -29,7 +30,6 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<{ c
     mode: 'subscription',
     ui_mode: 'embedded',
     payment_method_types: ['card'],
-    customer_email: params.email,
     line_items: [{ price: PRICE_PRO(), quantity: 1 }],
     metadata: { userEmail: params.email, plan: 'pro' },
     subscription_data: {
@@ -37,6 +37,13 @@ export async function createCheckoutSession(params: CheckoutParams): Promise<{ c
     },
     return_url: params.returnUrl,
   };
+
+  // Reuse existing Stripe customer to avoid duplicates (re-subscription, etc.)
+  if (params.customerId) {
+    sessionParams.customer = params.customerId;
+  } else {
+    sessionParams.customer_email = params.email;
+  }
 
   if (founderCoupon) {
     sessionParams.discounts = [{ coupon: founderCoupon }];
@@ -72,6 +79,11 @@ export async function handleWebhookEvent(
 export async function cancelSubscription(subscriptionId: string): Promise<void> {
   const stripe = getStripe();
   await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+}
+
+export async function resumeSubscription(subscriptionId: string): Promise<void> {
+  const stripe = getStripe();
+  await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: false });
 }
 
 export async function getSubscription(subscriptionId: string): Promise<{

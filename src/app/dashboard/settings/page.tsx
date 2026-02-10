@@ -15,7 +15,7 @@ import NotificationsCard from '@/components/settings/NotificationsCard';
 import DangerZoneCard from '@/components/settings/DangerZoneCard';
 
 export default function SettingsPage() {
-  const { settings, email, loading, saving, saved, error, updateSettings, saveSettings } =
+  const { settings, email, loading, saving, saved, error, updateSettings, saveSettings, refreshSettings } =
     useUserSettings();
 
   const handleLogout = useCallback(() => {
@@ -97,6 +97,7 @@ export default function SettingsPage() {
             currentPeriodEnd={settings.current_period_end}
             cancelAtPeriodEnd={settings.cancel_at_period_end}
             stripeCustomerId={settings.stripe_customer_id}
+            onStatusChange={refreshSettings}
           />
 
           <DangerZoneCard email={email} />
