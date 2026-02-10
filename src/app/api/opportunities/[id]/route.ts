@@ -20,7 +20,7 @@ export async function GET(
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('boamp_notices')
-      .select('*')
+      .select('*, dce_analyses(status)')
       .eq('id', id)
       .maybeSingle();
 
@@ -30,9 +30,12 @@ export async function GET(
       return NextResponse.json({ error: 'Notice not found' }, { status: 404 });
     }
 
+    const dceAnalysis = (data as Record<string, unknown>).dce_analyses as { status: string } | null;
+
     return NextResponse.json({
       rfp: noticeToRfp(data),
       notice: data,
+      analysisStatus: dceAnalysis?.status ?? null,
     });
   } catch (err) {
     return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });

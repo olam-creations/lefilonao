@@ -31,6 +31,7 @@ import DceDropZone from '@/components/ao/DceDropZone';
 import MultiAgentProgress from '@/components/ao/MultiAgentProgress';
 import { useDceAnalysis } from '@/hooks/useDceAnalysis';
 import { useMultiAgentAnalysis } from '@/hooks/useMultiAgentAnalysis';
+import { usePrecomputedAnalysis } from '@/hooks/usePrecomputedAnalysis';
 import { mapMultiAgentToAoDetail, mapReviewToCoachData } from '@/lib/multi-agent-adapter';
 
 export default function AoDetailPage() {
@@ -50,7 +51,8 @@ export default function AoDetailPage() {
   const { settings } = useUserSettings();
   const dce = useDceAnalysis();
   const multiAgent = useMultiAgentAnalysis();
-  const { can } = usePlan();
+  const { can, isPro } = usePlan();
+  const precomputed = usePrecomputedAnalysis(id);
   const [analysisMode, setAnalysisMode] = useState<'quick' | 'complete'>('quick');
   const [prefilledCoachData, setPrefilledCoachData] = useState<CoachResponse | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -99,6 +101,15 @@ export default function AoDetailPage() {
 
     loadData();
   }, [id]);
+
+  // Auto-populate from precomputed server-side analysis (Pro users)
+  useEffect(() => {
+    if (precomputed.status === 'done' && precomputed.analysis && !dceAnalyzed) {
+      setDetail(precomputed.analysis);
+      setDceAnalyzed(true);
+      saveDceAnalysis(id, precomputed.analysis);
+    }
+  }, [precomputed.status, precomputed.analysis, dceAnalyzed, id]);
 
   useEffect(() => {
     if (dce.state === 'done' && dce.result) {
@@ -309,6 +320,11 @@ export default function AoDetailPage() {
 
   // RFP loaded but no DCE analysis yet — show header + upload prompt
   if (!detail || !profile) {
+    // Show processing spinner if precomputed analysis is being prepared
+    const isServerProcessing = precomputed.status === 'processing';
+    // Show teaser for Free users when analysis exists server-side
+    const hasTeaser = !isPro && precomputed.status === 'done' && precomputed.teaser;
+
     return (
       <div className="animate-fade-in">
         <TopBar title="Détail Appel d'offres" backHref="/dashboard" />
@@ -363,67 +379,102 @@ export default function AoDetailPage() {
             onAnalyzeDce={handleOpenFilePicker}
           />
 
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Search className="w-7 h-7 text-indigo-400" />
+          {/* Server-side processing indicator */}
+          {isServerProcessing && (
+            <div className="bg-indigo-50 rounded-2xl border border-indigo-100 p-6 text-center">
+              <div className="w-10 h-10 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-indigo-700 text-sm font-medium">Analyse en cours de preparation...</p>
+              <p className="text-indigo-400 text-xs mt-1">L&apos;analyse sera disponible dans quelques instants</p>
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Analysez le DCE pour débloquer l&apos;analyse IA</h3>
-            <p className="text-slate-500 text-sm mb-4 max-w-md mx-auto">
-              Déposez le document de consultation (PDF) pour obtenir le scoring, les critères de sélection et le plan technique.
-            </p>
-            <div className="flex items-center justify-center gap-1 p-1 bg-slate-100 rounded-xl mb-6 w-fit mx-auto">
-              <button
-                onClick={() => setAnalysisMode('quick')}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  analysisMode === 'quick'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Rapide
-              </button>
-              <button
-                onClick={() => setAnalysisMode('complete')}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-                  analysisMode === 'complete'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Complet <ProBadge />
-              </button>
+          )}
+
+          {/* Free user teaser */}
+          {hasTeaser && precomputed.teaser && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/90 pointer-events-none z-10" />
+              <div className="blur-[2px]">
+                <p className="text-2xl font-bold mb-2">
+                  {precomputed.teaser.verdict === 'go' ? 'GO' : precomputed.teaser.verdict === 'maybe' ? 'MAYBE' : 'PASS'}
+                </p>
+                <p className="text-slate-500 text-sm">{precomputed.teaser.executiveSummary}</p>
+                <p className="text-slate-400 text-xs mt-2">{precomputed.teaser.criteriaCount} criteres de selection identifies</p>
+              </div>
+              <div className="relative z-20 mt-4">
+                <button
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md"
+                >
+                  Debloquer l&apos;analyse complete <ProBadge />
+                </button>
+              </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                onClick={() => {
-                  if (!can('dce-analysis')) {
-                    setShowUpgradeModal(true);
-                    return;
-                  }
-                  dce.analyzeFromUrl(id);
-                }}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg"
-              >
-                <Search className="w-4 h-4" />
-                Analyser automatiquement
-              </button>
-              <button
-                onClick={handleOpenFilePicker}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all"
-              >
-                <FileUp className="w-4 h-4" />
-                Charger un PDF
-              </button>
+          )}
+
+          {/* Manual analysis prompt (shown when no server processing) */}
+          {!isServerProcessing && !hasTeaser && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Search className="w-7 h-7 text-indigo-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Analysez le DCE pour débloquer l&apos;analyse IA</h3>
+              <p className="text-slate-500 text-sm mb-4 max-w-md mx-auto">
+                Déposez le document de consultation (PDF) pour obtenir le scoring, les critères de sélection et le plan technique.
+              </p>
+              <div className="flex items-center justify-center gap-1 p-1 bg-slate-100 rounded-xl mb-6 w-fit mx-auto">
+                <button
+                  onClick={() => setAnalysisMode('quick')}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                    analysisMode === 'quick'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Rapide
+                </button>
+                <button
+                  onClick={() => setAnalysisMode('complete')}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                    analysisMode === 'complete'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Complet <ProBadge />
+                </button>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  onClick={() => {
+                    if (!can('dce-analysis')) {
+                      setShowUpgradeModal(true);
+                      return;
+                    }
+                    dce.analyzeFromUrl(id);
+                  }}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg"
+                >
+                  <Search className="w-4 h-4" />
+                  Analyser automatiquement
+                </button>
+                <button
+                  onClick={handleOpenFilePicker}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  <FileUp className="w-4 h-4" />
+                  Charger un PDF
+                </button>
+              </div>
+              <p className="text-slate-400 text-xs mt-3">
+                L&apos;analyse automatique récupère le DCE depuis le profil acheteur. Si indisponible, chargez le PDF manuellement.
+              </p>
             </div>
-            <p className="text-slate-400 text-xs mt-3">
-              L&apos;analyse automatique récupère le DCE depuis le profil acheteur. Si indisponible, chargez le PDF manuellement.
-            </p>
-            <UpgradeModal
-              open={showUpgradeModal}
-              onClose={() => setShowUpgradeModal(false)}
-              featureLabel="Analyse DCE par IA"
-            />
-          </div>
+          )}
+
+          <UpgradeModal
+            open={showUpgradeModal}
+            onClose={() => setShowUpgradeModal(false)}
+            featureLabel="Analyse DCE par IA"
+          />
         </div>
       </div>
     );

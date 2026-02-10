@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const supabase = getSupabase();
     let query = supabase
       .from('boamp_notices')
-      .select('id, title, buyer_name, buyer_siret, cpv_code, cpv_sector, deadline, publication_date, dce_url, region, departement, nature, procedure_type, lots_count, estimated_amount, description, source, is_open', { count: 'exact' })
+      .select('id, title, buyer_name, buyer_siret, cpv_code, cpv_sector, deadline, publication_date, dce_url, region, departement, nature, procedure_type, lots_count, estimated_amount, description, source, is_open, dce_analyses(status)', { count: 'exact' })
       .eq('is_open', true);
 
     const sortMap: Record<string, { column: string; ascending: boolean; nullsFirst?: boolean }> = {
@@ -85,6 +85,10 @@ export async function GET(req: NextRequest) {
       const isUrgent = deadline ? deadline < sevenDaysFromNow && deadline > now : false;
       const daysLeft = deadline ? Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
 
+      // dce_analyses is a joined object (1:1 FK) — extract status
+      const dceAnalysis = (r as Record<string, unknown>).dce_analyses as { status: string } | null;
+      const analysisStatus = dceAnalysis?.status ?? null;
+
       return {
         id: r.id,
         title: r.title,
@@ -105,6 +109,7 @@ export async function GET(req: NextRequest) {
         isNew,
         isUrgent,
         daysLeft,
+        analysisStatus,
       };
     });
 
