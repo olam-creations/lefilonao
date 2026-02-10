@@ -141,8 +141,8 @@ export default function PipelineBoard() {
           })
         });
       }
-    } catch (err) {
-      console.error('Failed to save position:', err);
+    } catch {
+      // Pipeline position save failed silently — will retry on next drag
     }
   };
 

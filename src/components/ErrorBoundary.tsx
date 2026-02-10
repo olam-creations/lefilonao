@@ -22,8 +22,8 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    console.error('ErrorBoundary caught:', error, info.componentStack)
+  componentDidCatch(): void {
+    // Sentry captures via error.tsx boundaries; no console output in production
   }
 
   render(): ReactNode {

@@ -32,7 +32,6 @@ export default function WatchlistPage() {
       });
       
       if (!res.ok) {
-        console.error('Erreur watchlist:', res.status, res.statusText);
         setWatchlist([]);
         return;
       }
@@ -45,8 +44,7 @@ export default function WatchlistPage() {
 
       const data = JSON.parse(text);
       setWatchlist(data.watchlist || []);
-    } catch (err) {
-      console.error('Erreur parsing watchlist:', err);
+    } catch {
       setWatchlist([]);
     } finally {
       setLoading(false);
@@ -69,8 +67,8 @@ export default function WatchlistPage() {
       if (res.ok) {
         setWatchlist((prev) => prev.filter((item) => item.id !== id));
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Silently fail — UI remains unchanged
     } finally {
       setDeletingId(null);
     }
