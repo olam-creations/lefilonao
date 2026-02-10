@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Bookmark, Search, Trash2, Building2, ExternalLink, Bell, ArrowRight, Loader2 } from 'lucide-react';
-import { getTokenPayload, getToken } from '@/lib/auth';
+import { useUser } from '@/components/UserProvider';
 import TopBar from '@/components/dashboard/TopBar';
 import { stagger, fadeUp } from '@/lib/motion-variants';
 import Link from 'next/link';
@@ -16,20 +16,16 @@ interface WatchlistItem {
 }
 
 export default function WatchlistPage() {
+  const { email } = useUser();
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchWatchlist = useCallback(async () => {
-    const payload = getTokenPayload();
-    if (!payload?.email) return;
+    if (!email) return;
 
     try {
-      const res = await fetch(`/api/watchlist?email=${encodeURIComponent(payload.email)}`, {
-        headers: {
-          'Authorization': `Bearer ${getToken()}`
-        }
-      });
+      const res = await fetch(`/api/watchlist?email=${encodeURIComponent(email)}`);
       
       if (!res.ok) {
         setWatchlist([]);
@@ -53,16 +49,13 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     fetchWatchlist();
-  }, [fetchWatchlist]);
+  }, [fetchWatchlist, email]);
 
   const removeBuyer = async (id: string) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/watchlist/${id}`, { 
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${getToken()}`
-        }
+      const res = await fetch(`/api/watchlist/${id}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         setWatchlist((prev) => prev.filter((item) => item.id !== id));

@@ -9,7 +9,7 @@ interface KpiStatCardProps {
   value: number | string;
   sub: string;
   icon: React.ReactNode;
-  accent?: 'emerald' | 'indigo' | 'red' | 'violet';
+  accent?: 'emerald' | 'indigo' | 'red' | 'violet' | 'cobalt' | 'cypress' | 'ochre' | 'star';
   children?: React.ReactNode;
   className?: string;
 }
