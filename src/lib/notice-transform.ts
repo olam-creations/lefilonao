@@ -1,17 +1,28 @@
 import { formatAmount } from '@/components/market/utils';
 import type { RFP } from '@/hooks/useDashboardFilters';
 
-interface BoampNotice {
+export interface BoampNoticeData {
   id: string;
   title: string;
   buyer_name: string;
-  estimated_amount: number | null;
-  dce_url: string | null;
-  publication_date: string | null;
+  buyer_siret: string | null;
+  cpv_code: string | null;
+  cpv_sector: string | null;
   deadline: string | null;
+  publication_date: string | null;
+  dce_url: string | null;
   region: string | null;
+  departement: string | null;
+  nature: string | null;
+  procedure_type: string | null;
+  lots_count: number;
+  estimated_amount: number | null;
+  description: string | null;
   source: string | null;
+  is_open: boolean;
 }
+
+type BoampNotice = BoampNoticeData;
 
 interface UserRfpOverrides {
   score?: number;

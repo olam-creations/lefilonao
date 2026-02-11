@@ -48,7 +48,7 @@ export function useDashboardFilters(rfps: RFP[]) {
   const [budgetMin, setBudgetMin] = useState<number | null>(null);
   const [budgetMax, setBudgetMax] = useState<number | null>(null);
   const [deadlineRange, setDeadlineRange] = useState<DeadlineRange>('all');
-  const [sort, setSort] = useState<SortKey>('score-desc');
+  const [sort, setSort] = useState<SortKey>('deadline-asc');
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -90,7 +90,7 @@ export function useDashboardFilters(rfps: RFP[]) {
     setBudgetMin(null);
     setBudgetMax(null);
     setDeadlineRange('all');
-    setSort('score-desc');
+    setSort('deadline-asc');
   }, []);
 
   const filteredRfps = useMemo(() => {

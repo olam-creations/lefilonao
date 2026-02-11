@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, TrendingUp, Clock, Sparkles, AlertTriangle, XCircle, Upload } from 'lucide-react';
+import { Building2, TrendingUp, Clock, Sparkles, AlertTriangle, XCircle } from 'lucide-react';
 import { formatDate, daysUntil } from '@/lib/ao-utils';
 import type { Recommendation } from '@/lib/dev';
 
@@ -14,7 +14,6 @@ interface AoHeroHeaderProps {
   scoreLabel: 'GO' | 'MAYBE' | 'PASS';
   recommendation: Recommendation | null;
   dceAnalyzed?: boolean;
-  onAnalyzeDce?: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -26,7 +25,7 @@ const VERDICT_STYLES = {
 
 export default function AoHeroHeader({
   title, issuer, budget, deadline, region, score, scoreLabel, recommendation,
-  dceAnalyzed, onAnalyzeDce,
+  dceAnalyzed,
 }: AoHeroHeaderProps) {
   const daysLeft = daysUntil(deadline);
   const config = recommendation ? VERDICT_STYLES[recommendation.verdict] : VERDICT_STYLES.neutral;
@@ -48,9 +47,11 @@ export default function AoHeroHeader({
         </div>
 
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
-          <span className={`${config.badgeClass} text-lg px-4 py-1.5`}>
-            {score}/100 &middot; {scoreLabel}
-          </span>
+          {dceAnalyzed && (
+            <span className={`${config.badgeClass} text-lg px-4 py-1.5`}>
+              {score}/100 &middot; {scoreLabel}
+            </span>
+          )}
           {daysLeft !== null && daysLeft <= 7 && (
             <span className="text-xs text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md font-medium">
               {daysLeft}j restants
@@ -59,29 +60,12 @@ export default function AoHeroHeader({
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        {recommendation ? (
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <Icon className={`w-4 h-4 ${config.iconColor}`} />
-            <span className="font-medium">{recommendation.headline}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <Icon className={`w-4 h-4 ${config.iconColor}`} />
-            <span className="font-medium">Analysez le DCE pour obtenir une recommandation</span>
-          </div>
-        )}
-        {!dceAnalyzed && onAnalyzeDce && (
-          <button
-            onClick={onAnalyzeDce}
-            className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all shadow-md hover:shadow-lg"
-          >
-            <Upload className="w-4 h-4" />
-            <span className="hidden sm:inline">Analyser un DCE</span>
-            <span className="sm:hidden">DCE</span>
-          </button>
-        )}
-      </div>
+      {recommendation && (
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <Icon className={`w-4 h-4 ${config.iconColor}`} />
+          <span className="font-medium">{recommendation.headline}</span>
+        </div>
+      )}
     </div>
   );
 }

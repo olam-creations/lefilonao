@@ -56,15 +56,57 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch all open AO from boamp_notices
+        const aoRes = await fetch('/api/opportunities?limit=100&sort=deadline_asc')
+          .then((r) => r.ok ? r.json() : null);
+
+        // Fetch user's saved RFPs (scores/labels) if authenticated
         const userEmail = email || (isDevMode() ? 'dev@lefilonao.local' : '');
         const rfpRes = userEmail
           ? await fetch(`/api/rfps?email=${encodeURIComponent(userEmail)}`).then((r) => r.ok ? r.json() : null)
           : null;
 
-        const supabaseRfps: RFP[] = rfpRes?.rfps ?? [];
+        const userRfpMap = new Map<string, RFP>();
+        for (const rfp of (rfpRes?.rfps ?? []) as RFP[]) {
+          userRfpMap.set(rfp.id, rfp);
+        }
 
-        if (supabaseRfps.length > 0) {
-          setRfps(supabaseRfps);
+        // Map opportunities to RFP format, merging user overrides
+        const opportunities = (aoRes?.opportunities ?? []) as Array<{
+          id: string; title: string; buyerName: string; deadline: string | null;
+          estimatedAmount: number; region: string | null; source: string;
+          dceUrl: string | null; publicationDate: string | null;
+        }>;
+
+        const allRfps: RFP[] = opportunities.map((opp) => {
+          const userOverride = userRfpMap.get(opp.id);
+          const budget = opp.estimatedAmount > 0
+            ? `${opp.estimatedAmount.toLocaleString('fr-FR')} €`
+            : null;
+          return {
+            id: opp.id,
+            title: opp.title,
+            issuer: opp.buyerName,
+            deadline: opp.deadline,
+            score: userOverride?.score ?? 50,
+            scoreLabel: userOverride?.scoreLabel ?? 'MAYBE',
+            budget,
+            region: opp.region,
+            source: opp.source ?? 'BOAMP',
+            url: opp.dceUrl ?? `https://www.boamp.fr/avis/detail/${opp.id}`,
+            publishedAt: opp.publicationDate ?? new Date().toISOString(),
+          };
+        });
+
+        // Add any user-saved RFPs not already in the list
+        for (const [id, rfp] of userRfpMap) {
+          if (!allRfps.some((r) => r.id === id)) {
+            allRfps.push(rfp);
+          }
+        }
+
+        if (allRfps.length > 0) {
+          setRfps(allRfps);
         } else if (isDevMode()) {
           setRfps(MOCK_RFPS);
         } else {
