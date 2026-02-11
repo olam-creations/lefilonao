@@ -13,7 +13,7 @@ import type { WorkspaceState } from '@/lib/ao-utils';
 import { getCompanyProfile } from '@/lib/profile-storage';
 import { uploadFile } from '@/lib/file-storage';
 import AoHeroHeader from '@/components/ao/AoHeroHeader';
-import AoNoticeDetails from '@/components/ao/AoNoticeDetails';
+import AoNoticeDetails, { type BoampLot } from '@/components/ao/AoNoticeDetails';
 import type { BoampNoticeData } from '@/lib/notice-transform';
 import AoTabBar, { type AoTab } from '@/components/ao/AoTabBar';
 import AoSidebar from '@/components/ao/AoSidebar';
@@ -30,6 +30,7 @@ export default function AoDetailPage() {
   const id = params.id as string;
   const [rfp, setRfp] = useState<typeof MOCK_RFPS[0] | null>(null);
   const [notice, setNotice] = useState<BoampNoticeData | null>(null);
+  const [lots, setLots] = useState<BoampLot[]>([]);
   const [detail, setDetail] = useState<AoDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [workspace, setWorkspace] = useState<WorkspaceState>({ decisionMade: false, documentsReady: {}, sectionsReviewed: {}, aoFiles: [] });
@@ -48,6 +49,7 @@ export default function AoDetailPage() {
           const json = await res.json();
           setRfp(json.rfp);
           if (json.notice) setNotice(json.notice);
+          if (json.lots) setLots(json.lots);
           // Load locally-stored analysis if available
           const savedDce = getDceAnalysis(id);
           if (savedDce) {
@@ -200,7 +202,7 @@ export default function AoDetailPage() {
               recommendation={detail?.recommendation ?? null}
             />
 
-            {notice && <AoNoticeDetails notice={notice} />}
+            {notice && <AoNoticeDetails notice={notice} lots={lots} />}
 
             {/* Analysis tabs — shown when locally-stored analysis exists */}
             {hasAnalysis && (

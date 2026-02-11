@@ -1,11 +1,20 @@
 'use client';
 
-import { ExternalLink, FileDown, Building2, Hash, MapPin, Calendar, Package, Tag } from 'lucide-react';
+import { ExternalLink, FileDown, Building2, Hash, MapPin, Calendar, Package, Tag, Euro } from 'lucide-react';
 import { formatDate } from '@/lib/ao-utils';
 import type { BoampNoticeData } from '@/lib/notice-transform';
 
+export interface BoampLot {
+  lot_number: number;
+  title: string | null;
+  cpv_code: string | null;
+  estimated_amount: number | null;
+  description: string | null;
+}
+
 interface AoNoticeDetailsProps {
   notice: BoampNoticeData;
+  lots?: BoampLot[];
 }
 
 function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'green' | 'red' }) {
@@ -29,7 +38,38 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
   );
 }
 
-export default function AoNoticeDetails({ notice }: AoNoticeDetailsProps) {
+function formatEuro(amount: number): string {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
+}
+
+function LotCard({ lot }: { lot: BoampLot }) {
+  return (
+    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h4 className="text-sm font-semibold text-slate-900">
+          Lot {lot.lot_number}
+          {lot.title ? ` — ${lot.title}` : ''}
+        </h4>
+        {lot.estimated_amount && lot.estimated_amount > 0 && (
+          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md whitespace-nowrap">
+            {formatEuro(lot.estimated_amount)}
+          </span>
+        )}
+      </div>
+      {lot.description && lot.description !== lot.title && (
+        <p className="text-xs text-slate-600 leading-relaxed mt-1 line-clamp-3">{lot.description}</p>
+      )}
+      {lot.cpv_code && (
+        <div className="flex items-center gap-1.5 mt-2">
+          <Tag className="w-3 h-3 text-slate-400" />
+          <span className="text-[11px] text-slate-500">CPV {lot.cpv_code}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AoNoticeDetails({ notice, lots = [] }: AoNoticeDetailsProps) {
   const boampUrl = `https://www.boamp.fr/avis/detail/${notice.id}`;
   const hasDceUrl = notice.dce_url && !notice.dce_url.includes('boamp.fr');
 
@@ -75,6 +115,9 @@ export default function AoNoticeDetails({ notice }: AoNoticeDetailsProps) {
         {notice.cpv_code && (
           <InfoRow icon={Tag} label="CPV" value={`${notice.cpv_code}${notice.cpv_sector ? ` — ${notice.cpv_sector}` : ''}`} />
         )}
+        {notice.estimated_amount && notice.estimated_amount > 0 && (
+          <InfoRow icon={Euro} label="Montant" value={formatEuro(notice.estimated_amount)} />
+        )}
         {notice.lots_count > 1 && (
           <InfoRow icon={Package} label="Lots" value={`${notice.lots_count} lots`} />
         )}
@@ -84,6 +127,21 @@ export default function AoNoticeDetails({ notice }: AoNoticeDetailsProps) {
         <InfoRow icon={Calendar} label="Publie le" value={formatDate(notice.publication_date)} />
         <InfoRow icon={Calendar} label="Limite" value={formatDate(notice.deadline)} />
       </div>
+
+      {/* Individual lots */}
+      {lots.length > 0 && (
+        <div className="mt-6 pt-5 border-t border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <Package className="w-4 h-4 text-slate-400" />
+            Decomposition en {lots.length} lots
+          </h3>
+          <div className="space-y-2">
+            {lots.map((lot) => (
+              <LotCard key={lot.lot_number} lot={lot} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3 mt-5 pt-4 border-t border-slate-100">
         <a

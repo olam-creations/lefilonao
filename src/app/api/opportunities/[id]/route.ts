@@ -18,23 +18,31 @@ export async function GET(
 
   try {
     const supabase = getSupabase();
-    const { data, error } = await supabase
-      .from('boamp_notices')
-      .select('*, dce_analyses(status)')
-      .eq('id', id)
-      .maybeSingle();
+    const [noticeResult, lotsResult] = await Promise.all([
+      supabase
+        .from('boamp_notices')
+        .select('*, dce_analyses(status)')
+        .eq('id', id)
+        .maybeSingle(),
+      supabase
+        .from('boamp_lots')
+        .select('lot_number, title, cpv_code, estimated_amount, description')
+        .eq('notice_id', id)
+        .order('lot_number', { ascending: true }),
+    ]);
 
-    if (error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
+    if (noticeResult.error) return NextResponse.json({ error: 'Une erreur est survenue' }, { status: 500 });
 
-    if (!data) {
+    if (!noticeResult.data) {
       return NextResponse.json({ error: 'Notice not found' }, { status: 404 });
     }
 
-    const dceAnalysis = (data as Record<string, unknown>).dce_analyses as { status: string } | null;
+    const dceAnalysis = (noticeResult.data as Record<string, unknown>).dce_analyses as { status: string } | null;
 
     return NextResponse.json({
-      rfp: noticeToRfp(data),
-      notice: data,
+      rfp: noticeToRfp(noticeResult.data),
+      notice: noticeResult.data,
+      lots: lotsResult.data ?? [],
       analysisStatus: dceAnalysis?.status ?? null,
     });
   } catch (err) {
