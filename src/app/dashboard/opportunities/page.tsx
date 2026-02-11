@@ -231,8 +231,8 @@ export default function OpportunitiesPage() {
   return (
     <div>
       <TopBar 
-        title="Opportunités" 
-        description="Avis de marchés ouverts — trouvez vos prochains appels d&apos;offres." 
+        title="Appels d'offres"
+        description="Annuaire des marchés publics ouverts — trouvez vos prochains AO." 
         icon={<Target className="w-6 h-6 text-indigo-600" />}
       />
 

@@ -24,7 +24,7 @@ import { usePlan } from '@/hooks/usePlan';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, id: 'dashboard' },
-  { href: '/dashboard/opportunities', label: 'Opportunités', icon: Target, id: 'opportunities' },
+  { href: '/dashboard/opportunities', label: 'Appels d\'offres', icon: Target, id: 'opportunities' },
   { href: '/dashboard/alerts', label: 'Alertes', icon: Bell, id: 'alerts' },
   { href: '/dashboard/watchlist', label: 'Watchlist', icon: Bookmark, id: 'watchlist' },
   { href: '/dashboard/market', label: 'Intelligence Marché', icon: BarChart3, id: 'intelligence' },

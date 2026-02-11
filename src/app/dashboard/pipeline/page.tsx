@@ -28,7 +28,7 @@ export default function PipelinePage() {
         <div>
           <h3 className="text-sm font-bold text-indigo-900">Conseil Expert</h3>
           <p className="text-sm text-indigo-700/80 leading-relaxed">
-            Ajoutez les appels d&apos;offres qui vous intéressent depuis l&apos;onglet <strong>Opportunités</strong> pour commencer à les suivre dans votre pipeline.
+            Ajoutez les appels d&apos;offres qui vous intéressent depuis l&apos;onglet <strong>Appels d&apos;offres</strong> pour commencer à les suivre dans votre pipeline.
           </p>
         </div>
       </motion.div>
