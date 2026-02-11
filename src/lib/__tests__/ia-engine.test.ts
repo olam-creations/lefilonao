@@ -28,8 +28,8 @@ vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({
 if (typeof global !== 'undefined' && !global.DOMMatrix) {
   // @ts-ignore
   global.DOMMatrix = class DOMMatrix {
-    constructor() { this.m42 = 0; }
-  };
+    m42 = 0;
+  } as any;
 }
 
 describe('AI Engine Battle Test', () => {
@@ -55,8 +55,8 @@ describe('AI Engine Battle Test', () => {
             getTextContent: vi.fn().mockReturnValue(Promise.resolve({ items: [{ str: 'Page Content', transform: [0,0,0,0,0,0] }] }))
           })),
           getMetadata: vi.fn().mockReturnValue(Promise.resolve({}))
-        })
-      });
+        } as any)
+      } as any);
       const result = await extractHighFidelityText(buffer);
       expect(result.text).toContain('--- PAGE 1 ---');
       expect(result.text).toContain('--- PAGE 2 ---');
