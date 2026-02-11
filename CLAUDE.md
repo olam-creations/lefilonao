@@ -52,7 +52,8 @@ Client-side auth state is managed by `UserProvider` (React context). Components 
 ### Feature Gating
 - **Feature registry**: `src/lib/features.ts` — defines 8 features (ai-scoring, dce-analysis, generate-section, ai-coach, buyer-intelligence, csv-export, daily-alerts, unlimited-ao), each with `minPlan` ('free' | 'pro')
 - **Plan source of truth**: `src/lib/require-plan.ts` — `getUserPlan(email)` reads `user_settings.plan` from Supabase (single source, no external service)
-- **API gating**: `requireFeature(email, featureKey)` returns 403 if plan insufficient. Used in 8 routes: `/api/ai/analyze-dce`, `/api/ai/generate-section`, `/api/ai/coach`, `/api/market/buyer-profile`, `/api/market/competition`, `/api/market/competitor`, `/api/market/winner-profile`, `/api/market/attributions`
+- **API gating (proxy routes)**: 15 routes proxied to FastAPI — feature gating handled server-side by FastAPI via `X-User-Email` header. Next.js only handles auth cookie + rate limiting.
+- **API gating (local routes)**: `requireFeature(email, featureKey)` returns 403 if plan insufficient. Used in remaining local routes: `/api/ai/generate-memoire`, `/api/ai/analyze-full`, `/api/alerts`
 - **Client gating**: `usePlan()` hook fetches plan + feature access. `FeatureGate` wrapper shows `UpgradeModal` for locked features. `ProBadge` marks pro-only UI.
 - **Free plan limit**: 5 AO views/month, tracked in `ao_views` table (unique index on user_email + notice_id + month_key). `useAoViews()` hook + `/api/ao-views` route (GET count, POST record).
 - **`canAccess(feature, plan)`**: pure function, compares plan rank to feature's `minPlan`
@@ -66,10 +67,42 @@ Feature Gating Flow (Client):
   <FeatureGate feature="dce-analysis"> → allowed ? children : <UpgradeModal>
 ```
 
-### Market Intelligence Backend (Cloudflare Workers)
-Le pipeline marche public est decoupe entre deux repos :
+### Backend Architecture (3 repos)
 
-**`lefilonao-workers`** (Cloudflare Workers — ecrit dans Supabase) :
+Le systeme est decoupe en 3 repos avec Supabase comme source unique de verite :
+
+```
+Next.js (Vercel)                FastAPI (Railway)                CF Workers
+├── Frontend/SSR                ├── /api/search/* (Meilisearch)  ├── syncBoamp()
+├── Auth (cookies HMAC)         ├── /api/ai/* (tri-provider)     ├── syncDecp()
+├── Stripe billing              ├── /api/batch/* (ARQ queue)     ├── enrichCompanies()
+├── CRUD (settings, views)      ├── /api/market/* (6 routes)     ├── resolveSirets()
+├── Proxy → FastAPI (15 routes) ├── /api/intel/*  (6 routes)     └── POST /scrape-dce
+└── /api/ai/generate-memoire    └── /api/opportunities/*
+         ↕                             ↕                              ↕
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │                     Supabase PostgreSQL                              │
+    │   (decp_attributions, boamp_notices, boamp_lots, boamp_amendments,   │
+    │    companies, user_settings, dce_analyses, ...)                      │
+    └──────────────────────────────────────────────────────────────────────┘
+                    ↕                          ↕
+               Upstash Redis              Meilisearch
+               (rate limit)               (search index)
+```
+
+### FastAPI Backend (`lefilonao-api`)
+- Repo: `github.com/olam-creations/lefilonao-api`
+- Deployment: Railway (Docker, health check `/health`)
+- **Auth**: Port exact de `session.ts` — valide le meme cookie HMAC `lefilonao_access` + Bearer token
+- **Feature gating**: Memes 8 features, meme logique `canAccess(feature, plan)`
+- **22 endpoints** : search, AI (analyze-dce, generate-section, coach), batch, market (6), intel (6), opportunities (2)
+- **85 tests** (pytest-asyncio)
+
+Env vars (configures dans Vercel production) :
+- `FASTAPI_URL` — `https://lefilonao-api-production.up.railway.app`
+- `FASTAPI_AUTH_TOKEN` — Secret partage Next.js ↔ FastAPI (Bearer token)
+
+### Cloudflare Workers (`lefilonao-workers`)
 - Repo: `github.com/olam-creations/lefilonao-workers`
 - URL: `https://lefilonao-workers.olamcreations.workers.dev`
 - `syncDecp()` — cron `0 6 * * *` : DECP API → table `decp_attributions`
@@ -78,25 +111,19 @@ Le pipeline marche public est decoupe entre deux repos :
 - `syncBoamp()` + `matchAlerts()` + `sendAlertEmails()` — cron `0 8,14 * * *`
 - `POST /scrape-dce` — Scraping DCE headless (Browser Rendering + Puppeteer)
 
-**`lefilonao`** (ce repo — lit depuis Supabase, read-only) :
-- `/api/market/insights` — KPIs marche (top buyers, winners, volumes)
-- `/api/market/attributions` — Liste des attributions avec filtres
-- `/api/market/trends` — Tendances volume par mois
-- `/api/market/competitors` — Recherche concurrents par nom/SIRET
+### FastAPI Proxy (`src/lib/fastapi-client.ts`)
+15 routes migrees vers FastAPI via thin proxy. Next.js gere auth + rate limiting, FastAPI gere la logique metier + feature gating.
 
-Note: Les routes legacy `/api/market/sync` et `/api/market/resolve-names` ont ete supprimees (remplacees par les Workers cron ci-dessus). Le cron Vercel a aussi ete supprime.
+| Helper | Usage | Rate Limit |
+|--------|-------|------------|
+| `proxyGet(req, path, cache?)` | GET + query params + Cache-Control | STANDARD (60/min) |
+| `proxyPost(req, path)` | POST JSON → JSON | AI (10/min) |
+| `proxyFormData(req, path)` | POST multipart (fichier PDF) | AI (10/min) |
+| `proxyPostStream(req, path)` | POST JSON → SSE passthrough | AI (10/min) |
 
-```
-Cloudflare Worker (cron triggers)         Ce repo (Next.js)
-  ├── syncDecp()    → Supabase ←────────── /api/market/insights
-  ├── resolveSirets()                ←──── /api/market/attributions
-  ├── enrichCompanies()              ←──── /api/market/trends
-  ├── syncBoamp() + alerts           ←──── /api/market/competitors
-  └── POST /scrape-dce  ←───────────────── /api/ai/fetch-dce (fallback)
-       (Browser Rendering)
-                                     ───── /api/settings/credentials (CRUD)
-                                            → Supabase platform_credentials
-```
+Routes proxy : market/* (6), intel/* (6), ai/analyze-dce, ai/generate-section, ai/coach
+
+Note: Les routes legacy Supabase-direct ont ete remplacees. Le cron Vercel est supprime (Workers cron).
 
 ### DCE Fetch Chain
 `/api/ai/fetch-dce` utilise une chaine de fallback pour recuperer les PDF DCE :
@@ -316,6 +343,7 @@ src/
     ao-utils.ts           # AO workspace state types + utilities
     dev.ts                # Types du domaine (AoDetail, CompanyProfile w/ cachetBase64, etc.)
     ao-storage.ts         # Persistance localStorage (DCE, sections, workspace)
+    fastapi-client.ts     # FastAPI proxy helpers (proxyGet, proxyPost, proxyFormData, proxyPostStream)
     supabase.ts           # Supabase client singleton (server + client)
     agents/               # Agent architecture (base-agent, dce-agent, orchestrator)
     __tests__/            # Unit tests (dashboard-kpi, csv sanitization, ia-engine)
@@ -457,7 +485,7 @@ Endpoint: `/api/stripe/webhook` (webhook endpoint: `we_1SzI1TBDkKUCWueHBrJw0Yh8`
 
 ## Supabase Migrations
 
-23 migrations in `supabase/migrations/` (001-023). Run via the Management API:
+31 migrations in `supabase/migrations/` (001-031, migrations 024+ in lefilonao-api repo). Run via the Management API:
 
 ```bash
 node scripts/run-migration.mjs $(npx vercel env run --environment production -- node -e "process.stdout.write(process.env.SUPABASE_ACCESS_TOKEN)")
@@ -478,14 +506,17 @@ Project ref: `vdatbrdkwwedetdlbqxx`
 - Stripe webhook updates `user_settings` directly (plan, stripe_status, current_period_end, cancel_at_period_end)
 
 ### Migrations (supabase/migrations/)
-23 migrations total (001-023). Key recent migrations:
-- `016_stripe_billing.sql` — Stripe columns on user_settings (customer_id, subscription_id, status, period_end, cancel)
-- `017_rls_defense_in_depth.sql` — RLS policies for all tables (anon key cannot access user data)
-- `019_auth_fields.sql` — password_hash, first_name, company columns for local auth
+31 migrations total (001-031). Key recent migrations:
+- `016_stripe_billing.sql` — Stripe columns on user_settings
+- `017_rls_defense_in_depth.sql` — RLS policies for all tables
+- `019_auth_fields.sql` — password_hash, first_name, company columns
 - `020_ao_views.sql` — ao_views table for free plan metering
-- `021_drop_unused_indexes.sql` — Cleanup unused indexes (Supabase linter)
-- `022_index_foreign_keys.sql` — FK covering indexes for JOIN/CASCADE performance
-- `023_index_decp_cpv_sector.sql` — Composite index for market query performance
+- `021_drop_unused_indexes.sql` — Cleanup unused indexes
+- `022_index_foreign_keys.sql` — FK covering indexes for JOIN/CASCADE
+- `023_index_decp_cpv_sector.sql` — Composite index for market queries
+- `029_dce_analyses.sql` — DCE analysis results + batch processing status
+- `030_boamp_lots.sql` — Individual lots per notice (lefilonao-api)
+- `031_boamp_amendments.sql` — Amendment/rectification notices (lefilonao-api)
 
 ## Conventions
 - French UI text throughout (accents required)
