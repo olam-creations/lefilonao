@@ -189,6 +189,41 @@ export async function proxyFormData(
 }
 
 /**
+ * Proxy a Next.js POST (JSON) to FastAPI, returning JSON.
+ * Uses AI_LIMIT rate limiting.
+ */
+export async function proxyPost(
+  req: import('next/server').NextRequest,
+  fastapiPath: string,
+  timeout = 90_000,
+): Promise<Response> {
+  const { requireAuth } = await import('@/lib/require-auth')
+  const { rateLimit, AI_LIMIT } = await import('@/lib/rate-limit')
+
+  const limited = await rateLimit(req, AI_LIMIT)
+  if (limited) return limited
+
+  const auth = requireAuth(req)
+  if (!auth.ok) return auth.response
+
+  const body = await req.json()
+  const res = await fastapi.post(fastapiPath, body, {
+    userEmail: resolveEmail(auth.auth.email),
+    signal: req.signal,
+    timeout,
+  })
+
+  if (!res.ok) {
+    return Response.json(
+      { error: res.error ?? 'Erreur backend' },
+      { status: res.status || 502 },
+    )
+  }
+
+  return Response.json(res.data)
+}
+
+/**
  * Proxy a Next.js POST (JSON) to FastAPI and passthrough SSE stream.
  * Uses AI_LIMIT rate limiting.
  */
