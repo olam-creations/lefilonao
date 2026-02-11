@@ -147,7 +147,15 @@ export async function proxyFormData(
   const auth = requireAuth(req)
   if (!auth.ok) return auth.response
 
-  const formData = await req.formData()
+  let formData: FormData
+  try {
+    formData = await req.formData()
+  } catch {
+    return Response.json(
+      { success: false, error: 'Request must be multipart/form-data' },
+      { status: 400 },
+    )
+  }
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeout)
