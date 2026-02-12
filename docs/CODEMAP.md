@@ -1,6 +1,6 @@
 # Codemap - Le Filon AO
 
-> AI-readable codebase navigation guide. Last updated: 2026-02-09.
+> AI-readable codebase navigation guide. Last updated: 2026-02-11.
 
 ## Module Overview
 
@@ -117,8 +117,7 @@ User Browser
   │
   ├── GET /dashboard ──► page.tsx
   │     │
-  │     ├── api.dashboard() ──► meragel.vercel.app/api/excalibur/dashboard
-  │     │     └── Returns: { rfps: RFP[], profile: { tier } }
+  │     ├── Supabase (boamp_notices) ──► RFP list
   │     │
   │     ├── getWorkspaceState(id) ──► localStorage (per AO workspace)
   │     ├── getCompanyProfile() ──► localStorage (company profile)
@@ -132,10 +131,29 @@ User Browser
   │
   ├── GET /dashboard/ao/[id] ──► AO detail page
   │     ├── AI endpoints: /api/ai/analyze-dce, /api/ai/coach, /api/ai/generate-section
-  │     └── File uploads: /api/documents/upload ──► Cloudflare R2
+  │     ├── File uploads: /api/documents/upload ──► Cloudflare R2
+  │     └── Market intel: /api/market/* ──► Supabase (decp_attributions)
+  │
+  ├── GET /dashboard/market ──► Market Intelligence
+  │     └── /api/market/* + /api/intel/* ──► Supabase (decp_attributions, companies)
   │
   └── GET /dashboard/profile ──► Profile editor
         └── profile-storage.ts ──► localStorage
+
+Backend (FastAPI — lefilonao-api repo, Railway):
+  ├── /api/search/opportunities ──► Meilisearch (boamp_notices index)
+  ├── /api/ai/* ──► Tri-provider (Gemini + Anthropic + NVIDIA)
+  ├── /api/batch/analyze ──► ARQ queue → dce_analyses table
+  ├── /api/market/* (6 routes) ──► Supabase (decp_attributions)
+  ├── /api/intel/* (6 routes) ──► Supabase (decp_attributions, companies, user_watchlist)
+  └── /api/opportunities/{id}/* ──► Supabase (boamp_lots, boamp_amendments)
+
+Background (Cloudflare Workers — lefilonao-workers repo):
+  ├── syncDecp() ──► DECP API → Supabase decp_attributions
+  ├── syncBoamp() ──► BOAMP API → Supabase boamp_notices
+  ├── resolveSirets() ──► Sirene API → Supabase decp_attributions
+  ├── enrichCompanies() ──► Pappers API → Supabase companies
+  └── matchAlerts() + sendAlertEmails() ──► Resend
 ```
 
 ## Key Types
@@ -175,10 +193,16 @@ DashboardPage
 
 | Service | Usage | Config |
 |---------|-------|--------|
-| Meragel API | Backend data, auth, payments | `NEXT_PUBLIC_API_URL` env var |
-| Cloudflare R2 | File storage | `R2_*` env vars in `.env.local` |
-| Anthropic Claude | AI analysis, coaching | `ANTHROPIC_API_KEY` env var |
-| Google Gemini | AI fallback | `GOOGLE_AI_API_KEY` env var |
+| Supabase | Database (PostgreSQL), source unique de verite | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
+| FastAPI (Railway) | Search, AI, market intelligence backend | `FASTAPI_URL` (futur proxy) |
+| CF Workers | BOAMP/DECP sync, DCE scraping | `WORKER_URL`, `WORKER_AUTH_TOKEN` |
+| Meilisearch | Search instantane avec facettes | Via FastAPI backend |
+| Cloudflare R2 | File storage | `R2_*` env vars |
+| Anthropic Claude | AI analysis (provider 1 pour analyze-dce) | `ANTHROPIC_API_KEY` |
+| Google Gemini | AI generation (provider 1 pour generate/coach) | `GEMINI_API_KEY` |
+| NVIDIA NIM | AI fallback (Llama 3.3 70B) | `NVIDIA_API_KEY` |
+| Stripe | Billing & subscriptions | `STRIPE_*` env vars |
+| Upstash Redis | Distributed rate limiting | `UPSTASH_REDIS_*` env vars |
 | Sentry | Error tracking | `SENTRY_*` env vars |
 | Plausible | Analytics | Script in layout.tsx |
-| Vercel | Hosting | `.vercel/` config |
+| Vercel | Next.js hosting | `.vercel/` config |

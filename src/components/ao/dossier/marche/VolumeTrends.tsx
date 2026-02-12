@@ -33,7 +33,17 @@ export default function VolumeTrends({ cpvCode }: VolumeTrendsProps) {
     );
   }
 
-  if (trends.length === 0) return null;
+  if (trends.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <TrendingUp className="w-4 h-4 text-indigo-500" />
+          <h3 className="text-sm font-bold text-slate-900">Volume par mois</h3>
+        </div>
+        <p className="text-xs text-slate-400 text-center py-4">Donnees insuffisantes</p>
+      </div>
+    );
+  }
 
   const maxCount = Math.max(...trends.map((t) => t.count), 1);
 

@@ -15,8 +15,7 @@ import DceDocumentHub from '@/components/ao/DceDocumentHub';
 // Lazy-load heavier sections
 const SectionReponse = lazy(() => import('@/components/ao/dossier/SectionReponse'));
 const SectionDce = lazy(() => import('@/components/ao/dossier/SectionDce'));
-const SectionIntel = lazy(() => import('@/components/ao/dossier/SectionIntel'));
-const SectionMarche = lazy(() => import('@/components/ao/dossier/SectionMarche'));
+const SectionIntelMarche = lazy(() => import('@/components/ao/dossier/SectionIntelMarche'));
 const SectionLots = lazy(() => import('@/components/ao/dossier/SectionLots'));
 
 function SectionSkeleton() {
@@ -111,6 +110,8 @@ export default function AoDetailPage() {
               enriched={enriched}
               analysis={analysis}
               hasAnalysis={hasAnalysis}
+              publishedAt={rfp.publishedAt}
+              deadline={rfp.deadline}
             />
 
             {/* DCE Hub — always visible when DCE URL exists */}
@@ -122,27 +123,14 @@ export default function AoDetailPage() {
               </Suspense>
             </section>
 
-            {/* Intel — lazy loaded */}
+            {/* Intelligence marche — unified section */}
             <Suspense fallback={<SectionSkeleton />}>
-              <SectionIntel
+              <SectionIntelMarche
                 buyerName={notice?.buyer_name ?? rfp.issuer}
                 buyerSiret={notice?.buyer_siret ?? null}
                 cpvCode={notice?.cpv_code ?? null}
                 region={rfp.region ?? null}
                 amount={notice?.estimated_amount ?? null}
-              />
-            </Suspense>
-
-            {/* Marche — lazy loaded */}
-            <Suspense fallback={<SectionSkeleton />}>
-              <SectionMarche
-                buyerName={notice?.buyer_name ?? rfp.issuer}
-                cpvCode={notice?.cpv_code ?? null}
-                region={rfp.region ?? null}
-                publishedAt={rfp.publishedAt}
-                deadline={rfp.deadline}
-                buyerHistory={analysis?.buyerHistory ?? []}
-                competitors={analysis?.competitors ?? []}
               />
             </Suspense>
 

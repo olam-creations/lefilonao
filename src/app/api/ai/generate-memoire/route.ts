@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   const limited = await rateLimit(request, AI_LIMIT);
   if (limited) return new Response(JSON.stringify({ error: 'Trop de requêtes' }), { status: 429 });
 
-  const auth = requireAuth(request);
+  const auth = await requireAuth(request);
   if (!auth.ok) return new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401 });
 
   const gated = await requireFeature(auth.auth.email, 'generate-section');

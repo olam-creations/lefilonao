@@ -1,9 +1,8 @@
 /**
  * Typed client for the FastAPI backend (Railway).
  *
- * Server-side only — uses FASTAPI_URL + FASTAPI_AUTH_TOKEN env vars.
- * All requests forward the caller's email via X-User-Email header
- * so FastAPI can enforce feature gating on the correct user.
+ * Uses Supabase JWT (Authorization: Bearer <USER_JWT>) for user requests.
+ * Uses FASTAPI_AUTH_TOKEN for service-level requests (if any).
  */
 
 const getBaseUrl = (): string => {
@@ -12,26 +11,20 @@ const getBaseUrl = (): string => {
   return url.replace(/\/$/, '')
 }
 
-const getAuthToken = (): string => {
+// Fallback for service-level calls (if needed)
+const getServiceToken = (): string => {
   const token = process.env.FASTAPI_AUTH_TOKEN
   if (!token) throw new Error('FASTAPI_AUTH_TOKEN not configured')
   return token
 }
 
-/**
- * In dev mode, requireAuth returns 'dev@lefilonao.local' which doesn't exist
- * in Supabase. Use the first ALLOWED_EMAILS entry so FastAPI can resolve the plan.
- */
-function resolveEmail(email: string): string {
-  if (email === 'dev@lefilonao.local' && process.env.ALLOWED_EMAILS) {
-    return process.env.ALLOWED_EMAILS.split(',')[0].trim()
-  }
-  return email
-}
-
 interface FastApiOptions {
-  /** Authenticated user email (forwarded via X-User-Email) */
+  /** Authenticated user email (forwarded via X-User-Email for logging/compatibility) */
   userEmail?: string
+  /** User ID (X-User-Id) */
+  userId?: string
+  /** Access Token (Bearer) */
+  accessToken?: string
   /** AbortSignal for cancellation */
   signal?: AbortSignal
   /** Request timeout in ms (default 30_000) */
@@ -51,7 +44,7 @@ async function request<T>(
   body: unknown | undefined,
   options: FastApiOptions = {},
 ): Promise<FastApiResponse<T>> {
-  const { userEmail, signal, timeout = 30_000 } = options
+  const { userEmail, userId, accessToken, signal, timeout = 30_000 } = options
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeout)
@@ -61,12 +54,12 @@ async function request<T>(
     : controller.signal
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${getAuthToken()}`,
+    // Always use service token for FastAPI (user identity via X-User-Email)
+    Authorization: `Bearer ${getServiceToken()}`,
     'Content-Type': 'application/json',
   }
-  if (userEmail) {
-    headers['X-User-Email'] = userEmail
-  }
+  if (userEmail) headers['X-User-Email'] = userEmail
+  if (userId) headers['X-User-Id'] = userId
 
   try {
     const res = await fetch(`${getBaseUrl()}${path}`, {
@@ -94,8 +87,7 @@ async function request<T>(
 
 /**
  * Proxy a Next.js GET request to FastAPI, forwarding query params.
- * Handles auth (cookie → email), rate limiting stays in Next.js.
- * FastAPI handles feature gating via X-User-Email.
+ * Authenticates via Supabase JWT.
  */
 export async function proxyGet(
   req: import('next/server').NextRequest,
@@ -108,11 +100,15 @@ export async function proxyGet(
   const limited = await rateLimit(req, STANDARD_LIMIT)
   if (limited) return limited
 
-  const auth = requireAuth(req)
+  const auth = await requireAuth(req)
   if (!auth.ok) return auth.response
 
   const qs = req.nextUrl.search
-  const res = await fastapi.get(fastapiPath + qs, { userEmail: resolveEmail(auth.auth.email) })
+  const res = await fastapi.get(fastapiPath + qs, { 
+    userEmail: auth.auth.email,
+    userId: auth.auth.id,
+    accessToken: auth.auth.accessToken
+  })
 
   if (!res.ok) {
     return Response.json(
@@ -130,8 +126,6 @@ export async function proxyGet(
 
 /**
  * Proxy a Next.js POST (multipart/form-data) to FastAPI.
- * Forwards the raw FormData body (files + fields) to FastAPI.
- * Uses AI_LIMIT rate limiting.
  */
 export async function proxyFormData(
   req: import('next/server').NextRequest,
@@ -144,7 +138,7 @@ export async function proxyFormData(
   const limited = await rateLimit(req, AI_LIMIT)
   if (limited) return limited
 
-  const auth = requireAuth(req)
+  const auth = await requireAuth(req)
   if (!auth.ok) return auth.response
 
   let formData: FormData
@@ -165,8 +159,9 @@ export async function proxyFormData(
     : controller.signal
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${getAuthToken()}`,
-    'X-User-Email': resolveEmail(auth.auth.email),
+    Authorization: `Bearer ${getServiceToken()}`,
+    'X-User-Email': auth.auth.email,
+    'X-User-Id': auth.auth.id,
   }
 
   try {
@@ -197,8 +192,7 @@ export async function proxyFormData(
 }
 
 /**
- * Proxy a Next.js POST (JSON) to FastAPI, returning JSON.
- * Uses AI_LIMIT rate limiting.
+ * Proxy a Next.js POST (JSON) to FastAPI.
  */
 export async function proxyPost(
   req: import('next/server').NextRequest,
@@ -211,12 +205,14 @@ export async function proxyPost(
   const limited = await rateLimit(req, AI_LIMIT)
   if (limited) return limited
 
-  const auth = requireAuth(req)
+  const auth = await requireAuth(req)
   if (!auth.ok) return auth.response
 
   const body = await req.json()
   const res = await fastapi.post(fastapiPath, body, {
-    userEmail: resolveEmail(auth.auth.email),
+    userEmail: auth.auth.email,
+    userId: auth.auth.id,
+    accessToken: auth.auth.accessToken,
     signal: req.signal,
     timeout,
   })
@@ -233,7 +229,6 @@ export async function proxyPost(
 
 /**
  * Proxy a Next.js POST (JSON) to FastAPI and passthrough SSE stream.
- * Uses AI_LIMIT rate limiting.
  */
 export async function proxyPostStream(
   req: import('next/server').NextRequest,
@@ -246,7 +241,7 @@ export async function proxyPostStream(
   const limited = await rateLimit(req, AI_LIMIT)
   if (limited) return limited
 
-  const auth = requireAuth(req)
+  const auth = await requireAuth(req)
   if (!auth.ok) return auth.response
 
   const body = await req.json()
@@ -259,9 +254,10 @@ export async function proxyPostStream(
     : controller.signal
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${getAuthToken()}`,
+    Authorization: `Bearer ${getServiceToken()}`,
     'Content-Type': 'application/json',
-    'X-User-Email': resolveEmail(auth.auth.email),
+    'X-User-Email': auth.auth.email,
+    'X-User-Id': auth.auth.id,
   }
 
   try {
@@ -282,7 +278,6 @@ export async function proxyPostStream(
       )
     }
 
-    // Passthrough the SSE stream from FastAPI
     if (!res.body) {
       return Response.json({ error: 'No stream body' }, { status: 502 })
     }

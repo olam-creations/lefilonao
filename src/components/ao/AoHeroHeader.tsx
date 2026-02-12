@@ -14,6 +14,7 @@ interface AoHeroHeaderProps {
   scoreLabel: 'GO' | 'MAYBE' | 'PASS';
   recommendation: Recommendation | null;
   dceAnalyzed?: boolean;
+  typeMarche?: string[] | null;
 }
 
 const VERDICT_STYLES = {
@@ -25,7 +26,7 @@ const VERDICT_STYLES = {
 
 export default function AoHeroHeader({
   title, issuer, budget, deadline, region, score, scoreLabel, recommendation,
-  dceAnalyzed,
+  dceAnalyzed, typeMarche,
 }: AoHeroHeaderProps) {
   const daysLeft = daysUntil(deadline);
   const config = recommendation ? VERDICT_STYLES[recommendation.verdict] : VERDICT_STYLES.neutral;
@@ -43,6 +44,9 @@ export default function AoHeroHeader({
             {budget && <div className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5" /> {budget}</div>}
             <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {formatDate(deadline)}</div>
             {region && <span className="text-slate-400">{region}</span>}
+            {typeMarche?.map((t) => (
+              <span key={t} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700">{t}</span>
+            ))}
           </div>
         </div>
 

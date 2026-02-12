@@ -13,10 +13,12 @@ export interface UsePlanReturn {
 export function usePlan(): UsePlanReturn {
   const { plan } = useUser();
 
+  const hasPro = plan === 'pro' || plan === 'admin';
+
   return {
     plan,
-    isPro: plan === 'pro',
-    aoLimit: plan === 'pro' ? null : FREE_AO_LIMIT,
+    isPro: hasPro,
+    aoLimit: hasPro ? null : FREE_AO_LIMIT,
     can: (feature: FeatureKey) => canAccess(feature, plan),
   };
 }

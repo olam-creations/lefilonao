@@ -5,6 +5,7 @@ import AiSummaryCard from '@/components/ao/AiSummaryCard';
 import SelectionCriteriaWeights from '@/components/ao/SelectionCriteriaWeights';
 import VigilanceAlerts from '@/components/ao/VigilanceAlerts';
 import ComplianceChecklist from '@/components/ao/ComplianceChecklist';
+import ResponseTimeline from '@/components/ao/ResponseTimeline';
 import type { BoampNoticeData } from '@/lib/notice-transform';
 import type { BoampEnrichedData } from '@/lib/boamp-enrichment';
 import type { AoDetail } from '@/lib/dev';
@@ -15,10 +16,12 @@ interface SectionSyntheseProps {
   enriched: BoampEnrichedData | null;
   analysis: AoDetail | null;
   hasAnalysis: boolean;
+  publishedAt: string;
+  deadline: string | null;
 }
 
 export default function SectionSynthese({
-  notice, lots, enriched, analysis, hasAnalysis,
+  notice, lots, enriched, analysis, hasAnalysis, publishedAt, deadline,
 }: SectionSyntheseProps) {
   return (
     <section id="section-synthese" className="space-y-6 scroll-mt-16">
@@ -26,6 +29,9 @@ export default function SectionSynthese({
 
       {/* Notice details — always visible even without analysis */}
       {notice && <AoNoticeDetails notice={notice} lots={lots} enriched={enriched} />}
+
+      {/* Key dates timeline */}
+      {deadline && <ResponseTimeline publishedAt={publishedAt} deadline={deadline} />}
 
       {/* AI-powered insights — only when analysis is available */}
       {hasAnalysis && analysis && (

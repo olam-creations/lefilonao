@@ -85,7 +85,7 @@ export default function AoDossierSidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-64 flex-shrink-0">
+      <aside className="hidden md:block md:w-56 lg:w-64 flex-shrink-0">
         <div className="sticky top-16 space-y-4">
           <DeadlineCountdown daysLeft={daysLeft} />
 
@@ -135,7 +135,7 @@ export default function AoDossierSidebar({
       </aside>
 
       {/* Mobile bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white/90 backdrop-blur-lg border-t border-slate-200 px-4 py-3">
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/90 backdrop-blur-lg border-t border-slate-200 px-4 py-3">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           {hasAnalysis && (
             <VerdictBadge score={score} scoreLabel={scoreLabel} recommendation={recommendation} size="sm" />

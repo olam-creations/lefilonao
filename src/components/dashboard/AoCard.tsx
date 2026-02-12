@@ -9,6 +9,7 @@ import type { WorkspaceState } from '@/lib/ao-utils';
 import type { RFP } from '@/hooks/useDashboardFilters';
 
 import AddToPipelineButton from './pipeline/AddToPipelineButton';
+import PremiumTeaser from '@/components/shared/PremiumTeaser';
 
 interface AoCardProps {
   rfp: RFP;
@@ -83,7 +84,9 @@ export default function AoCard({ rfp, workspace, totalDocuments, totalSections, 
           <div className="flex-1 min-w-0">
             {/* Badges row */}
             <div className="flex items-center gap-2.5 mb-4 flex-wrap">
-              <ScoreBadge score={rfp.score} label={rfp.scoreLabel} />
+              <PremiumTeaser message="Score IA Pro" blur="blur-[3px]">
+                <ScoreBadge score={rfp.score} label={rfp.scoreLabel} />
+              </PremiumTeaser>
               <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
                 {rfp.source}
               </span>
@@ -108,12 +111,14 @@ export default function AoCard({ rfp, workspace, totalDocuments, totalSections, 
               </div>
               
               {rfp.budget && (
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                    <TrendingUp className="w-4 h-4 text-emerald-500" />
+                <PremiumTeaser message="Budget estimé" blur="blur-[4px]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                      <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <span className="font-bold text-emerald-700">{rfp.budget}</span>
                   </div>
-                  <span className="font-bold text-emerald-700">{rfp.budget}</span>
-                </div>
+                </PremiumTeaser>
               )}
 
               <div className="flex items-center gap-2">

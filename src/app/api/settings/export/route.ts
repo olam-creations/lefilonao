@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   const { email } = auth.auth;
 

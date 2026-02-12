@@ -22,7 +22,7 @@ export default function UpgradeModal({ open, onClose, featureLabel }: UpgradeMod
           onClick={onClose}
         >
           <motion.div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative"
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 sm:p-8 relative"
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
@@ -38,7 +38,7 @@ export default function UpgradeModal({ open, onClose, featureLabel }: UpgradeMod
             </button>
 
             <div className="text-center">
-              <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-2xl flex items-center justify-center text-white mx-auto mb-5 shadow-lg shadow-indigo-500/25">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 sm:mb-5 shadow-lg shadow-indigo-500/25">
                 <Sparkles className="w-6 h-6" />
               </div>
 

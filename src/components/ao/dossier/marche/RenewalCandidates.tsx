@@ -36,7 +36,17 @@ export default function RenewalCandidates({ cpvCode, region }: RenewalCandidates
     );
   }
 
-  if (renewals.length === 0) return null;
+  if (renewals.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <RefreshCw className="w-4 h-4 text-indigo-500" />
+          <h3 className="text-sm font-bold text-slate-900">Renouvellements proches</h3>
+        </div>
+        <p className="text-xs text-slate-400 text-center py-4">Aucun renouvellement detecte</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5">

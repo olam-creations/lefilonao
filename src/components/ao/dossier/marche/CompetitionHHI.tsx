@@ -34,13 +34,26 @@ export default function CompetitionHHI({ cpvCode, region }: CompetitionHHIProps)
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <BarChart3 className="w-4 h-4 text-indigo-500" />
+          <h3 className="text-sm font-bold text-slate-900">Intensite concurrentielle</h3>
+        </div>
+        <p className="text-xs text-slate-400 text-center py-4">Donnees non disponibles</p>
+      </div>
+    );
+  }
 
-  const levelConfig = {
+  const LEVEL_CONFIGS = {
     low: { label: 'Faible concentration', color: 'text-emerald-700 bg-emerald-50' },
     moderate: { label: 'Concentration moderee', color: 'text-amber-700 bg-amber-50' },
     high: { label: 'Forte concentration', color: 'text-red-700 bg-red-50' },
-  }[data.concentrationLevel];
+  };
+  const levelConfig = LEVEL_CONFIGS[data.concentrationLevel as keyof typeof LEVEL_CONFIGS]
+    ?? { label: 'Inconnu', color: 'text-slate-700 bg-slate-50' };
+  const topCompetitors = data.topCompetitors ?? [];
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -50,16 +63,16 @@ export default function CompetitionHHI({ cpvCode, region }: CompetitionHHIProps)
       </div>
 
       <div className="flex items-center gap-3 mb-4">
-        <span className="text-2xl font-bold text-slate-900">{data.hhi}</span>
+        <span className="text-2xl font-bold text-slate-900">{data.hhi ?? '—'}</span>
         <span className="text-xs text-slate-400">HHI</span>
         <span className={`px-2 py-0.5 text-xs font-medium rounded ${levelConfig.color}`}>
           {levelConfig.label}
         </span>
       </div>
 
-      {data.topCompetitors.length > 0 && (
+      {topCompetitors.length > 0 && (
         <div className="space-y-1.5">
-          {data.topCompetitors.slice(0, 5).map((c) => (
+          {topCompetitors.slice(0, 5).map((c) => (
             <div key={c.name} className="flex items-center gap-2">
               <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div

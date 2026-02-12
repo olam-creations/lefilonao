@@ -1,4 +1,5 @@
-export type Plan = 'free' | 'pro';
+export type Plan = 'free' | 'pro' | 'admin';
+export type UserRole = 'free' | 'pro' | 'admin';
 
 export type FeatureKey =
   | 'ai-scoring'
@@ -28,7 +29,7 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
 
 export const FREE_AO_LIMIT = 5;
 
-const PLAN_RANK: Record<Plan, number> = { free: 0, pro: 1 };
+const PLAN_RANK: Record<Plan, number> = { free: 0, pro: 1, admin: 2 };
 
 export function canAccess(feature: FeatureKey, userPlan: Plan): boolean {
   const def = FEATURES[feature];

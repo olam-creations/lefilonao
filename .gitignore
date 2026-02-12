@@ -28,4 +28,16 @@ next-env.d.ts
 # test artifacts
 test-*.pdf
 test-*.mjs
+test-results/
+playwright-report/
 scripts/
+
+# temp & data
+_tmp/
+data/
+NUL
+
+# secrets
+client_secret*.json
+*.pem
+*.key

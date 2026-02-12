@@ -242,35 +242,35 @@ export default function OpportunitiesPage() {
           variants={stagger}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+          className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8"
         >
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
             <div className="flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
               <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
               Ouverts
             </div>
-            <div className="text-2xl font-bold text-slate-900">{stats.totalOpen}</div>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900">{stats.totalOpen}</div>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
             <div className="flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
               <Sparkles className="w-3.5 h-3.5 text-blue-500" />
               Nouveautés 48h
             </div>
-            <div className="text-2xl font-bold text-blue-600">{stats.newLast48h}</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">{stats.newLast48h}</div>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
             <div className="flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
               <Zap className="w-3.5 h-3.5 text-amber-500" />
               Urgents &lt;7j
             </div>
-            <div className="text-2xl font-bold text-amber-600">{stats.urgentCount}</div>
+            <div className="text-xl sm:text-2xl font-bold text-amber-600">{stats.urgentCount}</div>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
             <div className="flex items-center gap-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
               Montant moyen
             </div>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-xl sm:text-2xl font-bold text-slate-900">
               {stats.avgAmount > 0 ? formatAmount(stats.avgAmount) : '—'}
             </div>
           </div>
@@ -280,7 +280,7 @@ export default function OpportunitiesPage() {
       {/* Filters Toolbar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-8 shadow-sm space-y-5">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[300px]">
+          <div className="relative flex-1 min-w-0 sm:min-w-[300px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
             <input
               ref={searchRef}

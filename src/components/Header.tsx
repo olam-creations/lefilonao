@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, LogOut, Menu, X } from 'lucide-react';
-import { logout } from '@/lib/auth';
 import { useUser } from '@/components/UserProvider';
 import Logo from '@/components/shared/Logo';
 
@@ -40,7 +39,7 @@ export default function Header({ variant = 'public', activePage, backHref, right
   const pathname = usePathname();
   const overlayRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const { authenticated } = useUser();
+  const { authenticated, signOut } = useUser();
 
   useEffect(() => {
     if (variant !== 'public') return;
@@ -53,7 +52,7 @@ export default function Header({ variant = 'public', activePage, backHref, right
     setMobileOpen(false);
   }, [pathname]);
 
-  // Focus trap: trap Tab inside mobile overlay, auto-focus close button
+  // Focus trap
   useEffect(() => {
     if (!mobileOpen) return;
     const overlay = overlayRef.current;
@@ -93,9 +92,9 @@ export default function Header({ variant = 'public', activePage, backHref, right
     };
   }, [mobileOpen]);
 
-  const handleLogout = useCallback(() => {
-    logout();
-  }, []);
+  const handleLogout = useCallback(async () => {
+    await signOut();
+  }, [signOut]);
 
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 

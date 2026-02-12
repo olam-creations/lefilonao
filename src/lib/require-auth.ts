@@ -1,31 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySession, COOKIE_NAME } from './session';
+import { createClient } from '@/lib/supabase/server';
 
 export interface AuthContext {
   email: string;
+  id: string;
+  accessToken: string;
 }
 
 type AuthResult =
   | { ok: true; auth: AuthContext }
   | { ok: false; response: NextResponse };
 
-/** Extract and verify user session from request cookie. Returns email or 401. */
-export function requireAuth(req: NextRequest): AuthResult {
-  // Dev bypass — matches middleware behavior
-  if (process.env.NODE_ENV === 'development') {
-    return { ok: true, auth: { email: 'dev@lefilonao.local' } };
+/** Extract and verify user from Supabase Auth. Returns auth context or 401. */
+export async function requireAuth(req: NextRequest): Promise<AuthResult> {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Non authentifié' }, { status: 401 }),
+    };
   }
 
-  const cookie = req.cookies.get(COOKIE_NAME)?.value;
-  if (cookie) {
-    const email = verifySession(cookie);
-    if (email) {
-      return { ok: true, auth: { email } };
-    }
-  }
+  // Get session for access token (needed by FastAPI proxy)
+  const { data: { session } } = await supabase.auth.getSession();
 
   return {
-    ok: false,
-    response: NextResponse.json({ error: 'Non authentifié' }, { status: 401 }),
+    ok: true,
+    auth: {
+      email: user.email!,
+      id: user.id,
+      accessToken: session?.access_token ?? ''
+    }
   };
 }

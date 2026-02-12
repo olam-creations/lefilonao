@@ -43,10 +43,16 @@ function LoyaltyIndicator({ winners, totalContracts }: { winners: RankedEntity[]
 }
 
 export default function BuyerIntelCard({ data }: BuyerIntelCardProps) {
+  const sectors = data.sectors ?? [];
+  const topWinners = data.topWinners ?? [];
+  const recentContracts = data.recentContracts ?? [];
+  const totalContracts = data.totalContracts ?? 0;
+  const totalVolume = data.totalVolume ?? 0;
+
   // Derive simple preference signals from available data
-  const sectorDiversity = Math.min(100, data.sectors.length * 15);
-  const volumeScale = data.totalVolume > 1_000_000 ? 80 : data.totalVolume > 100_000 ? 50 : 20;
-  const contractFrequency = Math.min(100, data.totalContracts * 5);
+  const sectorDiversity = Math.min(100, sectors.length * 15);
+  const volumeScale = totalVolume > 1_000_000 ? 80 : totalVolume > 100_000 ? 50 : 20;
+  const contractFrequency = Math.min(100, totalContracts * 5);
 
   return (
     <div className="space-y-3">
@@ -61,19 +67,19 @@ export default function BuyerIntelCard({ data }: BuyerIntelCardProps) {
         <SignalBar label="Frequence" score={contractFrequency} />
       </div>
 
-      <LoyaltyIndicator winners={data.topWinners} totalContracts={data.totalContracts} />
+      <LoyaltyIndicator winners={topWinners} totalContracts={totalContracts} />
 
-      {data.recentContracts.length > 0 && (
+      {recentContracts.length > 0 && (
         <div>
           <div className="flex items-center gap-1.5 mb-1.5">
             <FileText className="w-3 h-3 text-slate-400" />
             <span className="text-[10px] text-slate-500 uppercase tracking-wide">Derniere attribution</span>
           </div>
           <div className="bg-slate-50 rounded-lg p-2.5">
-            <p className="text-[11px] text-slate-700 line-clamp-1">{data.recentContracts[0].title}</p>
+            <p className="text-[11px] text-slate-700 line-clamp-1">{recentContracts[0].title}</p>
             <div className="flex justify-between mt-1 text-[10px] text-slate-400">
-              <span>{data.recentContracts[0].winnerName}</span>
-              <span className="font-semibold text-emerald-600">{formatAmount(data.recentContracts[0].amount)}</span>
+              <span>{recentContracts[0].winnerName}</span>
+              <span className="font-semibold text-emerald-600">{formatAmount(recentContracts[0].amount)}</span>
             </div>
           </div>
         </div>

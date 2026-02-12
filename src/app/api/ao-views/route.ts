@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
 
   const supabase = getSupabase();
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     .eq('month_key', monthKey);
 
   const plan = await getUserPlan(auth.auth.email);
-  const limit = plan === 'pro' ? null : FREE_AO_LIMIT;
+  const limit = plan === 'pro' || plan === 'admin' ? null : FREE_AO_LIMIT;
   const viewsThisMonth = count ?? 0;
 
   return NextResponse.json({
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   const limited = await rateLimit(req, STANDARD_LIMIT);
   if (limited) return limited;
 
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
 
   try {
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const plan = await getUserPlan(auth.auth.email);
 
     // Check limit for free users
-    if (plan !== 'pro') {
+    if (plan !== 'pro' && plan !== 'admin') {
       const { count } = await supabase
         .from('ao_views')
         .select('*', { count: 'exact', head: true })
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       .eq('month_key', monthKey);
 
     const viewsThisMonth = newCount ?? 0;
-    const limit = plan === 'pro' ? null : FREE_AO_LIMIT;
+    const limit = plan === 'pro' || plan === 'admin' ? null : FREE_AO_LIMIT;
 
     return NextResponse.json({
       success: true,

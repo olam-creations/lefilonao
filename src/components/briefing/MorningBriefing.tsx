@@ -1,27 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sun, Moon, CloudSun } from 'lucide-react';
+import { Sun, Moon, CloudSun } from 'lucide-react';
 import { useBriefing } from '@/hooks/useBriefing';
 import BriefingDelta from './BriefingDelta';
 import BriefingPriorities from './BriefingPriorities';
 import BriefingWeekStatus from './BriefingWeekStatus';
 import BriefingTip from './BriefingTip';
 import BriefingCalm from './BriefingCalm';
-
-const STORAGE_KEY = 'lefilonao_briefing_dismissed';
-
-function isDismissedToday(): boolean {
-  if (typeof window === 'undefined') return false;
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return false;
-  return stored === new Date().toISOString().split('T')[0];
-}
-
-function dismissForToday(): void {
-  localStorage.setItem(STORAGE_KEY, new Date().toISOString().split('T')[0]);
-}
 
 function TimeIcon() {
   const hour = new Date().getHours();
@@ -32,14 +18,8 @@ function TimeIcon() {
 
 export default function MorningBriefing() {
   const { briefing, loading, error } = useBriefing();
-  const [dismissed, setDismissed] = useState(isDismissedToday);
 
-  const handleDismiss = useCallback(() => {
-    dismissForToday();
-    setDismissed(true);
-  }, []);
-
-  if (dismissed || error) return null;
+  if (error) return null;
 
   if (loading) {
     return (
@@ -67,15 +47,6 @@ export default function MorningBriefing() {
         transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
         className="bg-gradient-to-br from-white to-slate-50 rounded-2xl border border-slate-200/80 p-5 mb-6 relative"
       >
-        {/* Dismiss button */}
-        <button
-          onClick={handleDismiss}
-          className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-100 transition-colors"
-          aria-label="Masquer le briefing"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
         {/* Calm mode */}
         {briefing.isCalm ? (
           <BriefingCalm

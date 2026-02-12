@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const rl = await rateLimit(req, STANDARD_LIMIT);
   if (rl) return rl;
 
-  const auth = requireAuth(req);
+  const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
 
   try {

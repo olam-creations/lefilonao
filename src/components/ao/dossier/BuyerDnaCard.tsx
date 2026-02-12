@@ -35,10 +35,16 @@ export default function BuyerDnaCard({ buyerName, buyerSiret }: BuyerDnaCardProp
   useEffect(() => {
     const requests: Promise<void>[] = [];
 
+    // Use local Supabase-powered /api/market/buyer (rich data)
+    // instead of FastAPI proxy /api/market/buyer-profile (often empty for name-only)
+    const buyerParam = buyerSiret
+      ? `siret=${encodeURIComponent(buyerSiret)}`
+      : `name=${encodeURIComponent(buyerName)}`;
+
     requests.push(
-      fetch(`/api/market/buyer-profile?name=${encodeURIComponent(buyerName)}`)
+      fetch(`/api/market/buyer?${buyerParam}`)
         .then((r) => r.ok ? r.json() : null)
-        .then((d) => { if (d) setBuyerProfile(d); })
+        .then((d) => { if (d?.buyer) setBuyerProfile(d.buyer); })
         .catch(() => {}),
     );
 

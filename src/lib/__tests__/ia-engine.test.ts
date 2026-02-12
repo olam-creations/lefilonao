@@ -40,7 +40,7 @@ describe('AI Engine Battle Test', () => {
       const result = await extractHighFidelityText(buffer);
       
       expect(result.text).toContain('Table Title');
-      expect(result.text).toContain('Price 100€'); 
+      expect(result.text).toMatch(/Price\s+100€/);
       expect(result.numPages).toBe(1);
     });
 

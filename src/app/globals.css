@@ -8,7 +8,8 @@
 @theme {
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), 'Consolas', monospace;
-  
+  --breakpoint-xs: 480px;
+
   /* Starry Night Palette Custom Vars */
   --color-night-950: #020617;
   --color-night-900: #0f172a;
@@ -110,7 +111,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  padding: 0.625rem 1.25rem;
   background: linear-gradient(135deg, #1e3a8a, #1e40af);
   color: #ffffff;
   font-weight: 600;
@@ -134,7 +135,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  padding: 0.625rem 1.25rem;
   background: #ffffff;
   color: #1e293b;
   font-weight: 600;
@@ -150,6 +151,15 @@ body {
   background: #fffdf2;
   color: #ca8a04;
   box-shadow: 0 0 20px rgba(253, 224, 71, 0.1);
+}
+
+@media (min-width: 640px) {
+  .btn-primary {
+    padding: 0.75rem 1.5rem;
+  }
+  .btn-secondary {
+    padding: 0.75rem 1.5rem;
+  }
 }
 
 /* ─── Score Badges ─── */

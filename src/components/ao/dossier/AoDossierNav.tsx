@@ -4,13 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import {
   FileText,
   FolderOpen,
-  Search,
   BarChart3,
   FolderCheck,
   Layers,
 } from 'lucide-react';
 
-export type DossierSection = 'synthese' | 'dce' | 'intel' | 'marche' | 'reponse' | 'lots';
+export type DossierSection = 'synthese' | 'dce' | 'intelligence' | 'reponse' | 'lots';
 
 interface NavItem {
   id: DossierSection;
@@ -21,8 +20,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'synthese', label: 'Synthese', icon: FileText },
   { id: 'dce', label: 'DCE', icon: FolderOpen },
-  { id: 'intel', label: 'Intel', icon: Search },
-  { id: 'marche', label: 'Marche', icon: BarChart3 },
+  { id: 'intelligence', label: 'Intelligence', icon: BarChart3 },
   { id: 'reponse', label: 'Reponse', icon: FolderCheck },
   { id: 'lots', label: 'Lots', icon: Layers },
 ];

@@ -12,6 +12,7 @@ export async function getUserPlan(email: string): Promise<Plan> {
     .single();
 
   const plan = data?.plan;
+  if (plan === 'admin') return 'admin';
   if (plan === 'pro') return 'pro';
   return 'free';
 }
@@ -34,7 +35,7 @@ export async function requireFeature(email: string, feature: FeatureKey): Promis
 export async function requirePro(email: string): Promise<NextResponse | null> {
   const plan = await getUserPlan(email);
 
-  if (plan !== 'pro') {
+  if (plan !== 'pro' && plan !== 'admin') {
     return NextResponse.json(
       { error: 'Cette fonctionnalité nécessite un abonnement Pro' },
       { status: 403 },

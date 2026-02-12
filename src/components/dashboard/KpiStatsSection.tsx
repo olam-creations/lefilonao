@@ -42,10 +42,10 @@ export default function KpiStatsSection({ pipeline, deadline, profile, responseR
       variants={stagger}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 h-full"
+      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 h-full"
     >
       {/* Principal: Pipeline (Large on desktop) */}
-      <div className="sm:col-span-2 lg:row-span-2">
+      <div className="sm:col-span-2 md:row-span-2">
         <KpiStatCard
           label="Pipeline global"
           value={pipeline.total}
@@ -66,7 +66,7 @@ export default function KpiStatsSection({ pipeline, deadline, profile, responseR
       </div>
 
       {/* Deadlines (Small) */}
-      <div className="md:col-span-2">
+      <div className="sm:col-span-2 md:col-span-2">
         <KpiStatCard
           label="Urgent"
           value={deadline.urgentCount}
@@ -78,7 +78,7 @@ export default function KpiStatsSection({ pipeline, deadline, profile, responseR
       </div>
 
       {/* Profil (Square) */}
-      <div className="md:col-span-1">
+      <div>
         <KpiStatCard
           label="Complétude"
           value={`${profile.completenessPercent}%`}
@@ -94,7 +94,7 @@ export default function KpiStatsSection({ pipeline, deadline, profile, responseR
       </div>
 
       {/* Taux (Square) */}
-      <div className="md:col-span-1">
+      <div>
         <KpiStatCard
           label="Engagement"
           value={`${responseRate.percent}%`}

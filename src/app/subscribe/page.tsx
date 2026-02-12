@@ -3,12 +3,12 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, ArrowRight, ArrowLeft, Building2, Search, Loader2, MapPin } from 'lucide-react';
+import { CheckCircle, ArrowRight, ArrowLeft, Building2, Search, Loader2, MapPin, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { clearAuthCache, checkAuth } from '@/lib/auth';
 import { mapNafToCpv } from '@/lib/naf-to-cpv';
 import StripeCheckoutModal from '@/components/StripeCheckoutModal';
+import { signUp, getUser } from '@/app/auth/actions';
 
 const ease = { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] };
 
@@ -100,18 +100,16 @@ function SubscribeForm() {
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    checkAuth().then((auth) => {
-      if (auth?.authenticated) {
+    getUser().then((user) => {
+      if (user) {
         router.replace('/dashboard');
       } else {
         setAuthChecked(true);
       }
-    }).catch(() => {
-      setAuthChecked(true);
     });
   }, [router]);
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<number | 'check-email'>(1);
   const [direction, setDirection] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +140,9 @@ function SubscribeForm() {
   });
 
   const goToStep = (newStep: number) => {
-    setDirection(newStep > step ? 1 : -1);
+    if (typeof step === 'number') {
+      setDirection(newStep > step ? 1 : -1);
+    }
     setStep(newStep);
   };
 
@@ -220,40 +220,47 @@ function SubscribeForm() {
     setError(null);
 
     try {
-      const res = await api.register({
-        ...formData,
-        source: plan ? `pricing-${plan}` : 'landing-page',
+      const result = await signUp({
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        companyName: formData.companyName,
+        sectors: formData.sectors,
+        regions: formData.regions,
+        siret: formData.siret,
       });
-      const data = await res.json();
 
-      if (!res.ok) {
-        setError(data.error || `Erreur ${res.status}`);
-        setShakeError(true);
-        setTimeout(() => setShakeError(false), 600);
-        setLoading(false);
-        return;
-      }
+      if (result.error) throw new Error(result.error);
 
-      clearAuthCache();
-
-      if (plan === 'pro') {
-        const checkoutRes = await api.checkout();
-        const checkoutData = await checkoutRes.json();
-        if (checkoutRes.ok && checkoutData.clientSecret) {
-          setCheckoutSecret(checkoutData.clientSecret);
-          setLoading(false);
-          return;
+      if (result.session) {
+        // Logged in immediately
+        if (plan === 'pro') {
+          try {
+            const checkoutRes = await api.checkout();
+            const checkoutData = await checkoutRes.json();
+            if (checkoutRes.ok && checkoutData.clientSecret) {
+              setCheckoutSecret(checkoutData.clientSecret);
+              setLoading(false);
+              return;
+            }
+            setError(checkoutData.error || 'Erreur lors de l\'initialisation du paiement');
+          } catch {
+             // If checkout fails but signup worked, redirect to dashboard anyway
+             // User can upgrade later
+             window.location.href = '/dashboard?upgrade=true';
+          }
+        } else {
+          router.push('/dashboard');
+          router.refresh();
         }
-        setError(checkoutData.error || 'Erreur lors du paiement');
-        setShakeError(true);
-        setTimeout(() => setShakeError(false), 600);
+      } else {
+        // Need email confirmation
+        setStep('check-email');
         setLoading(false);
-        return;
       }
 
-      window.location.href = '/dashboard';
-    } catch {
-      setError('Erreur de connexion. Réessayez.');
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de l\'inscription');
       setShakeError(true);
       setTimeout(() => setShakeError(false), 600);
       setLoading(false);
@@ -261,7 +268,7 @@ function SubscribeForm() {
   };
 
   const steps = ['Entreprise', 'Compte', 'Préférences'];
-  const progressPercent = ((step - 1) / (steps.length - 1)) * 100;
+  const progressPercent = typeof step === 'number' ? ((step - 1) / (steps.length - 1)) * 100 : 100;
 
   if (!authChecked) {
     return (
@@ -283,35 +290,39 @@ function SubscribeForm() {
       </header>
 
       <div className="max-w-xl mx-auto px-6 py-12">
-        {/* Progress bar */}
-        <div className="mb-2">
-          <div className="progress-bar">
-            <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }} />
-          </div>
-        </div>
-
-        {/* Step labels */}
-        <div className="flex items-center justify-between mb-10">
-          {steps.map((label, i) => {
-            const stepNum = i + 1;
-            const isActive = stepNum === step;
-            const isDone = stepNum < step;
-            return (
-              <div key={label} className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
-                  isDone || isActive
-                    ? 'bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/20'
-                    : 'bg-slate-200 text-slate-400'
-                }`}>
-                  {isDone ? <CheckCircle className="w-3.5 h-3.5" /> : stepNum}
-                </div>
-                <span className={`text-sm ${isActive ? 'text-slate-900 font-medium' : 'text-slate-400'}`}>
-                  {label}
-                </span>
+        {step !== 'check-email' && (
+          <>
+            {/* Progress bar */}
+            <div className="mb-2">
+              <div className="progress-bar">
+                <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }} />
               </div>
-            );
-          })}
-        </div>
+            </div>
+
+            {/* Step labels */}
+            <div className="flex items-center justify-between mb-10">
+              {steps.map((label, i) => {
+                const stepNum = i + 1;
+                const isActive = stepNum === step;
+                const isDone = typeof step === 'number' && stepNum < step;
+                return (
+                  <div key={label} className="flex items-center gap-2">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
+                      isDone || isActive
+                        ? 'bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/20'
+                        : 'bg-slate-200 text-slate-400'
+                    }`}>
+                      {isDone ? <CheckCircle className="w-3.5 h-3.5" /> : stepNum}
+                    </div>
+                    <span className={`text-sm ${isActive ? 'text-slate-900 font-medium' : 'text-slate-400'}`}>
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Form card */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 overflow-hidden">
@@ -501,7 +512,7 @@ function SubscribeForm() {
               </motion.div>
             )}
 
-            {/* Step 3: Sectors + Regions (optional, auto-populated from SIRET) */}
+            {/* Step 3: Sectors + Regions */}
             {step === 3 && (
               <motion.div
                 key="step3"
@@ -604,15 +615,42 @@ function SubscribeForm() {
                 </button>
               </motion.div>
             )}
+
+            {/* Step: Check Email */}
+            {step === 'check-email' && (
+              <motion.div
+                key="check-email"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={ease}
+                className="text-center"
+              >
+                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Mail className="w-8 h-8 text-indigo-600" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Vérifiez vos emails</h2>
+                <p className="text-slate-500 text-sm mb-6 max-w-sm mx-auto">
+                  Un lien de confirmation a été envoyé à <strong>{formData.email}</strong>.
+                  Cliquez dessus pour activer votre compte.
+                </p>
+                <div className="flex justify-center">
+                  <Link href="/login" className="btn-secondary">
+                    Retour à la connexion
+                  </Link>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
 
-        <p className="text-center text-slate-400 text-sm mt-6">
-          Déjà un compte ?{' '}
-          <Link href="/login" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
-            Se connecter
-          </Link>
-        </p>
+        {step !== 'check-email' && (
+          <p className="text-center text-slate-400 text-sm mt-6">
+            Déjà un compte ?{' '}
+            <Link href="/login" className="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
+              Se connecter
+            </Link>
+          </p>
+        )}
       </div>
 
       {checkoutSecret && (

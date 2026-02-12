@@ -8,9 +8,11 @@ vi.mock('@/components/UserProvider', () => ({
     email: 'user@test.fr',
     displayName: 'Test User',
     plan: 'free',
+    role: 'free',
     loading: false,
     authenticated: true,
     refresh: vi.fn(),
+    signOut: vi.fn(),
   })),
 }));
 
@@ -27,9 +29,11 @@ beforeEach(() => {
     email: 'user@test.fr',
     displayName: 'Test User',
     plan: 'free',
+    role: 'free',
     loading: false,
     authenticated: true,
     refresh: vi.fn(),
+    signOut: vi.fn(),
   });
 });
 
@@ -43,9 +47,11 @@ describe('WatchButton', () => {
       email: '',
       displayName: '',
       plan: 'free',
+      role: 'free',
       loading: false,
       authenticated: false,
       refresh: vi.fn(),
+      signOut: vi.fn(),
     });
     const { container } = render(<WatchButton buyerName="Test Buyer" />);
     expect(container.querySelector('button')).toBeNull();

@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLink, FileDown, Building2, Hash, MapPin, Calendar, Package, Tag, Euro, Clock, User, Mail, Phone, Scale, Layers, FileCheck } from 'lucide-react';
+import { ExternalLink, Building2, Hash, MapPin, Calendar, Package, Tag, Euro, Clock, User, Mail, Phone, Scale, Layers, FileCheck } from 'lucide-react';
 import { formatDate } from '@/lib/ao-utils';
 import type { BoampNoticeData } from '@/lib/notice-transform';
 import type { BoampEnrichedData } from '@/lib/boamp-enrichment';
@@ -73,7 +73,6 @@ function LotCard({ lot }: { lot: BoampLot }) {
 
 export default function AoNoticeDetails({ notice, lots = [], enriched }: AoNoticeDetailsProps) {
   const boampUrl = `https://www.boamp.fr/avis/detail/${notice.id}`;
-  const hasDceUrl = notice.dce_url && !notice.dce_url.includes('boamp.fr');
 
   const natureLabel = enriched?.nature_libelle ?? notice.nature;
   const procedureLabel = enriched?.procedure_libelle ?? notice.procedure_type;
@@ -233,17 +232,6 @@ export default function AoNoticeDetails({ notice, lots = [], enriched }: AoNotic
           <ExternalLink className="w-3.5 h-3.5" />
           Voir sur le BOAMP
         </a>
-        {hasDceUrl && (
-          <a
-            href={notice.dce_url!}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-indigo-600 transition-colors"
-          >
-            <FileDown className="w-3.5 h-3.5" />
-            Telecharger DCE
-          </a>
-        )}
       </div>
     </div>
   );

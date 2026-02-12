@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import {
   ArrowRight, Search, Zap, TrendingUp, Check, X,
-  BarChart3, Mail, Shield, Sparkles, FileText, Pencil, Bookmark,
+  BarChart3, Mail, FileText, Pencil, Bookmark,
   BrainCircuit, Wand2,
 } from 'lucide-react';
 import Header from '@/components/Header';
@@ -189,24 +189,6 @@ export default function LandingContent() {
                 Voir les tarifs
               </Link>
             </div>
-          </motion.div>
-
-          {/* Trust indicators */}
-          <motion.div
-            className="flex flex-wrap items-center justify-center gap-10 mt-20"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ ...ease, delay: 0.4 }}
-          >
-            <span className="flex items-center gap-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              <Shield className="w-4 h-4 text-indigo-400" /> Sans carte
-            </span>
-            <span className="flex items-center gap-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              <Check className="w-4 h-4 text-emerald-400" /> Sans engagement
-            </span>
-            <span className="flex items-center gap-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              <Sparkles className="w-4 h-4 text-violet-400" /> Analyse IA
-            </span>
           </motion.div>
 
           {/* Dashboard mockup */}

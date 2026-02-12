@@ -26,13 +26,21 @@
 - **Deployment**: Vercel (standalone output)
 
 ### Backend & Auth
-- **API**: Fully local — `src/lib/api.ts` exposes `register()`, `login()`, `checkout()`, `portal()`, `subscription()` (no external auth service)
-- **Auth**: Cookie-based HMAC sessions. `lefilonao_access` httpOnly cookie signed with `SESSION_SECRET` (HMAC-SHA256, base64url email + timestamp). 30-day expiry. Constant-time signature verification.
-- **Session flow**: `src/lib/session.ts` (`signSession`/`verifySession`) handles cookie crypto. `src/lib/require-auth.ts` (`requireAuth`) extracts email from cookie in API routes. Client-side: `checkAuth()` calls `/api/auth/session`, result cached in memory.
-- **Auth routes**: `/api/auth/register` (POST, Zod validation, bcryptjs 12 rounds), `/api/auth/login` (POST, password verify), `/api/auth/logout` (POST, clear cookie), `/api/auth/session` (GET, returns auth state)
-- **UserProvider**: `src/components/UserProvider.tsx` — React context providing `useUser()` hook (email, displayName, plan, authenticated)
-- **Password**: `src/lib/password.ts` — bcryptjs wrapper (hash/verify, 12 rounds)
-- **Storage**: localStorage for workspace state, profile (incl. cachet base64), onboarding. Cloudflare R2 for file uploads.
+- **Auth Provider**: Supabase Auth (Native SOTA). Replacement of custom HMAC logic.
+- **Security Pattern**: **Server-Side Only (Zero Client Key)**. No Supabase keys are exposed to the browser. All auth operations (Login, Signup, Reset) are handled via Next.js **Server Actions** (`src/app/auth/actions.ts`).
+- **Session Management**: Handled by `src/middleware.ts` which refreshes JWT tokens and manages the staging "Gate" (`lefilonao_gate`).
+- **RBAC (Role-Based Access Control)**: 
+    - Roles: `free`, `pro`, `admin`.
+    - Storage: `public.user_settings.role` synced to `auth.users.app_metadata` via SQL triggers.
+    - JWT: The role is embedded in the Supabase JWT for stateless verification.
+- **Conversion Strategy**: `PremiumTeaser` component blurs high-value data (AI scores, budgets) for Free users to drive Pro subscriptions.
+- **UserProvider**: Rebuilt to use Server Actions. Provides `email`, `plan`, `role`, and `signOut` via `useUser()` hook.
+
+### Infrastructure (SOTA)
+- **Organization**: Google Workspace (`olam-creations.com` & `lefilonao.com`).
+- **Email Security**: Full SPF, DKIM, DMARC stack configured on Cloudflare.
+- **Master Vault**: `C:\dev\env\.env` linked via Hard Links to `.env.local`. Single source of truth for all projects.
+- **GCP Project**: `le-filon` migrated to the organization with Admin SDK and Domain-Wide Delegation active.
 
 ### Auth Flow
 ```
@@ -526,3 +534,15 @@ Project ref: `vdatbrdkwwedetdlbqxx`
 - No console.log in production code
 - All exports from `lib/` are pure functions or typed constants
 - No mock/fallback data: errors are errors, shown clearly to the user
+
+## Skills (slash commands)
+
+| Skill | Description |
+|-------|-------------|
+| `/filon` | Load full project context (3 repos, architecture, paths) |
+| `/filon-front` | UI/UX design system (Van Gogh palette, Tailwind, framer-motion, Figma) |
+| `/filon-deploy` | Deploy frontend/API/workers with pre-flight checks and health verification |
+| `/filon-sync` | Trigger and monitor Cloudflare Workers cron jobs |
+| `/filon-db` | Supabase migrations, schema, common queries |
+| `/filon-ai` | AI provider cascade, prompt tuning, TOON, resilience |
+| `/filon-test` | Run test suites across all 3 repos |

@@ -1,7 +1,9 @@
+import { getUser, signOut as serverSignOut } from '@/app/auth/actions';
+
 const ONBOARDING_KEY = 'lefilonao_onboarding';
 const REDIRECT_KEY = 'lefilonao_redirect';
 
-// ─── Session (cookie-based, no client-side token) ───
+// ─── Session (bridged to Server Actions) ───
 
 interface SessionData {
   authenticated: boolean;
@@ -17,14 +19,17 @@ export async function checkAuth(): Promise<SessionData> {
   if (sessionCache) return sessionCache;
 
   try {
-    const res = await fetch('/api/auth/session', { credentials: 'include' });
-    const data = await res.json();
-    sessionCache = {
-      authenticated: !!data.authenticated,
-      email: data.email || '',
-      displayName: data.displayName || '',
-      plan: data.plan || 'free',
-    };
+    const user = await getUser();
+    if (user) {
+      sessionCache = {
+        authenticated: true,
+        email: user.email || '',
+        displayName: user.displayName || '',
+        plan: user.plan || 'free',
+      };
+    } else {
+      sessionCache = { authenticated: false, email: '', displayName: '', plan: 'free' };
+    }
   } catch {
     sessionCache = { authenticated: false, email: '', displayName: '', plan: 'free' };
   }
@@ -37,10 +42,10 @@ export function clearAuthCache(): void {
   sessionCache = null;
 }
 
-/** Logout: POST /api/auth/logout, clear cache, redirect. */
+/** Logout: uses Server Action, clear cache, redirect. */
 export async function logout(): Promise<void> {
   try {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    await serverSignOut();
   } catch {
     // Best-effort
   }

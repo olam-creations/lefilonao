@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, Target } from 'lucide-react';
 import Link from 'next/link';
-import { markOnboardingStep } from '@/lib/auth';
 import { isDevMode, MOCK_RFPS } from '@/lib/dev';
 import { getCompanyProfile } from '@/lib/profile-storage';
 import { getWorkspaceState } from '@/lib/ao-storage';
@@ -14,7 +13,6 @@ import type { WorkspaceState } from '@/lib/ao-utils';
 import type { CompanyProfile } from '@/lib/dev';
 import FreeBanner from '@/components/FreeBanner';
 import PastDueBanner from '@/components/PastDueBanner';
-import OnboardingChecklist from '@/components/OnboardingChecklist';
 import MorningBriefing from '@/components/briefing/MorningBriefing';
 import TopBar from '@/components/dashboard/TopBar';
 import KpiStatsSection from '@/components/dashboard/KpiStatsSection';
@@ -37,7 +35,6 @@ export default function DashboardPage() {
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [onboardingKey, setOnboardingKey] = useState(0);
   const [workspaces, setWorkspaces] = useState<Record<string, WorkspaceState>>({});
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
 
@@ -137,8 +134,7 @@ export default function DashboardPage() {
   }, [rfps]);
 
   const handleExploreRfp = useCallback(() => {
-    markOnboardingStep('explore');
-    setOnboardingKey((k) => k + 1);
+    // placeholder for future tooltip helper
   }, []);
 
   const exportCSV = useCallback(() => {
@@ -156,8 +152,6 @@ export default function DashboardPage() {
     link.click();
     URL.revokeObjectURL(url);
 
-    markOnboardingStep('export');
-    setOnboardingKey((k) => k + 1);
   }, [filters.filteredRfps]);
 
   const pipelineKpi = useMemo(() => computePipelineKpi(rfps), [rfps]);
@@ -209,10 +203,6 @@ export default function DashboardPage() {
 
       <div className="mt-6">
         <MorningBriefing />
-      </div>
-
-      <div className="mt-8">
-        <OnboardingChecklist key={onboardingKey} />
       </div>
 
       <div className="mt-8">
