@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription;
         const email = sub.metadata?.userEmail;
@@ -67,6 +68,8 @@ export async function POST(req: NextRequest) {
 
         const updates: Record<string, unknown> = {
           stripe_status: sub.status,
+          stripe_customer_id: sub.customer as string,
+          stripe_subscription_id: sub.id,
           cancel_at_period_end: sub.cancel_at_period_end,
           current_period_end: new Date(sub.items.data[0]?.current_period_end
             ? sub.items.data[0].current_period_end * 1000
