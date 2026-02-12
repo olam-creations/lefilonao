@@ -1,10 +1,24 @@
--- 037: Materialized views for market intelligence
--- Replaces full-scan .limit(5000) queries with pre-aggregated data.
--- Each view has a UNIQUE INDEX for REFRESH MATERIALIZED VIEW CONCURRENTLY.
+-- 037b: Fix materialized views — drop and recreate with correct unique indexes
+-- The initial 037 partially succeeded (some views created, some failed).
+
+-- Drop all views and functions first (idempotent)
+DROP FUNCTION IF EXISTS refresh_mv_market_share();
+DROP FUNCTION IF EXISTS refresh_mv_buyer_winner_matrix();
+DROP FUNCTION IF EXISTS refresh_mv_volume_trend();
+DROP FUNCTION IF EXISTS refresh_mv_competition_hhi();
+DROP FUNCTION IF EXISTS refresh_mv_renewal_candidates();
+DROP FUNCTION IF EXISTS refresh_mv_winner_profiles();
+
+DROP MATERIALIZED VIEW IF EXISTS mv_market_share CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mv_buyer_winner_matrix CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mv_volume_trend CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mv_competition_hhi CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mv_renewal_candidates CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mv_winner_profiles CASCADE;
 
 -- ─── 1. Market Share ────────────────────────────────────────────────────────
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_market_share AS
+CREATE MATERIALIZED VIEW mv_market_share AS
 SELECT
   cpv_sector,
   region,
@@ -19,12 +33,12 @@ WHERE winner_name IS NOT NULL
   AND notification_date IS NOT NULL
 GROUP BY cpv_sector, region, winner_name, date_trunc('month', notification_date)::date;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_market_share_pk
+CREATE UNIQUE INDEX idx_mv_market_share_pk
   ON mv_market_share (cpv_sector, COALESCE(region, ''), winner_name, month);
 
 -- ─── 2. Buyer-Winner Matrix ─────────────────────────────────────────────────
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_buyer_winner_matrix AS
+CREATE MATERIALIZED VIEW mv_buyer_winner_matrix AS
 SELECT
   buyer_name,
   winner_name,
@@ -38,12 +52,12 @@ WHERE buyer_name IS NOT NULL AND buyer_name != ''
   AND winner_name IS NOT NULL AND winner_name != ''
 GROUP BY buyer_name, winner_name, cpv_sector;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_buyer_winner_matrix_pk
+CREATE UNIQUE INDEX idx_mv_buyer_winner_matrix_pk
   ON mv_buyer_winner_matrix (buyer_name, winner_name, cpv_sector);
 
 -- ─── 3. Volume Trend ────────────────────────────────────────────────────────
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_volume_trend AS
+CREATE MATERIALIZED VIEW mv_volume_trend AS
 SELECT
   cpv_sector,
   region,
@@ -54,12 +68,12 @@ FROM decp_attributions
 WHERE notification_date IS NOT NULL
 GROUP BY cpv_sector, region, date_trunc('month', notification_date)::date;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_volume_trend_pk
+CREATE UNIQUE INDEX idx_mv_volume_trend_pk
   ON mv_volume_trend (cpv_sector, COALESCE(region, ''), month);
 
 -- ─── 4. Competition HHI ─────────────────────────────────────────────────────
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_competition_hhi AS
+CREATE MATERIALIZED VIEW mv_competition_hhi AS
 SELECT
   cpv_sector,
   COUNT(DISTINCT winner_name)::int AS unique_winners,
@@ -79,12 +93,12 @@ FROM (
 ) sub
 GROUP BY cpv_sector;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_competition_hhi_pk
+CREATE UNIQUE INDEX idx_mv_competition_hhi_pk
   ON mv_competition_hhi (cpv_sector);
 
 -- ─── 5. Renewal Candidates ──────────────────────────────────────────────────
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_renewal_candidates AS
+CREATE MATERIALIZED VIEW mv_renewal_candidates AS
 SELECT
   id,
   title,
@@ -102,12 +116,12 @@ WHERE notification_date IS NOT NULL
   AND winner_name IS NOT NULL AND winner_name != ''
   AND buyer_name IS NOT NULL AND buyer_name != '';
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_renewal_candidates_pk
+CREATE UNIQUE INDEX idx_mv_renewal_candidates_pk
   ON mv_renewal_candidates (id);
 
 -- ─── 6. Winner Profiles ─────────────────────────────────────────────────────
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_winner_profiles AS
+CREATE MATERIALIZED VIEW mv_winner_profiles AS
 SELECT
   winner_name,
   winner_siret,
@@ -120,7 +134,7 @@ FROM decp_attributions
 WHERE winner_name IS NOT NULL AND winner_name != ''
 GROUP BY winner_name, winner_siret;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_winner_profiles_pk
+CREATE UNIQUE INDEX idx_mv_winner_profiles_pk
   ON mv_winner_profiles (winner_name, COALESCE(winner_siret, ''));
 
 -- ─── Refresh Functions (callable via RPC) ───────────────────────────────────
