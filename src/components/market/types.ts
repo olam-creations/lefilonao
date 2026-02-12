@@ -72,6 +72,16 @@ export const CPV_SECTORS = [
   { code: '50', name: 'Maintenance' },
   { code: '34', name: 'Transport' },
   { code: '33', name: 'Médical' },
+  { code: '30', name: 'Machines & Matériel' },
+  { code: '22', name: 'Imprimés' },
+  { code: '55', name: 'Hôtellerie & Restauration' },
+  { code: '90', name: 'Environnement' },
+  { code: '77', name: 'Agriculture & Espaces verts' },
+  { code: '66', name: 'Finance & Assurance' },
+  { code: '60', name: 'Services de transport' },
+  { code: '38', name: 'Instruments & Laboratoire' },
+  { code: '44', name: 'Matériaux de construction' },
+  { code: '39', name: 'Mobilier' },
 ] as const;
 
 export const REGIONS = [

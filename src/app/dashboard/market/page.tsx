@@ -36,6 +36,7 @@ import { MarketStatsSkeleton, RankingChartSkeleton, ChartSkeleton, AttributionsL
 import { RenewalAlertsSkeleton } from '@/components/market/RenewalAlerts';
 import { RegionalHeatmapSkeleton } from '@/components/market/RegionalHeatmap';
 import IntelDashboard from '@/components/intel/IntelDashboard';
+import KnowledgeGraphViz from '@/components/market/KnowledgeGraphViz';
 
 interface MarketData {
   insights: MarketInsight | null;
@@ -340,7 +341,17 @@ export default function MarketPage() {
               />
             </div>
 
-            {/* Section 7: Competitive Intelligence */}
+            {/* Section 7: Knowledge Graph (Pro) */}
+            {isPro && (
+              <KnowledgeGraphViz
+                onEntityClick={(name, type) => {
+                  if (type === 'buyer') handleBuyerClick(name);
+                  else handleWinnerClick(name);
+                }}
+              />
+            )}
+
+            {/* Section 8: Competitive Intelligence */}
             <IntelDashboard
               cpv={selectedSector}
               region={profile?.regions?.[0]}

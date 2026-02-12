@@ -1,8 +1,9 @@
 'use client';
 
-import { ExternalLink, FileDown, Building2, Hash, MapPin, Calendar, Package, Tag, Euro } from 'lucide-react';
+import { ExternalLink, FileDown, Building2, Hash, MapPin, Calendar, Package, Tag, Euro, Clock, User, Mail, Phone, Scale, Layers, FileCheck } from 'lucide-react';
 import { formatDate } from '@/lib/ao-utils';
 import type { BoampNoticeData } from '@/lib/notice-transform';
+import type { BoampEnrichedData } from '@/lib/boamp-enrichment';
 
 export interface BoampLot {
   lot_number: number;
@@ -15,6 +16,7 @@ export interface BoampLot {
 interface AoNoticeDetailsProps {
   notice: BoampNoticeData;
   lots?: BoampLot[];
+  enriched?: BoampEnrichedData | null;
 }
 
 function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'green' | 'red' }) {
@@ -69,20 +71,49 @@ function LotCard({ lot }: { lot: BoampLot }) {
   );
 }
 
-export default function AoNoticeDetails({ notice, lots = [] }: AoNoticeDetailsProps) {
+export default function AoNoticeDetails({ notice, lots = [], enriched }: AoNoticeDetailsProps) {
   const boampUrl = `https://www.boamp.fr/avis/detail/${notice.id}`;
   const hasDceUrl = notice.dce_url && !notice.dce_url.includes('boamp.fr');
+
+  const natureLabel = enriched?.nature_libelle ?? notice.nature;
+  const procedureLabel = enriched?.procedure_libelle ?? notice.procedure_type;
+  const allCpvCodes = notice.all_cpv_codes ?? [];
+  const cpvLabel = notice.cpv_code
+    ? `${notice.cpv_code}${allCpvCodes.length > 1 ? ` — ${allCpvCodes.join(', ')}` : enriched?.descripteur_libelle?.length ? ` — ${enriched.descripteur_libelle.join(', ')}` : notice.cpv_sector ? ` — ${notice.cpv_sector}` : ''}`
+    : null;
+
+  // Prefer notice-level fields (stored by worker), fall back to enriched (from donnees/API)
+  const typeMarche = notice.type_marche ? [notice.type_marche] : enriched?.type_marche ?? [];
+  const contactEmail = notice.contact_email ?? enriched?.contact_email;
+  const contactPhone = notice.contact_phone ?? enriched?.contact_phone;
+  const contactName = notice.contact_name ?? enriched?.contact_name;
+  const durationMonths = notice.duration_months ?? enriched?.duration_months;
+  const criteria = notice.criteria ?? enriched?.criteria;
+  const buyerCity = notice.buyer_city ?? enriched?.buyer_city;
+  const buyerPostalCode = notice.buyer_postal_code ?? enriched?.buyer_postal_code;
+  const isAlloti = notice.is_alloti ?? enriched?.is_alloti;
+  const variantes = notice.variantes_autorisees ?? enriched?.variantes_autorisees;
+  const cautionnement = notice.cautionnement ?? enriched?.cautionnement;
+  const modalitesPaiement = notice.modalites_paiement ?? enriched?.modalites_paiement;
+  const formeJuridique = notice.forme_juridique ?? enriched?.forme_juridique;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
       <h2 className="text-sm font-semibold text-slate-900 mb-4">Informations du marche</h2>
 
       <div className="flex flex-wrap gap-2 mb-5">
-        {notice.nature && <Badge>{notice.nature}</Badge>}
-        {notice.procedure_type && <Badge>{notice.procedure_type}</Badge>}
+        {natureLabel && <Badge>{natureLabel}</Badge>}
+        {procedureLabel && <Badge>{procedureLabel}</Badge>}
+        {typeMarche.map((t) => (
+          <Badge key={t}>{t}</Badge>
+        ))}
         <Badge variant={notice.is_open ? 'green' : 'red'}>
           {notice.is_open ? 'Ouvert' : 'Clos'}
         </Badge>
+        {isAlloti != null && (
+          <Badge>{isAlloti ? 'Alloti' : 'Non alloti'}</Badge>
+        )}
+        {variantes && <Badge variant="green">Variantes autorisees</Badge>}
       </div>
 
       {notice.description && (
@@ -112,8 +143,8 @@ export default function AoNoticeDetails({ notice, lots = [] }: AoNoticeDetailsPr
             }
           />
         )}
-        {notice.cpv_code && (
-          <InfoRow icon={Tag} label="CPV" value={`${notice.cpv_code}${notice.cpv_sector ? ` — ${notice.cpv_sector}` : ''}`} />
+        {cpvLabel && (
+          <InfoRow icon={Tag} label="CPV" value={cpvLabel} />
         )}
         {notice.estimated_amount && notice.estimated_amount > 0 && (
           <InfoRow icon={Euro} label="Montant" value={formatEuro(notice.estimated_amount)} />
@@ -124,9 +155,58 @@ export default function AoNoticeDetails({ notice, lots = [] }: AoNoticeDetailsPr
         {notice.departement && (
           <InfoRow icon={MapPin} label="Departement" value={notice.departement} />
         )}
+        {(buyerCity || buyerPostalCode) && (
+          <InfoRow
+            icon={MapPin}
+            label="Localite"
+            value={[buyerCity, buyerPostalCode].filter(Boolean).join(' ')}
+          />
+        )}
+        {durationMonths && (
+          <InfoRow icon={Clock} label="Duree" value={`${durationMonths} mois`} />
+        )}
+        {contactName && (
+          <InfoRow icon={User} label="Contact" value={contactName} />
+        )}
+        {formeJuridique && (
+          <InfoRow icon={Layers} label="Forme juridique" value={formeJuridique} />
+        )}
+        {cautionnement && (
+          <InfoRow icon={FileCheck} label="Cautionnement" value={cautionnement} />
+        )}
+        {modalitesPaiement && (
+          <InfoRow icon={Euro} label="Paiement" value={modalitesPaiement} />
+        )}
+        {contactEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) && (
+          <InfoRow
+            icon={Mail}
+            label="Email"
+            value={
+              <a href={`mailto:${contactEmail}`} className="text-indigo-600 hover:text-indigo-700 underline underline-offset-2">
+                {contactEmail}
+              </a>
+            }
+          />
+        )}
+        {contactPhone && (
+          <InfoRow icon={Phone} label="Telephone" value={contactPhone} />
+        )}
         <InfoRow icon={Calendar} label="Publie le" value={formatDate(notice.publication_date)} />
         <InfoRow icon={Calendar} label="Limite" value={formatDate(notice.deadline)} />
       </div>
+
+      {/* Criteria */}
+      {criteria && (
+        <div className="mt-5 pt-4 border-t border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+            <Scale className="w-4 h-4 text-slate-400" />
+            Criteres d&apos;attribution
+          </h3>
+          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+            {criteria}
+          </p>
+        </div>
+      )}
 
       {/* Individual lots */}
       {lots.length > 0 && (

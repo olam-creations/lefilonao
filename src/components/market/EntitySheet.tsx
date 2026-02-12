@@ -6,6 +6,7 @@ import { X, Landmark, Trophy, TrendingUp, MapPin, FileText, ShieldCheck } from '
 import type { BuyerProfile, WinnerProfile, RankedEntity, EntityTrend, FinancialData } from './types';
 import WatchButton from '@/components/dashboard/watchlist/WatchButton';
 import FinancialHealthBadge from './FinancialHealthBadge';
+import BuyerIntelCard from '@/components/intel/BuyerIntelCard';
 import { formatAmount, formatDate, formatCompactNumber } from './utils';
 
 interface EntitySheetProps {
@@ -233,6 +234,8 @@ function BuyerContent({ data }: { data: BuyerProfile }) {
         financials={data.financials}
         procedures={data.proceduresCollectives}
       />
+
+      <BuyerIntelCard data={data} />
 
       {data.topWinners.length > 0 && (
         <div>

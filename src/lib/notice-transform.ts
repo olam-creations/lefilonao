@@ -20,6 +20,22 @@ export interface BoampNoticeData {
   description: string | null;
   source: string | null;
   is_open: boolean;
+  type_marche: string | null;
+  all_cpv_codes: string[] | null;
+  all_departements: string[] | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  duration_months: number | null;
+  criteria: string | null;
+  buyer_city: string | null;
+  buyer_postal_code: string | null;
+  contact_name: string | null;
+  is_alloti: boolean | null;
+  variantes_autorisees: boolean | null;
+  cautionnement: string | null;
+  modalites_paiement: string | null;
+  forme_juridique: string | null;
+  date_envoi_publication: string | null;
 }
 
 type BoampNotice = BoampNoticeData;
