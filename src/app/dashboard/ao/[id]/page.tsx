@@ -1,170 +1,51 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
-import { useUserSettings } from '@/hooks/useUserSettings';
 import TopBar from '@/components/dashboard/TopBar';
-import { isDevMode, MOCK_RFPS, MOCK_AO_DETAILS, type AoDetail, type CompanyProfile, type AoUploadedFile } from '@/lib/dev';
-import { daysUntil, computeProgress } from '@/lib/ao-utils';
-import { getWorkspaceState, saveWorkspaceState, getDceAnalysis } from '@/lib/ao-storage';
-import type { WorkspaceState } from '@/lib/ao-utils';
-import { getCompanyProfile } from '@/lib/profile-storage';
-import { uploadFile } from '@/lib/file-storage';
-import AoHeroHeader from '@/components/ao/AoHeroHeader';
-import AoNoticeDetails, { type BoampLot } from '@/components/ao/AoNoticeDetails';
-import type { BoampNoticeData } from '@/lib/notice-transform';
-import type { BoampEnrichedData } from '@/lib/boamp-enrichment';
-import AoTabBar, { type AoTab } from '@/components/ao/AoTabBar';
-import AoSidebar from '@/components/ao/AoSidebar';
-import TabEssentiel from '@/components/ao/TabEssentiel';
-import TabAnalyse from '@/components/ao/TabAnalyse';
-import TabReponse from '@/components/ao/TabReponse';
-import TabMarche from '@/components/ao/TabMarche';
-import WorkspaceLayout from '@/components/ao/workspace/WorkspaceLayout';
-import WorkspaceLeftPane from '@/components/ao/workspace/WorkspaceLeftPane';
-import WorkspaceRightPane from '@/components/ao/workspace/WorkspaceRightPane';
+import { useAoDossier } from '@/hooks/useAoDossier';
+import AoDossierHero from '@/components/ao/dossier/AoDossierHero';
+import AoDossierNav from '@/components/ao/dossier/AoDossierNav';
+import AoDossierSidebar from '@/components/ao/dossier/AoDossierSidebar';
+import SectionSynthese from '@/components/ao/dossier/SectionSynthese';
+import DceDocumentHub from '@/components/ao/DceDocumentHub';
+
+// Lazy-load heavier sections
+const SectionReponse = lazy(() => import('@/components/ao/dossier/SectionReponse'));
+const SectionDce = lazy(() => import('@/components/ao/dossier/SectionDce'));
+const SectionIntel = lazy(() => import('@/components/ao/dossier/SectionIntel'));
+const SectionMarche = lazy(() => import('@/components/ao/dossier/SectionMarche'));
+const SectionLots = lazy(() => import('@/components/ao/dossier/SectionLots'));
+
+function SectionSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      <div className="skeleton h-6 w-48 rounded" />
+      <div className="skeleton h-48 rounded-2xl" />
+    </div>
+  );
+}
 
 export default function AoDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const [rfp, setRfp] = useState<typeof MOCK_RFPS[0] | null>(null);
-  const [notice, setNotice] = useState<BoampNoticeData | null>(null);
-  const [lots, setLots] = useState<BoampLot[]>([]);
-  const [detail, setDetail] = useState<AoDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [workspace, setWorkspace] = useState<WorkspaceState>({ decisionMade: false, documentsReady: {}, sectionsReviewed: {}, aoFiles: [] });
-  const [activeTab, setActiveTab] = useState<AoTab>('essentiel');
-  const [profile, setProfile] = useState<CompanyProfile | null>(null);
-  const [enriched, setEnriched] = useState<BoampEnrichedData | null>(null);
-  const [activeCriterion, setActiveCriterion] = useState<string | null>(null);
-  const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
 
-  const { settings } = useUserSettings();
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const res = await fetch(`/api/opportunities/${encodeURIComponent(id)}`);
-        if (res.ok) {
-          const json = await res.json();
-          setRfp(json.rfp);
-          if (json.notice) setNotice(json.notice);
-          if (json.lots) setLots(json.lots);
-          // DB-sourced enrichment (from boamp_donnees + notice columns)
-          if (json.enriched) {
-            setEnriched(json.enriched);
-          } else {
-            // Fallback: fetch from external BOAMP API for old notices without boamp_donnees
-            try {
-              const boampRes = await fetch(`/api/boamp/${encodeURIComponent(id)}`);
-              if (boampRes.ok) {
-                const boampJson = await boampRes.json();
-                if (boampJson.enriched) setEnriched(boampJson.enriched);
-              }
-            } catch { /* enrichment is best-effort — non-critical */ }
-          }
-          // Load locally-stored analysis if available
-          const savedDce = getDceAnalysis(id);
-          if (savedDce) {
-            setDetail(savedDce);
-          }
-          setWorkspace(getWorkspaceState(id));
-          setProfile(getCompanyProfile());
-          setLoading(false);
-          return;
-        }
-      } catch {
-        // Fall through to dev mode
-      }
-
-      // Dev mode fallback
-      if (isDevMode()) {
-        const savedDce = getDceAnalysis(id);
-        if (savedDce) {
-          setDetail(savedDce);
-          setRfp(MOCK_RFPS.find((r) => r.id === id) || null);
-        } else {
-          setRfp(MOCK_RFPS.find((r) => r.id === id) || null);
-          setDetail(MOCK_AO_DETAILS[id] || null);
-        }
-      }
-
-      setWorkspace(getWorkspaceState(id));
-      setProfile(getCompanyProfile());
-      setLoading(false);
-    };
-
-    loadData();
-  }, [id]);
-
-  const updateWorkspace = useCallback((updater: (prev: WorkspaceState) => WorkspaceState) => {
-    setWorkspace((prev) => {
-      const next = updater(prev);
-      saveWorkspaceState(id, next);
-      return next;
-    });
-  }, [id]);
-
-  const handleToggleDoc = useCallback((docName: string) => {
-    updateWorkspace((prev) => ({
-      ...prev,
-      documentsReady: { ...prev.documentsReady, [docName]: !prev.documentsReady[docName] },
-    }));
-  }, [updateWorkspace]);
-
-  const handleToggleSection = useCallback((sectionId: string) => {
-    updateWorkspace((prev) => ({
-      ...prev,
-      sectionsReviewed: { ...prev.sectionsReviewed, [sectionId]: !prev.sectionsReviewed[sectionId] },
-    }));
-  }, [updateWorkspace]);
-
-  const handleCriterionClick = useCallback((criterionName: string) => {
-    setActiveCriterion(criterionName);
-    if (!detail) return;
-    const lower = criterionName.toLowerCase();
-    const match = detail.technicalPlanSections.find((s) =>
-      s.title.toLowerCase().includes(lower) || lower.includes(s.title.toLowerCase().split(' ')[0])
-    );
-    if (match) {
-      setHighlightedSectionId(match.id);
-      const el = document.querySelector(`[data-section-id="${match.id}"]`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => setHighlightedSectionId(null), 2500);
-    }
-  }, [detail]);
-
-  const handleAoFileUpload = useCallback(async (documentName: string, file: File) => {
-    const result = await uploadFile(file, 'ao-specific');
-    const aoFile: AoUploadedFile = {
-      id: result.id,
-      documentName,
-      fileName: result.fileName,
-      fileSize: result.fileSize,
-      mimeType: result.mimeType,
-      uploadedAt: result.uploadedAt,
-    };
-    updateWorkspace((prev) => ({
-      ...prev,
-      aoFiles: [...(prev.aoFiles ?? []), aoFile],
-      documentsReady: { ...prev.documentsReady, [documentName]: true },
-    }));
-  }, [updateWorkspace]);
-
-  const handleAoFileDelete = useCallback((fileId: string) => {
-    updateWorkspace((prev) => ({
-      ...prev,
-      aoFiles: (prev.aoFiles ?? []).filter((f) => f.id !== fileId),
-    }));
-  }, [updateWorkspace]);
+  const {
+    rfp, notice, lots, enriched,
+    analysis, loading, hasAnalysis,
+    daysLeft, progress, workspace, profile,
+    amendments,
+    handleToggleDoc, handleToggleSection,
+    handleAoFileUpload, handleAoFileDelete,
+  } = useAoDossier(id);
 
   if (loading) {
     return (
       <div className="animate-fade-in">
-        <TopBar title="Analyse AO" backHref="/dashboard" />
-        <div className="max-w-7xl mx-auto py-10 space-y-4">
+        <TopBar title="Dossier d'investigation" backHref="/dashboard" />
+        <div className="max-w-7xl mx-auto px-4 py-10 space-y-4">
           <div className="skeleton w-3/4 h-8 rounded" />
           <div className="skeleton w-1/2 h-5 rounded" />
           <div className="skeleton h-48 rounded-2xl" />
@@ -177,136 +58,116 @@ export default function AoDetailPage() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-slate-500 text-lg mb-4">Appel d&apos;offres non trouvé</p>
+          <p className="text-slate-500 text-lg mb-4">Appel d&apos;offres non trouve</p>
           <Link href="/dashboard" className="btn-primary text-sm py-2 px-4">Retour au dashboard</Link>
         </div>
       </div>
     );
   }
 
-  const hasAnalysis = !!(detail && profile);
-  const daysLeft = daysUntil(rfp.deadline);
-  const progress = hasAnalysis
-    ? computeProgress(workspace, detail.requiredDocumentsDetailed.length, detail.technicalPlanSections.length)
-    : 0;
+  const typeMarche = notice?.type_marche ? [notice.type_marche] : enriched?.type_marche;
 
   return (
     <div className="animate-fade-in pb-20 lg:pb-0">
       <TopBar
-        title="Détail Appel d'offres"
+        title="Dossier d'investigation"
         backHref="/dashboard"
         rightSlot={
           <a href={rfp.url} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm py-2 px-4 shadow-sm">
-            <ExternalLink className="w-3.5 h-3.5" /> BOAMP
+            <ExternalLink className="w-3.5 h-3.5" /> Source
           </a>
         }
       />
 
-      <div className="max-w-7xl mx-auto py-10">
-        <div className="flex gap-6">
-          {/* Main content */}
-          <div className="flex-1 min-w-0 space-y-6">
-            <AoHeroHeader
-              title={rfp.title}
-              issuer={rfp.issuer}
-              budget={rfp.budget}
-              deadline={rfp.deadline}
-              region={rfp.region}
-              score={rfp.score}
-              scoreLabel={rfp.scoreLabel}
-              recommendation={detail?.recommendation ?? null}
-              typeMarche={notice?.type_marche ? [notice.type_marche] : enriched?.type_marche}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Hero */}
+        <AoDossierHero
+          title={rfp.title}
+          issuer={rfp.issuer}
+          budget={rfp.budget}
+          deadline={rfp.deadline}
+          region={rfp.region}
+          score={rfp.score}
+          scoreLabel={rfp.scoreLabel}
+          recommendation={analysis?.recommendation ?? null}
+          publishedAt={rfp.publishedAt}
+          typeMarche={typeMarche}
+          hasAnalysis={hasAnalysis}
+        />
+
+        {/* Sticky Nav */}
+        <div className="mt-6">
+          <AoDossierNav />
+        </div>
+
+        {/* Main layout: content + sidebar */}
+        <div className="flex gap-6 mt-6">
+          {/* Main scrollable content */}
+          <div className="flex-1 min-w-0 space-y-10">
+            {/* Synthese — always visible */}
+            <SectionSynthese
+              notice={notice}
+              lots={lots}
+              enriched={enriched}
+              analysis={analysis}
+              hasAnalysis={hasAnalysis}
             />
 
-            {notice && <AoNoticeDetails notice={notice} lots={lots} enriched={enriched} />}
+            {/* DCE Hub — always visible when DCE URL exists */}
+            <section id="section-dce" className="scroll-mt-16">
+              <h2 className="text-lg font-bold text-slate-900 mb-4">Documents du DCE</h2>
+              <DceDocumentHub noticeId={id} dceUrl={notice?.dce_url} />
+              <Suspense fallback={<SectionSkeleton />}>
+                <SectionDce noticeId={id} dceUrl={notice?.dce_url} analysis={analysis} />
+              </Suspense>
+            </section>
 
-            {/* Analysis tabs — shown when locally-stored analysis exists */}
-            {hasAnalysis && (
-              <>
-                <AoTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+            {/* Intel — lazy loaded */}
+            <Suspense fallback={<SectionSkeleton />}>
+              <SectionIntel
+                buyerName={notice?.buyer_name ?? rfp.issuer}
+                buyerSiret={notice?.buyer_siret ?? null}
+                cpvCode={notice?.cpv_code ?? null}
+                region={rfp.region ?? null}
+                amount={notice?.estimated_amount ?? null}
+              />
+            </Suspense>
 
-                {activeTab === 'essentiel' && (
-                  <TabEssentiel
-                    aiSummary={detail.aiSummary}
-                    selectionCriteria={detail.selectionCriteria}
-                    vigilancePoints={detail.vigilancePoints}
-                    complianceChecklist={detail.complianceChecklist}
-                    cpv={settings?.default_cpv?.[0]}
-                    region={rfp.region ?? undefined}
-                    budget={rfp.budget ? parseInt(rfp.budget.replace(/[^0-9]/g, ''), 10) || undefined : undefined}
-                  />
-                )}
+            {/* Marche — lazy loaded */}
+            <Suspense fallback={<SectionSkeleton />}>
+              <SectionMarche
+                buyerName={notice?.buyer_name ?? rfp.issuer}
+                cpvCode={notice?.cpv_code ?? null}
+                region={rfp.region ?? null}
+                publishedAt={rfp.publishedAt}
+                deadline={rfp.deadline}
+                buyerHistory={analysis?.buyerHistory ?? []}
+                competitors={analysis?.competitors ?? []}
+              />
+            </Suspense>
 
-                {activeTab === 'analyse' && (
-                  <TabAnalyse
-                    criteria={detail.scoreCriteria}
-                    recommendation={detail.recommendation}
-                    executiveSummary={detail.executiveSummary}
-                  />
-                )}
+            {/* Reponse — only when analysis available */}
+            {hasAnalysis && analysis && profile && (
+              <Suspense fallback={<SectionSkeleton />}>
+                <SectionReponse
+                  analysis={analysis}
+                  profile={profile}
+                  workspace={workspace}
+                  rfp={{ title: rfp.title, issuer: rfp.issuer, deadline: rfp.deadline, budget: rfp.budget }}
+                  aoId={id}
+                  onToggleDoc={handleToggleDoc}
+                  onToggleSection={handleToggleSection}
+                  onAoFileUpload={handleAoFileUpload}
+                  onAoFileDelete={handleAoFileDelete}
+                />
+              </Suspense>
+            )}
 
-                {activeTab === 'reponse' && (
-                  <TabReponse
-                    documents={detail.requiredDocumentsDetailed}
-                    documentsReady={workspace.documentsReady}
-                    onToggleDoc={handleToggleDoc}
-                    profileDocuments={profile.documents}
-                    sections={detail.technicalPlanSections}
-                    sectionsReviewed={workspace.sectionsReviewed}
-                    onToggleSection={handleToggleSection}
-                    profile={profile}
-                    rfp={{ title: rfp.title, issuer: rfp.issuer, deadline: rfp.deadline, budget: rfp.budget }}
-                    workspace={workspace}
-                    onAoFileUpload={handleAoFileUpload}
-                    aoFiles={workspace.aoFiles ?? []}
-                    onAoFileDelete={handleAoFileDelete}
-                    dceContext={detail.aiSummary}
-                    selectionCriteria={detail.selectionCriteria}
-                    aoId={id}
-                    prefilledCoachData={null}
-                  />
-                )}
-
-                {activeTab === 'marche' && (
-                  <TabMarche
-                    buyerHistory={detail.buyerHistory}
-                    competitors={detail.competitors}
-                    publishedAt={rfp.publishedAt}
-                    deadline={rfp.deadline}
-                  />
-                )}
-
-                {activeTab === 'workspace' && (
-                  <WorkspaceLayout
-                    leftPane={
-                      <WorkspaceLeftPane
-                        aiSummary={detail.aiSummary}
-                        selectionCriteria={detail.selectionCriteria}
-                        vigilancePoints={detail.vigilancePoints}
-                        complianceChecklist={detail.complianceChecklist}
-                        scoreCriteria={detail.scoreCriteria}
-                        recommendation={detail.recommendation}
-                        executiveSummary={detail.executiveSummary}
-                        onCriterionClick={handleCriterionClick}
-                        activeCriterion={activeCriterion}
-                      />
-                    }
-                    rightPane={
-                      <WorkspaceRightPane
-                        sections={detail.technicalPlanSections}
-                        reviewed={workspace.sectionsReviewed}
-                        onToggleReviewed={handleToggleSection}
-                        profile={profile}
-                        dceContext={detail.aiSummary}
-                        selectionCriteria={detail.selectionCriteria}
-                        aoId={id}
-                        prefilledCoachData={null}
-                        highlightedSectionId={highlightedSectionId}
-                      />
-                    }
-                  />
-                )}
-              </>
+            {/* Lots */}
+            {lots.length > 0 && (
+              <Suspense fallback={<SectionSkeleton />}>
+                <SectionLots lots={lots} noticeId={id} />
+              </Suspense>
             )}
 
             {/* Footer */}
@@ -323,18 +184,17 @@ export default function AoDetailPage() {
             </div>
           </div>
 
-          {/* Sidebar — show when analysis available (desktop only) */}
-          {hasAnalysis && (
-            <div className="hidden lg:block">
-            <AoSidebar
-              daysLeft={daysLeft}
-              score={rfp.score}
-              scoreLabel={rfp.scoreLabel}
-              sourceUrl={rfp.url}
-              progress={progress}
-            />
-            </div>
-          )}
+          {/* Sidebar */}
+          <AoDossierSidebar
+            daysLeft={daysLeft}
+            score={rfp.score}
+            scoreLabel={rfp.scoreLabel}
+            recommendation={analysis?.recommendation ?? null}
+            sourceUrl={rfp.url}
+            progress={progress}
+            hasAnalysis={hasAnalysis}
+            amendments={amendments}
+          />
         </div>
       </div>
     </div>
