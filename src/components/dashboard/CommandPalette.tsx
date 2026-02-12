@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 
 const QUICK_LINKS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, category: 'Navigation' },
-  { href: '/dashboard/opportunities', label: 'Appels d\'offres', icon: Target, category: 'Navigation' },
+  { href: '/appels-doffres', label: 'Appels d\'offres', icon: Target, category: 'Navigation' },
   { href: '/dashboard/alerts', label: 'Alertes', icon: Bell, category: 'Navigation' },
   { href: '/dashboard/watchlist', label: 'Watchlist', icon: Bookmark, category: 'Navigation' },
   { href: '/dashboard/market', label: 'Intelligence Marché', icon: BarChart3, category: 'Navigation' },

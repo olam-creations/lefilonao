@@ -92,7 +92,7 @@ export default function QuickActionsBar({ rfps, profile, profileCompleteness }: 
     >
       {/* New AO button */}
       <Link
-        href="/dashboard/opportunities"
+        href="/appels-doffres"
         className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-indigo-700 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors"
       >
         <Plus className="w-3.5 h-3.5" /> Nouvel AO

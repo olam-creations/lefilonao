@@ -12,7 +12,7 @@ const GATE_PUBLIC = [
   '/mentions-legales', '/politique-confidentialite', '/cgu', '/cgv',
 ];
 const SKIP_PATHS = ['/_next/', '/favicon.ico', '/favicon.svg', '/robots.txt', '/sitemap.xml', '/icon', '/monitoring'];
-const AUTH_REQUIRED_PREFIXES = ['/dashboard', '/api/ai', '/api/documents', '/api/market', '/api/watchlist', '/api/settings', '/api/alerts', '/api/pipeline', '/api/opportunities', '/api/rfps', '/api/feedback', '/api/ao-views'];
+const AUTH_REQUIRED_PREFIXES = ['/dashboard', '/appels-doffres', '/api/ai', '/api/documents', '/api/market', '/api/watchlist', '/api/settings', '/api/alerts', '/api/pipeline', '/api/opportunities', '/api/rfps', '/api/feedback', '/api/ao-views'];
 // Routes that handle their own auth (Bearer token, cron secret) — exempt from session cookie check
 const AUTH_SELF_MANAGED = ['/api/ai/batch-analyze'];
 
@@ -40,6 +40,13 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ─── Redirects for moved pages ───
+  if (pathname === '/dashboard/opportunities' || pathname.startsWith('/dashboard/opportunities/')) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace('/dashboard/opportunities', '/appels-doffres');
+    return NextResponse.redirect(url, 301);
+  }
+
   // Generate CSP nonce for this request
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
 
@@ -63,7 +70,7 @@ export default function middleware(request: NextRequest) {
   // ─── Layer 1: Staging gate (separate cookie) ───
   if (process.env.SITE_PASSWORD) {
     const isGatePublic = GATE_PUBLIC.some(p =>
-      p.endsWith('/') ? pathname.startsWith(p) : pathname === p
+      p === '/' ? pathname === '/' : (p.endsWith('/') ? pathname.startsWith(p) : pathname === p)
     );
     if (!isGatePublic) {
       const gateCookie = request.cookies.get(GATE_COOKIE)?.value;

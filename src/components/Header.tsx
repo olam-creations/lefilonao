@@ -26,7 +26,7 @@ const PUBLIC_NAV = [
 
 const DASHBOARD_NAV: { href: string; label: string; page: ActivePage }[] = [
   { href: '/dashboard', label: 'Dashboard', page: 'dashboard' },
-  { href: '/dashboard/opportunities', label: 'Appels d\'offres', page: 'opportunities' },
+  { href: '/appels-doffres', label: 'Appels d\'offres', page: 'opportunities' },
   { href: '/dashboard/alerts', label: 'Alertes', page: 'alerts' },
   { href: '/dashboard/watchlist', label: 'Watchlist', page: 'watchlist' },
   { href: '/dashboard/market', label: 'Marché', page: 'intelligence' },
