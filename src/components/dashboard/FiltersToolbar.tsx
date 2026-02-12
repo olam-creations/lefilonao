@@ -79,7 +79,7 @@ export default function FiltersToolbar({
             <button
               key={btn.key}
               onClick={() => onToggleScore(btn.key)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+              className={`px-3 py-2 sm:py-1.5 text-xs font-medium rounded-lg border transition-all ${
                 scoreLabels.has(btn.key) ? btn.activeCls : `${btn.cls} hover:bg-slate-50`
               }`}
             >
@@ -92,7 +92,7 @@ export default function FiltersToolbar({
         <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={toggleMore}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all sm:hidden lg:inline-flex"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
             Plus de filtres
@@ -112,7 +112,7 @@ export default function FiltersToolbar({
             value={region}
             onChange={(e) => onRegionChange(e.target.value)}
             aria-label="Filtrer par region"
-            className="px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            className="px-3 py-2.5 sm:py-2 text-sm sm:text-xs rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
           >
             <option value="">Toutes les regions</option>
             {regions.map((r) => (
@@ -126,7 +126,7 @@ export default function FiltersToolbar({
               <button
                 key={opt.key}
                 onClick={() => onDeadlineRangeChange(opt.key)}
-                className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${
+                className={`px-2.5 py-2 sm:py-1.5 text-xs font-medium rounded-md transition-all ${
                   deadlineRange === opt.key
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
@@ -142,7 +142,7 @@ export default function FiltersToolbar({
             value={sort}
             onChange={(e) => onSortChange(e.target.value as SortKey)}
             aria-label="Trier les resultats"
-            className="px-3 py-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            className="px-3 py-2.5 sm:py-2 text-sm sm:text-xs rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.key} value={opt.key}>{opt.label}</option>

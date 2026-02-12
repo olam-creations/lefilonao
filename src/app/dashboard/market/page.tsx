@@ -263,11 +263,11 @@ export default function MarketPage() {
         ) : (
           <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-10">
             {/* Section 1: Cockpit & Ranking */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div className="xl:col-span-2 min-w-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="md:col-span-2 xl:col-span-2 min-w-0">
                 <MarketStatCards insights={data.insights!} />
               </div>
-              <div className="xl:col-span-1 min-w-0 h-full">
+              <div className="md:col-span-2 xl:col-span-1 min-w-0 h-full">
                 <MyPositioning profile={profile} insights={data.insights} regionalData={data.regional} />
               </div>
             </div>

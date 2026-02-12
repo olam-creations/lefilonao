@@ -15,6 +15,7 @@ import { uploadFile } from '@/lib/file-storage';
 import AoHeroHeader from '@/components/ao/AoHeroHeader';
 import AoNoticeDetails, { type BoampLot } from '@/components/ao/AoNoticeDetails';
 import type { BoampNoticeData } from '@/lib/notice-transform';
+import type { BoampEnrichedData } from '@/lib/boamp-enrichment';
 import AoTabBar, { type AoTab } from '@/components/ao/AoTabBar';
 import AoSidebar from '@/components/ao/AoSidebar';
 import TabEssentiel from '@/components/ao/TabEssentiel';
@@ -36,6 +37,7 @@ export default function AoDetailPage() {
   const [workspace, setWorkspace] = useState<WorkspaceState>({ decisionMade: false, documentsReady: {}, sectionsReviewed: {}, aoFiles: [] });
   const [activeTab, setActiveTab] = useState<AoTab>('essentiel');
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [enriched, setEnriched] = useState<BoampEnrichedData | null>(null);
   const [activeCriterion, setActiveCriterion] = useState<string | null>(null);
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
 
@@ -50,6 +52,19 @@ export default function AoDetailPage() {
           setRfp(json.rfp);
           if (json.notice) setNotice(json.notice);
           if (json.lots) setLots(json.lots);
+          // DB-sourced enrichment (from boamp_donnees + notice columns)
+          if (json.enriched) {
+            setEnriched(json.enriched);
+          } else {
+            // Fallback: fetch from external BOAMP API for old notices without boamp_donnees
+            try {
+              const boampRes = await fetch(`/api/boamp/${encodeURIComponent(id)}`);
+              if (boampRes.ok) {
+                const boampJson = await boampRes.json();
+                if (boampJson.enriched) setEnriched(boampJson.enriched);
+              }
+            } catch { /* enrichment is best-effort — non-critical */ }
+          }
           // Load locally-stored analysis if available
           const savedDce = getDceAnalysis(id);
           if (savedDce) {
@@ -200,9 +215,10 @@ export default function AoDetailPage() {
               score={rfp.score}
               scoreLabel={rfp.scoreLabel}
               recommendation={detail?.recommendation ?? null}
+              typeMarche={notice?.type_marche ? [notice.type_marche] : enriched?.type_marche}
             />
 
-            {notice && <AoNoticeDetails notice={notice} lots={lots} />}
+            {notice && <AoNoticeDetails notice={notice} lots={lots} enriched={enriched} />}
 
             {/* Analysis tabs — shown when locally-stored analysis exists */}
             {hasAnalysis && (
@@ -307,8 +323,9 @@ export default function AoDetailPage() {
             </div>
           </div>
 
-          {/* Sidebar — show when analysis available */}
+          {/* Sidebar — show when analysis available (desktop only) */}
           {hasAnalysis && (
+            <div className="hidden lg:block">
             <AoSidebar
               daysLeft={daysLeft}
               score={rfp.score}
@@ -316,6 +333,7 @@ export default function AoDetailPage() {
               sourceUrl={rfp.url}
               progress={progress}
             />
+            </div>
           )}
         </div>
       </div>
